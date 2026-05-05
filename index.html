@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app-container">
@@ -26,6 +26,10 @@
             <nav>
                 <a href="#" class="nav-item active" data-section="overview" id="nav-overview">
                     <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
+                </a>
+                <a href="#" class="nav-item" data-section="warnings" id="nav-warnings">
+                    <i class="fa-solid fa-bell"></i><span>Hệ Thống Cảnh Báo</span>
+                    <span class="nav-badge danger" id="nav-warnings-count">--</span>
                 </a>
                 <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
                     <i class="fa-solid fa-check-double"></i><span>GTC & Năng Suất</span>
@@ -237,6 +241,61 @@
                         <div class="table-scroll" style="max-height:220px">
                             <div id="personnel-by-tenure"></div>
                         </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->
+            <section class="section" id="section-warnings">
+                <!-- KPI CARDS FOR WARNINGS -->
+                <div class="overview-cards">
+                    <div class="stat-card red-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Nghiêm Trọng</h3>
+                            <h2 id="warn-critical-count" class="text-danger">--</h2>
+                            <p class="stat-sub">Cần xử lý tức thì</p>
+                        </div>
+                    </div>
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Cảnh Báo</h3>
+                            <h2 id="warn-warning-count" class="text-warning">--</h2>
+                            <p class="stat-sub">Cần theo dõi sát</p>
+                        </div>
+                    </div>
+                    <div class="stat-card blue-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="stat-details">
+                            <h3>Ngày Trở Lại Bình Thường</h3>
+                            <h2 id="warn-avg-days" style="color:var(--blue)">--</h2>
+                            <p class="stat-sub">Trung bình toàn vùng</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-card" style="margin-top:18px">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-shield-heart" style="color:var(--green)"></i> Trạng Thái Sức Khỏe Mạng Lưới</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th>Vùng</th>
+                                    <th>Trạng Thái Hiện Tại</th>
+                                    <th>Est Time Clear (H)</th>
+                                    <th>Backlog (Last Mile / KTC)</th>
+                                    <th>Đơn N-1 (Tạo / GTC)</th>
+                                    <th>Số Ngày Về Bình Thường</th>
+                                    <th>Dự Báo Sắp Tới</th>
+                                    <th>Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-warnings"></tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -476,6 +535,6 @@
         </main>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
