@@ -16,8 +16,8 @@ app.add_middleware(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 MOCK_DATA_DIR = BASE_DIR
-FRONTEND_DIR = BASE_DIR
 
 # ---- FILE NAME MAPPING (REAL FILES) ----
 FILES = {
@@ -207,7 +207,7 @@ def get_gtc_by_kho():
     return sorted(result, key=lambda x: x["pct_gtc"])
 
 # ---- SERVE FRONTEND ----
-app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 @app.get("/")
 def read_index():
