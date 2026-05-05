@@ -853,19 +853,22 @@ function renderWarningsSection() {
 
     // KPI Cards
     const critical = data.filter(r => r['Tình hình hiện tại'] === 'Nghiêm trọng');
-    const warning = data.filter(r => r['Tình hình hiện tại'] === 'Cảnh báo');
-    
+    const warning  = data.filter(r => r['Tình hình hiện tại'] === 'Cảnh báo');
+
     const critEl = document.getElementById('warn-critical-count');
     if (critEl) critEl.textContent = critical.length;
-    
+
     const warnEl = document.getElementById('warn-warning-count');
     if (warnEl) warnEl.textContent = warning.length;
 
-    const avgDays = data.reduce((sum, r) => sum + (parseFloat(r['Số ngày trở về ngày thường']) || 0), 0) / (data.length || 1);
+    // Cột N = "Số ngày trở về ngày thường"
+    const ngayKey = 'Số ngày trở về ngày thường';
+    const totalNgay = data.reduce((sum, r) => sum + (parseFloat(r[ngayKey]) || 0), 0);
+    const avgDays = data.length ? totalNgay / data.length : 0;
     const avgDaysEl = document.getElementById('warn-avg-days');
     if (avgDaysEl) avgDaysEl.textContent = avgDays.toFixed(1);
 
-    // Table
+    // Table — hiện tất cả kho, không giới hạn
     const tbody = document.getElementById('tbody-warnings');
     if (tbody) {
         tbody.innerHTML = data.map(r => {
@@ -873,23 +876,29 @@ function renderWarningsSection() {
             let badgeClass = 'storing';
             if (status === 'Cảnh báo') badgeClass = 'waiting';
             if (status === 'Nghiêm trọng') badgeClass = 'p1';
-            
+
             const nextStatus = r['Tình hình sắp tới'] || 'Bình thường';
             let nextBadgeClass = 'storing';
             if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
             if (nextStatus === 'Nghiêm trọng') nextBadgeClass = 'p1';
 
+            // Backlog last mile — thử nhiều tên cột có thể có
+            const backlogLM = r['backlog last mile'] || r['Backlog Last Mile'] || r['backlog_last_mile'] || 0;
+            const backlogKTC = r['backlog ktc'] || r['Backlog KTC'] || r['backlog_ktc'] || 0;
+
+            // Số ngày về bình thường (cột N)
+            const soNgay = parseFloat(r[ngayKey]) || 0;
+
             return `
                 <tr>
-                    <td style="font-weight:600">${shortKho(r['kho gxt'])}</td>
-                    <td>${r['vung'] || '--'}</td>
+                    <td style="font-weight:600">${shortKho(r['kho gxt'] || r['Kho'] || '--')}</td>
                     <td><span class="badge ${badgeClass}">${status}</span></td>
-                    <td style="text-align:right;font-weight:700">${r['Est time clear hàng hiện tại'] || 0}h</td>
-                    <td>${r['backlog last mile'] || 0} / ${r['backlog ktc'] || 0}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--red)">${backlogLM}</td>
+                    <td style="text-align:right">${backlogKTC}</td>
                     <td>${r['đơn tạo N-1'] || 0} / ${r['đơn gtc N-1'] || 0}</td>
                     <td style="text-align:right">
-                        <span class="aging-chip ${r['Số ngày trở về ngày thường'] > 2 ? 'aging-critical' : 'aging-normal'}">
-                            ${r['Số ngày trở về ngày thường'] || 0} ngày
+                        <span class="aging-chip ${soNgay > 2 ? 'aging-critical' : soNgay > 0 ? 'aging-high' : 'aging-normal'}">
+                            ${soNgay} ngày
                         </span>
                     </td>
                     <td><span class="badge ${nextBadgeClass}">${nextStatus}</span></td>

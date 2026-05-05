@@ -122,6 +122,14 @@ def get_gtc_dates():
 def get_warnings():
     return read_csv("warnings")
 
+# ---- DEBUG: xem tên cột thực tế ----
+@app.get("/api/warnings/columns")
+def get_warning_columns():
+    data = read_csv("warnings")
+    if not data:
+        return {"error": "No data", "file": FILES.get("warnings")}
+    return {"columns": list(data[0].keys()), "sample_row": data[0]}
+
 # ---- DASHBOARD OVERVIEW ----
 @app.get("/api/dashboard/overview")
 def get_overview():
