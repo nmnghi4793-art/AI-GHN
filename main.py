@@ -19,6 +19,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 MOCK_DATA_DIR = BASE_DIR
 
+print(f"[STARTUP] BASE_DIR = {BASE_DIR}")
+print(f"[STARTUP] FRONTEND_DIR = {FRONTEND_DIR}")
+print(f"[STARTUP] frontend exists = {os.path.exists(FRONTEND_DIR)}")
+print(f"[STARTUP] Files in BASE_DIR: {os.listdir(BASE_DIR)}")
+
 # ---- FILE NAME MAPPING (REAL FILES) ----
 FILES = {
     "gtc":       "Miền Trung - Data GTC.csv",
@@ -207,11 +212,21 @@ def get_gtc_by_kho():
     return sorted(result, key=lambda x: x["pct_gtc"])
 
 # ---- SERVE FRONTEND ----
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+    print(f"[STARTUP] StaticFiles mounted from {FRONTEND_DIR}")
+else:
+    print(f"[STARTUP] WARNING: frontend/ directory not found at {FRONTEND_DIR}")
 
 @app.get("/")
 def read_index():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"message": "Frontend not found"}
+    return {
+        "message": "Frontend not found",
+        "base_dir": BASE_DIR,
+        "frontend_dir": FRONTEND_DIR,
+        "frontend_exists": os.path.exists(FRONTEND_DIR),
+        "files_in_base": os.listdir(BASE_DIR)
+    }
