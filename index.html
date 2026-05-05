@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHN Miền Trung - Operations Dashboard</title>
+    <meta name="description" content="Hệ thống theo dõi vận hành GHN Miền Trung - GTC, Ontime, Backlog, B2B">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ===== SIDEBAR ===== -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon-wrap"><i class="fa-solid fa-truck-fast"></i></div>
+                <div class="logo-text">
+                    <span class="logo-brand">GHN Ops</span>
+                    <span class="logo-region">Miền Trung</span>
+                </div>
+            </div>
+
+            <nav>
+                <a href="#" class="nav-item active" data-section="overview" id="nav-overview">
+                    <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
+                </a>
+                <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
+                    <i class="fa-solid fa-check-double"></i><span>GTC & Năng Suất</span>
+                </a>
+                <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
+                    <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog > 7 Ngày</span>
+                    <span class="nav-badge danger" id="nav-backlog-count">--</span>
+                </a>
+                <a href="#" class="nav-item" data-section="b2b" id="nav-b2b">
+                    <i class="fa-solid fa-crown"></i><span>B2B & SLA</span>
+                    <span class="nav-badge danger" id="nav-b2b-count">--</span>
+                </a>
+                <a href="#" class="nav-item" data-section="returns" id="nav-returns">
+                    <i class="fa-solid fa-rotate-left"></i><span>Trả Hàng & FD</span>
+                </a>
+                <a href="#" class="nav-item" data-section="personnel" id="nav-personnel">
+                    <i class="fa-solid fa-users"></i><span>Nhân Sự</span>
+                </a>
+                <a href="#" class="nav-item" data-section="nangsuat" id="nav-nangsuat">
+                    <i class="fa-solid fa-motorcycle"></i><span>Năng Suất NV</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="last-updated">
+                    <i class="fa-solid fa-circle" style="color:#0CA678;font-size:8px"></i>
+                    <span id="last-update-time">Đang tải...</span>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar">MT</div>
+                    <div class="user-info">
+                        <span class="user-name">Operations Manager</span>
+                        <span class="user-role">GHN Miền Trung</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===== MAIN ===== -->
+        <main class="main-content">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle" id="sidebar-toggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1 id="page-title">Báo Cáo Tổng Quan</h1>
+                        <p class="subtitle" id="page-subtitle">Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung</p>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <div class="date-badge">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <span id="current-date">--</span>
+                    </div>
+                    <button class="btn btn-outline" id="refresh-btn">
+                        <i class="fa-solid fa-rotate-right"></i> Làm mới
+                    </button>
+                </div>
+            </header>
+
+            <!-- ===== SECTION: TỔNG QUAN ===== -->
+            <section class="section active" id="section-overview">
+
+                <!-- 5 KPI CARDS -->
+                <div class="overview-cards">
+                    <!-- 1. GTC -->
+                    <div class="stat-card green-card">
+                        <div class="stat-icon green"><i class="fa-solid fa-check-double"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng % GTC</h3>
+                            <h2 id="val-gtc" class="text-green">--%</h2>
+                            <p class="stat-sub" id="sub-gtc">Ngày gần nhất</p>
+                        </div>
+                    </div>
+                    <!-- 2. ONTIME -->
+                    <div class="stat-card blue-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div class="stat-details">
+                            <h3>Tỷ lệ Ontime</h3>
+                            <h2 id="val-ontime" style="color:var(--blue)">--%</h2>
+                            <p class="stat-sub">Gán đơn đúng hạn</p>
+                        </div>
+                    </div>
+                    <!-- 3. BACKLOG > 7N -->
+                    <div class="stat-card red-card alert-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-fire"></i></div>
+                        <div class="stat-details">
+                            <h3>Backlog > 7 Ngày</h3>
+                            <h2 id="val-backlog" class="text-danger">--</h2>
+                            <p class="stat-sub text-danger">Cần xử lý ngay</p>
+                        </div>
+                    </div>
+                    <!-- 4. B2B -->
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-crown"></i></div>
+                        <div class="stat-details">
+                            <h3>Đơn B2B Ưu Tiên</h3>
+                            <h2 id="val-b2b" class="text-warning">--</h2>
+                            <p class="stat-sub">Hôm nay & ngày mai</p>
+                        </div>
+                    </div>
+                    <!-- 5. FD TRẢ -->
+                    <div class="stat-card purple-card">
+                        <div class="stat-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
+                        <div class="stat-details">
+                            <h3>Tỷ lệ FD Trả</h3>
+                            <h2 id="val-fd" style="color:var(--purple)">--%</h2>
+                            <p class="stat-sub">Trung bình tất cả kho</p>
+                        </div>
+                    </div>
+                    <!-- 6. NĂNG SUẤT NV -->
+                    <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFE0B2">
+                        <div class="stat-icon" style="background:#FFE0B2;color:#E65100"><i class="fa-solid fa-motorcycle"></i></div>
+                        <div class="stat-details">
+                            <h3>Năng Suất NV</h3>
+                            <h2 id="val-nangsuat" style="color:#E65100">--</h2>
+                            <p class="stat-sub" style="color:#F57C00">Đơn/giờ/nhân viên</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS -->
+                <div class="charts-row">
+                    <!-- GTC Trend Line -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> GTC Theo Ngày - Toàn Mạng Lưới</h3>
+                            <div class="legend-dots">
+                                <span class="dot orange"></span>
+                                <span style="font-size:12px;color:var(--text3)">% GTC trung bình</span>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart-gtc-trend"></canvas>
+                        </div>
+                    </div>
+                    <!-- Returns Pie -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-donut"></i> Lý Do Trả Hàng</h3>
+                        </div>
+                        <div class="chart-container-sm">
+                            <canvas id="chart-returns-pie"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALERT TABLES -->
+                <div class="tables-row">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Đơn Tồn Lâu (Backlog > 7n)</h3>
+                            <a href="#" class="view-all" data-section="backlog">Xem tất cả →</a>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order Code</th>
+                                        <th>Kho</th>
+                                        <th>Aging</th>
+                                        <th>Client Type</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-backlog-overview"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Đơn B2B Cần Xử Lý</h3>
+                            <a href="#" class="view-all" data-section="b2b">Xem tất cả →</a>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order Code</th>
+                                        <th>Kho</th>
+                                        <th>Aging</th>
+                                        <th>Client Type</th>
+                                        <th>Ưu Tiên</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-b2b-overview"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NHÂN SỰ OVERVIEW -->
+                <div class="tables-row" style="margin-top:18px">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-users" style="color:var(--blue)"></i> Nhân Sự Theo Vị Trí</h3>
+                            <a href="#" class="view-all" data-section="personnel">Xem tất cả →</a>
+                        </div>
+                        <div class="table-scroll" style="max-height:220px">
+                            <div id="personnel-by-pos"></div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-hourglass-half" style="color:var(--purple)"></i> Nhân Sự Theo Thâm Niên</h3>
+                        </div>
+                        <div class="table-scroll" style="max-height:220px">
+                            <div id="personnel-by-tenure"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: GTC & NĂNG SUẤT ===== -->
+            <section class="section" id="section-gtc">
+                <div class="section-filters">
+                    <input type="text" id="filter-kho-gtc" placeholder="🔍 Tìm kho..." class="filter-input">
+                </div>
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-ranking-star"></i> GTC Theo Từng Kho (Ngày gần nhất)</h3>
+                    </div>
+                    <div style="position:relative;min-height:200px" id="gtc-by-kho-wrapper">
+                        <canvas id="chart-gtc-by-kho"></canvas>
+                    </div>
+                </div>
+                <!-- GTC BEST/WORST RANKINGS -->
+                <div id="gtc-top-bottom"></div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-table"></i> Chi Tiết GTC Toàn Bộ</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th><th>Kho</th><th>Ngày</th>
+                                    <th>KL Gán</th><th>Số Đơn Gán</th>
+                                    <th>Số Đơn GTC</th><th>% GTC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-gtc"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: BACKLOG > 7N ===== -->
+            <section class="section" id="section-backlog">
+                <div class="section-filters">
+                    <input type="text" id="filter-kho-backlog" placeholder="🔍 Tìm kho hoặc mã đơn..." class="filter-input">
+                    <select id="filter-luong" class="filter-select">
+                        <option value="">Tất cả luồng</option>
+                        <option value="giao">Giao</option>
+                        <option value="sort">Sort / Trung chuyển</option>
+                    </select>
+                </div>
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-chart-bar"></i> Số Đơn Tồn > 7n Theo Kho</h3>
+                    </div>
+                    <div style="height:220px;position:relative">
+                        <canvas id="chart-backlog-by-kho"></canvas>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Danh Sách Đơn Tồn > 7 Ngày</h3>
+                        <span class="count-badge danger" id="backlog-count-label">-- đơn</span>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th><th>Vùng</th><th>Kho</th>
+                                    <th>PIC</th><th>Order Code</th><th>Client Type</th>
+                                    <th>Lý Do Thất Bại</th>
+                                    <th>Ngày Nhập</th><th>Aging</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-backlog"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: B2B & SLA ===== -->
+            <section class="section" id="section-b2b">
+                <div class="section-filters">
+                    <input type="text" id="filter-b2b" placeholder="🔍 Tìm mã đơn hoặc kho..." class="filter-input">
+                    <select id="filter-priority" class="filter-select">
+                        <option value="">Tất cả ưu tiên</option>
+                        <option value="1: trong hôm nay">1: Trong hôm nay</option>
+                        <option value="2: trong ngày mai">2: Trong ngày mai</option>
+                        <option value="3: trong ngày mốt">3: Trong ngày mốt</option>
+                    </select>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Danh Sách Đơn B2B Theo Mức Độ Ưu Tiên</h3>
+                        <span class="count-badge warning" id="b2b-count-label">-- đơn</span>
+                    </div>
+                    <div class="table-scroll" style="max-height:calc(100vh - 240px)">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ưu Tiên</th><th>Kho</th><th>PIC</th>
+                                    <th>Order Code</th><th>Cần Làm Gì</th><th>Khách</th>
+                                    <th>Ngày Nhập</th><th>Lưu Kho (Ngày)</th><th>Địa Chỉ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-b2b"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: TRẢ HÀNG ===== -->
+            <section class="section" id="section-returns">
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-chart-line"></i> Tỷ Lệ Trả Hàng (FD) Theo Ngày</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-fd-trend"></canvas>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-rotate-left"></i> Chi Tiết Trả Hàng Theo Kho</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th><th>Ngày</th><th>Số Đơn Trả</th>
+                                    <th>% FD</th><th>Tổng Đơn</th>
+                                    <th>SHOPEE Bulky</th><th>SME</th><th>B2B</th><th>Ecommerce</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-returns"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: NHÂN SỰ ===== -->
+            <section class="section" id="section-personnel">
+                <div class="section-filters">
+                    <input type="text" id="filter-personnel" placeholder="🔍 Tìm tên nhân viên hoặc kho..." class="filter-input">
+                    <select id="filter-position" class="filter-select">
+                        <option value="">Tất cả vị trí</option>
+                        <option value="Delivery Staff">Delivery Staff</option>
+                        <option value="Freight Operations Executive">Freight Operations Executive</option>
+                        <option value="Administration">Administration</option>
+                    </select>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-users"></i> Danh Sách Nhân Sự</h3>
+                        <span class="count-badge" id="personnel-count-label">-- người</span>
+                    </div>
+                    <div class="table-scroll" style="max-height:calc(100vh - 240px)">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th><th>ID</th><th>Họ Tên</th>
+                                    <th>Vị Trí</th><th>Loại HĐ</th><th>Thâm Niên</th><th>Kho</th><th>Phòng Ban</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-personnel"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: NĂNG SUẤT NV ===== -->
+            <section class="section" id="section-nangsuat">
+                <div class="section-filters" style="margin-bottom: 20px; display:flex; justify-content: space-between;">
+                    <div class="filter-tabs" style="display:flex; gap: 10px;">
+                        <button class="btn btn-outline" id="btn-ns-day" style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700">Ngày gần nhất</button>
+                        <button class="btn btn-outline" id="btn-ns-week">7 Ngày qua</button>
+                        <button class="btn btn-outline" id="btn-ns-month">30 Ngày qua</button>
+                    </div>
+                    <select id="filter-ns-province" class="filter-select">
+                        <option value="">Tất cả khu vực</option>
+                    </select>
+                </div>
+
+                <div class="tables-row">
+                    <!-- Top 10 -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-trophy" style="color:var(--green)"></i> Top 10 NV Năng Suất Tốt Nhất</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                        <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-ns-top"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Bottom 10 -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Top 10 NV Năng Suất Thấp Nhất</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                        <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-ns-bottom"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALL DRIVERS TABLE -->
+                <div class="table-card" style="margin-top: 20px;">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-list" style="color:var(--blue)"></i> Chi Tiết Năng Suất Toàn Bộ Nhân Viên</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height: 400px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                    <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
+                                    <th>3 Đơn Đầu</th><th>3 Đơn Cuối</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ns-all"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+vung_giao,kho_giao,order_code,status,client_type,time_nhap_kho_giao,backlog_aging,số lần giao,giao lần 1,giao lần 2,giao lần 3,Lý do giao thất bại gần nhất
+GXT-Miền Trung,Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá,GYWC4A4F,storing,Ecom & SME,2026-04-24,11,3,2026-04-25,2026-05-02,2026-05-03,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Vinh - Nghệ An,VNGH80259555502,storing,Ecom & SME,2026-04-25,10,3,2026-04-26,2026-05-02,2026-05-04,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà,GYWDADTT,storing,Ecom & SME,2026-04-27,8,4,2026-04-28,2026-04-29,2026-04-30,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận,VNGH80536145509,storing,Ecom & SME,2026-04-27,8,4,2026-04-28,2026-04-29,2026-05-01,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá,GYWDMDUE,storing,Ecom & SME,2026-04-27,8,3,2026-04-27,2026-04-30,2026-05-02,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk,GYWBVGF8,waiting_to_return,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-04-30,2026-05-01,Người nhận hẹn lại ngày giao
+GXT-Miền Trung,Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận,GYWPME8L,storing,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-05-01,2026-05-02,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận,GYWBRWCY,waiting_to_return,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-05-01,2026-05-03,Người nhận hẹn lại ngày giao
+GXT-Miền Trung,Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng,GYWP8YGC,storing,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-05-02,2026-05-03,Người nhận không nghe máy
+GXT-Miền Trung,Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà,GYWDKBBV,waiting_to_return,Ecom & SME,2026-04-28,7,3,2026-05-01,2026-05-02,2026-05-03,Người nhận hẹn lại ngày giao
+GXT-Miền Trung,Kho Giao Hàng Nặng - Vinh - Nghệ An,GYWD7HC6,storing,Ecom & SME,2026-04-28,7,2,2026-04-29,2026-05-02,,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Pleiku - Gia Lai,GYWP4F67,storing,Ecom & SME,2026-04-28,7,3,2026-04-28,2026-04-29,2026-04-30,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà,VNGH80695375601,waiting_to_return,Ecom & SME,2026-04-28,7,4,2026-04-29,2026-04-30,2026-05-01,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Đông Hà - Quảng Trị,GYWBT698,waiting_to_return,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-04-30,2026-05-02,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Vinh - Nghệ An,GYWB7XXE,waiting_to_return,Ecom & SME,2026-04-28,7,3,2026-04-29,2026-04-30,2026-05-03,Không liên lạc được người nhận / Chặn số
+GXT-Miền Trung,Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá,GYWDNK93,storing,Ecom & SME,2026-04-28,7,2,2026-04-28,2026-05-02,,Người nhận hẹn lại ngày giao
+GXT-Miền Trung,Kho Giao Hàng Nặng - Vinh - Nghệ An,GYWP6L9C,storing,Ecom & SME,2026-04-28,7,2,2026-04-29,2026-05-02,,Người nhận hẹn lại ngày giao
+GXT-Miền Trung,Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận,VNGH80483735602,storing,Ecom & SME,2026-04-28,7,1,2026-04-29,,,Người nhận đổi ý không mua nữa
+GXT-Miền Trung,Kho Giao Hàng Nặng - Vinh - Nghệ An,GYWPYGT8,storing,Ecom & SME,2026-04-28,7,1,2026-05-02,,,Người nhận đổi địa chỉ giao hàng
