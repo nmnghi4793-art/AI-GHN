@@ -28,6 +28,7 @@ FILES = {
     "b2b":       "Miền Trung - Data giao B2B.csv",
     "backlog":   "Miền Trung - Data Backlog _ 7n.csv",
     "nang_suat": "Miền Trung - Data Năng Suất NV.csv",
+    "warnings":  "Miền Trung - Cảnh Báo.csv",
 }
 
 def read_csv(key: str):
@@ -109,6 +110,11 @@ def get_gtc_dates():
     data = read_csv("gtc")
     dates = sorted(set(r.get("Ngày", "") for r in data if r.get("Ngày")), reverse=True)
     return dates
+    
+# ---- DATA CẢNH BÁO ----
+@app.get("/api/warnings")
+def get_warnings():
+    return read_csv("warnings")
 
 # ---- DASHBOARD OVERVIEW ----
 @app.get("/api/dashboard/overview")
@@ -167,6 +173,10 @@ def get_overview():
             pass
     avg_nang_suat = round(sum(ns_vals) / len(ns_vals), 1) if ns_vals else 0
 
+    # Warning count (Critical)
+    warning_data = read_csv("warnings")
+    critical_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Nghiêm trọng"])
+
     return {
         "avg_gtc": avg_gtc,
         "latest_date": latest_date,
@@ -175,6 +185,7 @@ def get_overview():
         "total_b2b_priority": b2b_priority,
         "avg_fd_return": avg_fd,
         "avg_nang_suat": avg_nang_suat,
+        "critical_warnings": critical_count,
     }
 
 # ---- GTC BY KHO (latest date) ----
