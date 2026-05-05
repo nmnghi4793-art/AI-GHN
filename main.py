@@ -16,7 +16,8 @@ app.add_middleware(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+# Frontend files (index.html, app.js, styles.css) are deployed at root alongside main.py
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend") if os.path.isdir(os.path.join(BASE_DIR, "frontend")) else BASE_DIR
 MOCK_DATA_DIR = BASE_DIR
 
 print(f"[STARTUP] BASE_DIR = {BASE_DIR}")
