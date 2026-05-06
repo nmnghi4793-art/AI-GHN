@@ -18,7 +18,7 @@ Chart.register(ChartDataLabels);
 let state = {
     gtcData: [], ontimeData: [], returnsData: [],
     backlogData: [], b2bData: [], personnelData: [], nangSuatData: [],
-    warningsData: [],
+    warningsData: [], returnsByClientData: [],
     overview: {}
 };
 let charts = {};
@@ -54,48 +54,136 @@ function parsePct(str) {
     return parseFloat((str||'0').replace('%','').replace(',','.')) || 0;
 }
 
+function parseVN(s) {
+    if (!s) return 0;
+    if (typeof s !== 'string') s = s.toString();
+    
+    // Format: "2026-05-05 - Thứ 3" hoặc "2026-05-05"
+    let m0 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m0) return new Date(parseInt(m0[1]), parseInt(m0[2]) - 1, parseInt(m0[3])).getTime();
+
+    // Format: "5 thg 5, 2026"
+    let m = s.match(/(\d+) thg (\d+), (\d+)/);
+    if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])).getTime();
+    
+    // Format: "DD/MM/YYYY" hoặc "D/M/YYYY"
+    let m2 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m2) return new Date(parseInt(m2[3]), parseInt(m2[2]) - 1, parseInt(m2[1])).getTime();
+
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
 // ---- FETCH ALL ----
-async function fetchAll() {
+let nextSyncTime = Date.now() + 5 * 60 * 1000;
+let syncTimerInterval = null;
+
+async function fetchAll(force = false) {
+    const btn = document.getElementById('refresh-btn');
+    if (force) {
+        btn.classList.add('loading');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+    }
+
     try {
-        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn] = await Promise.all([
-            fetch(`${API}/dashboard/overview`).then(r => r.json()),
-            fetch(`${API}/kpi/gtc`).then(r => r.json()),
-            fetch(`${API}/kpi/ontime`).then(r => r.json()),
-            fetch(`${API}/returns`).then(r => r.json()),
-            fetch(`${API}/backlog/critical`).then(r => r.json()),
-            fetch(`${API}/backlog/b2b`).then(r => r.json()),
-            fetch(`${API}/personnel`).then(r => r.json()),
-            fetch(`${API}/nang-suat`).then(r => r.json()),
-            fetch(`${API}/warnings`).then(r => r.json()),
+        const query = force ? '?force=true' : '';
+        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC] = await Promise.all([
+            fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
+            fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/returns${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/backlog/critical${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/backlog/b2b${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/personnel${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/nang-suat${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({data:[]})),
         ]);
-        state = { overview: ov, gtcData: gtc, ontimeData: ontime, returnsData: ret, backlogData: bl, b2bData: b2b, personnelData: pers, nangSuatData: ns, warningsData: warn };
+
+        state = { 
+            overview: ov || {}, 
+            gtcData: gtc.data || [], 
+            ontimeData: ontime.data || [], 
+            returnsData: ret.data || [], 
+            backlogData: bl.data || [], 
+            b2bData: b2b.data || [], 
+            personnelData: pers.data || [], 
+            nangSuatData: ns.data || [], 
+            warningsData: warn.data || [],
+            returnsByClientData: retC.data || []
+        };
+        
+        // Reset countdown
+        nextSyncTime = Date.now() + 5 * 60 * 1000;
         renderAll();
+        
+        if (force) {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
+        }
     } catch(e) {
         console.error('Fetch error:', e);
+        if (force) {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lỗi';
+        }
     }
+}
+
+function startSyncTimer() {
+    if (syncTimerInterval) clearInterval(syncTimerInterval);
+    syncTimerInterval = setInterval(() => {
+        const now = Date.now();
+        const diff = Math.max(0, nextSyncTime - now);
+        
+        if (diff <= 0) {
+            fetchAll(); // Auto refresh
+            return;
+        }
+        
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        document.getElementById('sync-timer').textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        
+        const progress = (diff / (5 * 60 * 1000)) * 100;
+        document.getElementById('sync-progress').style.width = progress + '%';
+    }, 1000);
 }
 
 // ---- RENDER ALL ----
 function renderAll() {
     updateMeta();
-    renderOverviewCards();
-    renderGtcTrendChart();
-    renderReturnsPieChart();
-    renderBacklogOverviewTable();
-    renderB2bOverviewTable();
-    renderPersonnelOverview();
-    renderGtcSection();
-    renderGtcByKhoChart();
-    renderGtcTopBottom();
-    renderBacklogSection();
-    renderBacklogByKhoChart();
-    renderB2bSection();
-    renderReturnsSection();
-    renderReturnsFDChart();
-    renderPersonnelSection();
-    renderNangSuatSection();
-    renderWarningsSection();
-    updateNavBadges();
+    console.log("[DASHBOARD] Rendering all sections...");
+    const sections = [
+        { name: 'OverviewCards', fn: renderOverviewCards },
+        { name: 'GtcTrendChart', fn: renderGtcTrendChart },
+        { name: 'ReturnsPieChart', fn: renderReturnsPieChart },
+        { name: 'BacklogOverviewTable', fn: renderBacklogOverviewTable },
+        { name: 'B2bOverviewTable', fn: renderB2bOverviewTable },
+        { name: 'CriticalWarningsOverview', fn: renderCriticalWarningsOverview },
+        { name: 'PersonnelOverview', fn: renderPersonnelOverview },
+        { name: 'GtcSection', fn: renderGtcSection },
+        { name: 'GtcByKhoChart', fn: renderGtcByKhoChart },
+        { name: 'GtcTopBottom', fn: renderGtcTopBottom },
+        { name: 'BacklogSection', fn: renderBacklogSection },
+        { name: 'BacklogByKhoChart', fn: renderBacklogByKhoChart },
+        { name: 'B2bSection', fn: renderB2bSection },
+        { name: 'ReturnsSection', fn: renderReturnsSection },
+        { name: 'ReturnsFDChart', fn: renderReturnsFDChart },
+        { name: 'PersonnelSection', fn: renderPersonnelSection },
+        { name: 'NangSuatSection', fn: renderNangSuatSection },
+        { name: 'WarningsSection', fn: renderWarningsSection },
+        { name: 'NavBadges', fn: updateNavBadges }
+    ];
+
+    sections.forEach(s => {
+        try {
+            s.fn();
+        } catch (err) {
+            console.error(`[ERROR] Render failed for ${s.name}:`, err);
+        }
+    });
+    console.log("[DASHBOARD] Render complete.");
 }
 
 function updateMeta() {
@@ -116,7 +204,18 @@ function renderOverviewCards() {
     document.getElementById('val-fd').textContent     = (ov.avg_fd_return || 0) + '%';
     const valNangSuatEl = document.getElementById('val-nangsuat');
     if (valNangSuatEl) valNangSuatEl.textContent = (ov.avg_nang_suat || 0);
-    document.getElementById('sub-gtc').textContent    = 'Ngày: ' + (ov.latest_date || '--');
+
+    // New backlog metrics
+    const blLmEl = document.getElementById('val-bl-lm');
+    if (blLmEl) blLmEl.textContent = (ov.total_backlog_lm || 0).toLocaleString();
+    const blKtcEl = document.getElementById('val-bl-ktc');
+    if (blKtcEl) blKtcEl.textContent = (ov.total_backlog_ktc || 0).toLocaleString();
+    const blAllEl = document.getElementById('val-bl-all');
+    if (blAllEl) blAllEl.textContent = (ov.total_backlog_all || 0).toLocaleString();
+    
+    // Last Sync indicator
+    const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
+    document.getElementById('sub-gtc').textContent    = 'Đã đồng bộ: ' + syncTime;
 }
 
 function updateNavBadges() {
@@ -132,76 +231,74 @@ function updateNavBadges() {
     }
 }
 
-// ---- GTC TREND CHART (last 14 days) ----
+let currentOverviewGtcPeriod = 'day';
+
+window.switchOverviewGtcPeriod = function(p) {
+    currentOverviewGtcPeriod = p;
+    document.querySelectorAll('#btn-ov-day, #btn-ov-week, #btn-ov-month').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-ov-' + p)?.classList.add('active');
+    renderGtcTrendChart();
+};
+
+// ---- GTC TREND CHART (Overview) ----
 function renderGtcTrendChart() {
     const dateMap = {};
     state.gtcData.forEach(r => {
-        const d = (r['Ngày'] || '').split(' - ')[0];
-        if (!d) return;
-        if (!dateMap[d]) dateMap[d] = { total: 0, gtc: 0 };
-        dateMap[d].total += parseInt(r['Số đơn gán'] || 0);
-        dateMap[d].gtc   += parseInt(r['Số đơn GTC'] || 0);
+        const ts = parseVN(r['Ngày']);
+        if (!ts) return;
+        const dObj = new Date(ts);
+        let key = (r['Ngày'] || '').split(' - ')[0]; // Day default
+        
+        if (currentOverviewGtcPeriod === 'week') {
+            key = getWeekNumber(dObj);
+        } else if (currentOverviewGtcPeriod === 'month') {
+            key = dObj.getFullYear() + '-' + ((dObj.getMonth() + 1) < 10 ? '0' : '') + (dObj.getMonth() + 1);
+        }
+
+        if (!dateMap[key]) dateMap[key] = { total: 0, gtc: 0 };
+        dateMap[key].total += parseInt(r['Số đơn gán'] || 0);
+        dateMap[key].gtc   += parseInt(r['Số đơn GTC'] || 0);
     });
-    // Only last 14 days, sorted oldest -> newest
-    const allDates = Object.keys(dateMap).sort();
-    const labels = allDates.slice(-14);
-    const values = labels.map(d => dateMap[d].total
-        ? +(dateMap[d].gtc / dateMap[d].total * 100).toFixed(2) : 0);
+
+    const allKeys = Object.keys(dateMap).sort();
+    const labels = allKeys.slice(-14);
+    const values = labels.map(k => dateMap[k].total ? +(dateMap[k].gtc / dateMap[k].total * 100).toFixed(1) : 0);
 
     destroyChart('gtcTrend');
     const ctx = document.getElementById('chart-gtc-trend').getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 180);
-    grad.addColorStop(0, 'rgba(255,82,0,0.18)');
-    grad.addColorStop(1, 'rgba(255,82,0,0)');
-
     charts.gtcTrend = new Chart(ctx, {
         type: 'line',
         data: {
-            labels,
+            labels: labels.map(l => l.replace(/^\d{4}-/, '')), // Shorten labels
             datasets: [{
                 label: '% GTC',
                 data: values,
                 borderColor: C_ORANGE,
-                backgroundColor: grad,
-                borderWidth: 2.5,
+                backgroundColor: 'rgba(255,82,0,0.1)',
+                borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: C_ORANGE,
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                datalabels: {
-                    align: 'top',
-                    color: C_ORANGE,
-                    font: { weight: 'bold', size: 10 },
-                    formatter: function(value) {
-                        return value + '%';
-                    }
-                }
+                pointRadius: 4,
+                datalabels: { align: 'top', color: C_ORANGE, font: { size: 10, weight: 'bold' }, formatter: v => v + '%' }
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: c => ' ' + c.raw + '%' } },
-                datalabels: { display: true }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: { display: true } },
             scales: {
-                y: {
-                    min: 60, max: 100,
-                    grid: { color: '#F0F3F8', drawBorder: false },
-                    ticks: { callback: v => v + '%', font: { size: 11 } }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 11 } }
-                }
+                y: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
+                x: { grid: { display: false } }
             }
         }
     });
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return d.getUTCFullYear() + "-W" + (weekNo < 10 ? '0' : '') + weekNo;
 }
 
 // ---- RETURNS PIE ----
@@ -300,78 +397,322 @@ function renderB2bOverviewTable() {
     `).join('');
 }
 
-// ---- GTC SECTION TABLE ----
-function renderGtcSection(filter = '') {
-    let data = state.gtcData;
-    // Tự động lọc ngày gần nhất (latest date) nếu không có filter
-    const dates = [...new Set(data.map(r => r['Ngày']||''))].sort().reverse();
-    const latestDate = dates[0] || '';
+// ---- CRITICAL WARNINGS OVERVIEW ----
+function renderCriticalWarningsOverview() {
+    const tbody = document.getElementById('tbody-critical-overview');
+    if (!tbody) return;
     
-    // Mặc định luôn show dữ liệu của ngày gần nhất
-    data = data.filter(r => (r['Ngày']||'') === latestDate);
+    // Lọc và chuẩn bị dữ liệu
+    const processedData = state.warningsData.map(r => {
+        const getV = (keys, defaultVal = 0) => {
+            for (const k of keys) {
+                if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
+            }
+            const allKeys = Object.keys(r);
+            for (const search of keys) {
+                const found = allKeys.find(k => k.toLowerCase().includes(search.toLowerCase()));
+                if (found && r[found] !== undefined && r[found] !== null && r[found] !== '') return r[found];
+            }
+            return defaultVal;
+        };
 
-    if (filter) data = data.filter(r => shortKho(r['Kho']).toLowerCase().includes(filter.toLowerCase()));
+        const soNgay = parseFloat(getV(['Số ngày trở về ngày thường', 'Total ngày'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại'], 'Bình thường');
+        const nextStatus = r['Tình hình sắp tới'] || 'Bình thường';
+        return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus, nextStatus: nextStatus };
+    });
+
+    const critical = processedData.filter(r => r.soNgayVal > 0);
     
-    document.getElementById('tbody-gtc').innerHTML = data.map(r => `
-        <tr>
-            <td>${r['STT']||''}</td>
-            <td>${shortKho(r['Kho'])}</td>
-            <td>${r['Ngày']||''}</td>
-            <td>${r['KL gán']||''}</td>
-            <td>${r['Số đơn gán']||''}</td>
-            <td>${r['Số đơn GTC']||''}</td>
-            <td class="${pctClass(r['% GTC'])}">${r['% GTC']||''}</td>
-        </tr>
+    if (critical.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--green);font-weight:600"><i class="fa-solid fa-circle-check"></i> Toàn mạng lưới bình thường</td></tr>';
+        return;
+    }
+    
+    // Sắp xếp theo số ngày giảm dần
+    const sorted = [...critical].sort((a, b) => b.soNgayVal - a.soNgayVal);
+
+    tbody.innerHTML = sorted.slice(0, 10).map(r => {
+        const isCritical = r.soNgayVal > 6;
+        const status = r.sheetStatus;
+        const nextStatus = r.nextStatus;
+        const lm = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
+        const ktc = parseInt(r['backlog ktc'] || 0);
+        const total = lm + ktc;
+
+        let nextBadgeClass = 'storing';
+        if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
+        if (nextStatus === 'Nghiêm trọng') nextBadgeClass = 'p1';
+
+        return `
+            <tr>
+                <td style="font-weight:600">${shortKho(r['kho gxt'] || r['Kho'] || '--')}</td>
+                <td style="text-align:right;font-weight:700;color:var(--red)">${lm.toLocaleString()}</td>
+                <td style="text-align:right">${ktc.toLocaleString()}</td>
+                <td style="text-align:right;font-weight:700;color:var(--blue)">${total.toLocaleString()}</td>
+                <td><span class="badge ${nextBadgeClass}" style="font-size:10px">${nextStatus}</span></td>
+                <td style="text-align:right;font-weight:600">${r.soNgayVal}n</td>
+                <td><span class="badge ${isCritical ? 'p1' : 'waiting'}">${status}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+let gtcTimeMode = 'day';
+let selectedGtcVals = [];
+let selectedGtcKhos = [];
+
+window.toggleMultiselect = function(mode) {
+    const menus = ['menu-gtc-month', 'menu-gtc-week', 'menu-gtc-day', 'menu-gtc-kho'];
+    menus.forEach(m => {
+        const el = document.getElementById(m);
+        if (m === 'menu-gtc-' + mode) el.classList.toggle('show');
+        else el.classList.remove('show');
+    });
+};
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.ghn-filter-container')) {
+        document.querySelectorAll('.ghn-filter-menu').forEach(m => m.classList.remove('show'));
+    }
+});
+
+window.updateGtcTimeMode = function(mode) {
+    const menu = document.getElementById('menu-gtc-' + mode);
+    const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
+    const vals = Array.from(checks).map(c => c.value);
+
+    if (mode === 'kho') {
+        selectedGtcKhos = vals;
+    } else {
+        gtcTimeMode = mode;
+        selectedGtcVals = vals;
+        if (mode === 'day') { clearOtherTimeMultiselects(['week', 'month']); }
+        else if (mode === 'week') { clearOtherTimeMultiselects(['day', 'month']); }
+        else if (mode === 'month') { clearOtherTimeMultiselects(['day', 'week']); }
+    }
+
+    updateMultiselectLabel(mode);
+    renderGtcSection();
+};
+
+function clearOtherTimeMultiselects(modes) {
+    modes.forEach(m => {
+        const menu = document.getElementById('menu-gtc-' + m);
+        if (menu) {
+            menu.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+            updateMultiselectLabel(m);
+        }
+    });
+}
+
+function updateMultiselectLabel(mode) {
+    const menu = document.getElementById('menu-gtc-' + mode);
+    if (!menu) return;
+    const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
+    const label = document.querySelector(`#multi-gtc-${mode} .ghn-filter-selected`);
+    
+    if (checks.length === 0) {
+        if (mode === 'kho') label.innerText = 'Chọn Kho...';
+        else if (mode === 'day') label.innerText = 'Chọn Ngày...';
+        else if (mode === 'week') label.innerText = 'Chọn Tuần...';
+        else label.innerText = 'Chọn Tháng...';
+    } else {
+        label.innerText = `${checks.length} mục đã chọn`;
+    }
+    
+    const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
+    items.sort((a, b) => {
+        const chkA = a.querySelector('input').checked;
+        const chkB = b.querySelector('input').checked;
+        return (chkA === chkB) ? 0 : (chkA ? -1 : 1);
+    });
+    items.forEach(item => menu.appendChild(item));
+}
+
+function populateGtcTimeSelects() {
+    const dayMenu = document.getElementById('menu-gtc-day');
+    if (!dayMenu || dayMenu.children.length > 0) return;
+
+    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort().reverse();
+    renderMultiselectItems('day', days);
+
+    const weeks = [...new Set(state.gtcData.map(r => {
+        const ts = parseVN(r['Ngày']);
+        return ts ? getWeekNumber(new Date(ts)) : null;
+    }).filter(Boolean))].sort().reverse();
+    renderMultiselectItems('week', weeks);
+
+    const months = [...new Set(state.gtcData.map(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts) return null;
+        const d = new Date(ts);
+        return d.getFullYear() + '-' + ((d.getMonth()+1)<10?'0':'') + (d.getMonth()+1);
+    }).filter(Boolean))].sort().reverse();
+    renderMultiselectItems('month', months);
+
+    const khos = [...new Set(state.gtcData.map(r => shortKho(r['Kho'])).filter(Boolean))].sort();
+    renderMultiselectItems('kho', khos);
+}
+
+function renderMultiselectItems(mode, values) {
+    const menu = document.getElementById('menu-gtc-' + mode);
+    if (!menu) return;
+    menu.innerHTML = values.map(v => `
+        <div class="ghn-filter-item">
+            <input type="checkbox" id="chk-${mode}-${v}" value="${v}" onchange="updateGtcTimeMode('${mode}')">
+            <label for="chk-${mode}-${v}">${mode === 'day' ? v : (mode === 'week' ? 'Tuần ' + v : (mode === 'month' ? 'Tháng ' + v : v))}</label>
+        </div>
     `).join('');
 }
 
+// ---- GTC SECTION ----
+function renderGtcSection(searchFilter = '') {
+    if (!state.gtcData || !state.gtcData.length) return;
+    populateGtcTimeSelects();
+
+    let filteredData = state.gtcData;
+
+    if (selectedGtcVals.length > 0) {
+        filteredData = filteredData.filter(r => {
+            const ts = parseVN(r['Ngày']);
+            if (!ts) return false;
+            const dObj = new Date(ts);
+            if (gtcTimeMode === 'day') return selectedGtcVals.includes(r['Ngày']);
+            if (gtcTimeMode === 'week') return selectedGtcVals.includes(getWeekNumber(dObj));
+            if (gtcTimeMode === 'month') {
+                const m = dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1);
+                return selectedGtcVals.includes(m);
+            }
+            return true;
+        });
+    } else {
+        const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        filteredData = filteredData.filter(r => r['Ngày'] === allDates[0]);
+    }
+
+    if (selectedGtcKhos.length > 0) filteredData = filteredData.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
+    if (searchFilter) filteredData = filteredData.filter(r => shortKho(r['Kho']).toLowerCase().includes(searchFilter.toLowerCase()));
+
+    // AGGREGATION LOGIC
+    let displayData = [];
+    if (selectedGtcVals.length > 0 && (gtcTimeMode === 'week' || gtcTimeMode === 'month')) {
+        const aggMap = {};
+        filteredData.forEach(r => {
+            const k = shortKho(r['Kho']);
+            const ts = parseVN(r['Ngày']);
+            const dObj = new Date(ts);
+            let periodKey = gtcTimeMode === 'week' ? getWeekNumber(dObj) : 
+                            (dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1));
+            
+            const groupKey = k + '|' + periodKey;
+            if (!aggMap[groupKey]) {
+                aggMap[groupKey] = { kho: k, period: (gtcTimeMode==='week'?'Tuần ':'Tháng ') + periodKey, kl: 0, gan: 0, gtc: 0, ts: ts };
+            }
+            
+            const parseVal = (v) => parseFloat((v || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+            const parseCount = (v) => parseInt((v || '0').toString().replace(/\./g, '')) || 0;
+
+            aggMap[groupKey].kl += parseVal(r['KL gán']);
+            aggMap[groupKey].gan += parseCount(r['Số đơn gán']);
+            aggMap[groupKey].gtc += parseCount(r['Số đơn GTC']);
+        });
+        displayData = Object.values(aggMap)
+            .sort((a,b) => b.ts - a.ts)
+            .map((r, idx) => ({
+                stt: idx + 1,
+                kho: r.kho,
+                ngay: r.period,
+                kl: r.kl.toLocaleString('vi-VN'),
+                gan: r.gan.toLocaleString('vi-VN'),
+                gtc: r.gtc.toLocaleString('vi-VN'),
+                pct: r.gan > 0 ? (r.gtc / r.gan * 100).toFixed(2) + '%' : '0%'
+            }));
+    } else {
+        displayData = filteredData.sort((a,b) => parseVN(b['Ngày']) - parseVN(a['Ngày'])).map((r, idx) => ({
+            stt: idx + 1,
+            kho: shortKho(r['Kho']),
+            ngay: r['Ngày'],
+            kl: r['KL gán'] || '0',
+            gan: r['Số đơn gán'] || '0',
+            gtc: r['Số đơn GTC'] || '0',
+            pct: r['% GTC'] || '0%'
+        }));
+    }
+
+    document.getElementById('tbody-gtc').innerHTML = displayData.map(r => `
+        <tr>
+            <td>${r.stt}</td>
+            <td>${r.kho}</td>
+            <td>${r.ngay}</td>
+            <td>${r.kl}</td>
+            <td>${r.gan}</td>
+            <td>${r.gtc}</td>
+            <td class="${pctClass(r.pct)}">${r.pct}</td>
+        </tr>
+    `).join('');
+
+    renderGtcByKhoChart();
+    renderGtcTopBottom();
+}
+
+function renderGtcByRegionChart() { /* Removed per user request */ }
+
 // ---- GTC BY KHO BAR CHART ----
 function renderGtcByKhoChart() {
-    const dates = [...new Set(state.gtcData.map(r => (r['Ngày']||'').split(' - ')[0]))].sort().reverse();
-    const latest = dates[0] || '';
-    const latestRows = state.gtcData.filter(r => (r['Ngày']||'').startsWith(latest));
-    const sorted = [...latestRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    let referenceDate = allDates[0];
+    
+    if (gtcTimeMode === 'day' && selectedGtcVals.length > 0) {
+        // Use the latest among selected dates
+        const sortedSelected = [...selectedGtcVals].sort((a,b) => parseVN(b) - parseVN(a));
+        referenceDate = sortedSelected[0];
+    }
+
+    const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
+    const sorted = [...dayRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
 
     const labels = sorted.map(r => shortKho(r['Kho']));
     const values = sorted.map(r => parsePct(r['% GTC']));
     const colors = values.map(v => v >= 90 ? C_GREEN : v >= 80 ? C_ORANGE : C_RED);
 
-    // Auto-scale height: 32px per bar + 40px padding
-    const chartHeight = Math.max(200, labels.length * 32 + 40);
-    const wrapper = document.getElementById('gtc-by-kho-wrapper') || document.getElementById('chart-gtc-by-kho').parentElement;
-    wrapper.style.height = chartHeight + 'px';
+    const chartHeight = Math.max(300, labels.length * 30 + 40);
+    const wrapper = document.getElementById('gtc-by-kho-wrapper');
+    if (wrapper) wrapper.style.height = chartHeight + 'px';
 
     destroyChart('gtcByKho');
-    const ctx = document.getElementById('chart-gtc-by-kho').getContext('2d');
+    const canvas = document.getElementById('chart-gtc-by-kho');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     charts.gtcByKho = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ label: '% GTC', data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false,
-                datalabels: {
-                    anchor: 'end', align: 'right',
-                    color: ctx2 => colors[ctx2.dataIndex],
-                    font: { weight: 'bold', size: 11 },
-                    formatter: v => v + '%'
-                }
+            datasets: [{ 
+                label: '% GTC', 
+                data: values, 
+                backgroundColor: colors, 
+                borderRadius: 4,
+                datalabels: { anchor: 'end', align: 'right', color: ctx2 => colors[ctx2.dataIndex], font: { weight: 'bold' }, formatter: v => v + '%' }
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             indexAxis: 'y',
-            layout: { padding: { right: 40 } },
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: c => ' ' + c.raw + '%' } },
-                datalabels: { display: true }
-            },
+            plugins: { legend: { display: false }, datalabels: { display: true } },
             scales: {
-                x: { min: 60, max: 100, grid: { color: '#F0F3F8' }, ticks: { callback: v => v+'%', font: {size:11} } },
-                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                x: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
+                y: { grid: { display: false } }
             }
         }
     });
+}
+
+function getRandomColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    const h = hash % 360;
+    return `hsl(${h}, 70%, 50%)`;
 }
 
 // ---- GTC TOP / BOTTOM BY PERIOD ----
@@ -379,13 +720,22 @@ function renderGtcTopBottom() {
     const el = document.getElementById('gtc-top-bottom');
     if (!el) return;
 
-    // Get all distinct dates sorted desc
-    const allDates = [...new Set(state.gtcData.map(r => (r['Ngày']||'').split(' - ')[0]).filter(Boolean))].sort().reverse();
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
-    const cutoffWeek  = allDates[Math.min(6,  allDates.length - 1)];
-    const cutoffMonth = allDates[Math.min(29, allDates.length - 1)];
+    const latestTs = parseVN(latestDate);
+    
+    // Calendar Week
+    const d = new Date(latestTs);
+    const day = d.getDay() || 7;
+    const startOfWeek = new Date(d);
+    startOfWeek.setHours(0,0,0,0);
+    startOfWeek.setDate(d.getDate() - day + 1);
+    
+    // Calendar Month
+    const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    startOfMonth.setHours(0,0,0,0);
 
     function computeKhoRanking(rows) {
         const khoMap = {};
@@ -397,70 +747,50 @@ function renderGtcTopBottom() {
             khoMap[k].gtc += parseInt(r['Số đơn GTC'] || 0);
         });
         return Object.entries(khoMap)
-            .filter(([,v]) => v.gan >= 10) // ignore kho with very few orders
+            .filter(([,v]) => v.gan >= 10)
             .map(([k, v]) => ({ kho: k, pct: +(v.gtc / v.gan * 100).toFixed(2), gtc: v.gtc, gan: v.gan }))
             .sort((a, b) => b.pct - a.pct);
     }
 
-    const rowsDay   = state.gtcData.filter(r => (r['Ngày']||'').startsWith(latestDate));
-    const rowsWeek  = state.gtcData.filter(r => (r['Ngày']||'').split(' - ')[0] >= cutoffWeek);
-    const rowsMonth = state.gtcData.filter(r => (r['Ngày']||'').split(' - ')[0] >= cutoffMonth);
+    const rowsDay   = state.gtcData.filter(r => r['Ngày'] === latestDate);
+    const rowsWeek  = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
+    const rowsMonth = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfMonth.getTime());
 
     const rankDay   = computeKhoRanking(rowsDay);
     const rankWeek  = computeKhoRanking(rowsWeek);
     const rankMonth = computeKhoRanking(rowsMonth);
 
-    function renderPanel(title, icon, ranking, colorTop) {
-        if (!ranking.length) return '<div class="table-card"><div class="table-header"><h3>' + title + '</h3></div><p style="padding:16px;color:var(--text3)">Không có dữ liệu</p></div>';
-        const best  = ranking[0];
-        const worst = ranking[ranking.length - 1];
+    function renderPanel(title, icon, ranking) {
+        if (!ranking.length) return `<div class="table-card"><div class="table-header"><h3>${title}</h3></div><p style="padding:16px;color:var(--text3)">Không có dữ liệu</p></div>`;
+        const top5 = ranking.slice(0, 5);
+        const bottom5 = ranking.slice(-5);
+        const renderRow = (r, isTop) => `
+            <tr style="background:${isTop ? 'var(--green-bg)' : 'var(--red-bg)'}">
+                <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? '↑ Tốt' : '↓ Tệ'}</span></td>
+                <td style="font-weight:600">${r.kho}</td>
+                <td style="text-align:right;color:var(--text3)">${r.gan.toLocaleString()}</td>
+                <td style="text-align:right;font-weight:800;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pct}%</td>
+            </tr>`;
         return `
         <div class="table-card">
-            <div class="table-header">
-                <h3><i class="fa-solid ${icon}" style="color:var(--orange)"></i> ${title}</h3>
-                <span class="count-badge">${ranking.length} kho</span>
-            </div>
+            <div class="table-header"><h3><i class="fa-solid ${icon}" style="color:var(--orange)"></i> ${title}</h3></div>
             <table class="data-table mini-table">
-                <thead><tr><th>Hạng</th><th>Kho</th><th style="text-align:right">Đơn Gán</th><th style="text-align:right">% GTC</th></tr></thead>
+                <thead><tr><th>Hạng</th><th>Kho</th><th style="text-align:right">Gán</th><th style="text-align:right">% GTC</th></tr></thead>
                 <tbody>
-                    <tr style="background:var(--green-bg)">
-                        <td><span class="badge storing">↑ Tốt nhất</span></td>
-                        <td style="font-weight:600">${best.kho}</td>
-                        <td style="text-align:right;color:var(--text3)">${best.gan.toLocaleString()}</td>
-                        <td style="text-align:right;font-weight:800;color:var(--green);font-size:15px">${best.pct}%</td>
-                    </tr>
-                    <tr style="background:var(--red-bg)">
-                        <td><span class="badge p1">↓ Tệ nhất</span></td>
-                        <td style="font-weight:600">${worst.kho}</td>
-                        <td style="text-align:right;color:var(--text3)">${worst.gan.toLocaleString()}</td>
-                        <td style="text-align:right;font-weight:800;color:var(--red);font-size:15px">${worst.pct}%</td>
-                    </tr>
+                    ${top5.map(r => renderRow(r, true)).join('')}
+                    ${ranking.length > 10 ? '<tr><td colspan="4" style="text-align:center;color:var(--text3);font-size:11px">...</td></tr>' : ''}
+                    ${bottom5.map(r => renderRow(r, false)).join('')}
                 </tbody>
             </table>
-            <div style="padding:10px 14px;border-top:1px solid #F0F3F8">
-                <details>
-                    <summary style="cursor:pointer;font-size:12px;color:var(--blue);font-weight:600">Xem xếp hạng đầy đủ (${ranking.length} kho)</summary>
-                    <table class="data-table mini-table" style="margin-top:8px">
-                        <thead><tr><th>#</th><th>Kho</th><th style="text-align:right">% GTC</th></tr></thead>
-                        <tbody>
-                            ${ranking.map((r,i) => `
-                            <tr>
-                                <td style="font-weight:700;color:${i===0?'var(--green)':i===ranking.length-1?'var(--red)':'var(--text3)'}">${i+1}</td>
-                                <td>${r.kho}</td>
-                                <td style="text-align:right;font-weight:700;color:${r.pct>=90?'var(--green)':r.pct>=80?'var(--orange)':'var(--red)'}">${r.pct}%</td>
-                            </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </details>
-            </div>
         </div>`;
     }
 
+    const displayDate = latestDate.split(' ')[0];
     el.innerHTML = `
         <div class="tables-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:18px">
-            ${renderPanel('GTC Trong Ngày (' + latestDate + ')', 'fa-calendar-day', rankDay, C_GREEN)}
-            ${renderPanel('GTC 7 Ngày Qua', 'fa-calendar-week', rankWeek, C_BLUE)}
-            ${renderPanel('GTC 30 Ngày Qua', 'fa-calendar', rankMonth, C_PURPLE)}
+            ${renderPanel('GTC Ngày (' + displayDate + ')', 'fa-calendar-day', rankDay)}
+            ${renderPanel('GTC Tuần', 'fa-calendar-week', rankWeek)}
+            ${renderPanel('GTC Tháng', 'fa-calendar', rankMonth)}
         </div>`;
 }
 
@@ -523,13 +853,30 @@ function renderBacklogByKhoChart() {
 }
 
 // ---- B2B SECTION ----
-function renderB2bSection(khoFilter = '', prioFilter = '') {
+function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', typeFilter = '') {
     let data = [...state.b2bData];
+    
+    // POPULATE FILTERS
+    const clients = [...new Set(state.b2bData.map(r => r['Khách']).filter(Boolean))].sort();
+    const types = [...new Set(state.b2bData.map(r => r['Loại']).filter(Boolean))].sort();
+    
+    const clientSelect = document.getElementById('filter-b2b-client');
+    const typeSelect = document.getElementById('filter-b2b-type');
+    
+    if (clientSelect && clientSelect.options.length <= 1) {
+        clients.forEach(c => clientSelect.add(new Option(c, c)));
+    }
+    if (typeSelect && typeSelect.options.length <= 1) {
+        types.forEach(t => typeSelect.add(new Option(t, t)));
+    }
+
     if (khoFilter) data = data.filter(r =>
         (shortKho(r['Kho hiện tại'])||'').toLowerCase().includes(khoFilter.toLowerCase()) ||
         (r['Order code']||'').toLowerCase().includes(khoFilter.toLowerCase())
     );
     if (prioFilter) data = data.filter(r => (r['Mức độ ưu tiên']||'') === prioFilter);
+    if (clientFilter) data = data.filter(r => (r['Khách']||'') === clientFilter);
+    if (typeFilter) data = data.filter(r => (r['Loại']||'') === typeFilter);
 
     const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày mốt'];
     data.sort((a,b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']));
@@ -541,7 +888,7 @@ function renderB2bSection(khoFilter = '', prioFilter = '') {
             <td>${shortKho(r['Kho hiện tại'])}</td>
             <td>${r['PIC']||''}</td>
             <td class="order-code">${r['Order code']||''}</td>
-            <td><span class="badge ${r['Cần làm gì']==='giao'?'storing':'waiting'}">${r['Cần làm gì']||''}</span></td>
+            <td><span class="badge ${r['Loại']==='Giao'?'storing':'waiting'}">${r['Loại']||''}</span></td>
             <td>${r['Khách']||''}</td>
             <td>${r['Ngày nhập kho']||''}</td>
             <td>${agingChip(r['Đã lưu kho (ngày)'])}</td>
@@ -551,7 +898,9 @@ function renderB2bSection(khoFilter = '', prioFilter = '') {
 }
 
 // ---- RETURNS SECTION ----
-function renderReturnsSection() {
+function renderReturnsSection(clientFilter = '') {
+    renderReturnsByClient(clientFilter);
+    
     const sorted = [...state.returnsData].sort((a,b) => {
         const da = (a['Ngày']||'').split(' - ')[0];
         const db = (b['Ngày']||'').split(' - ')[0];
@@ -561,51 +910,81 @@ function renderReturnsSection() {
         <tr>
             <td>${shortKho(r['Kho'])}</td>
             <td>${r['Ngày']||''}</td>
-            <td style="text-align:center">${r['Số đơn trả']||0}</td>
-            <td class="${pctClass(r['% FD'])}">${r['% FD']||''}</td>
-            <td>${r['Tổng đơn trả']||''}</td>
-            <td>${r['SHOPEE Bulky %']||''}</td>
-            <td>${r['SME %']||''}</td>
-            <td>${r['B2B %']||''}</td>
-            <td>${r['Ecommerce %']||''}</td>
+            <td style="text-align:center;font-weight:700">${r['Số đơn trả']||0}</td>
+            <td style="text-align:right;font-weight:800;color:var(--red)">${r['% FD']||''}</td>
+        </tr>
+    `).join('');
+}
+
+function renderReturnsByClient(filter = '') {
+    let data = state.returnsByClientData;
+    if (!data) return;
+
+    const tbody = document.getElementById('tbody-returns-client');
+    if (!tbody) return;
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Không tìm thấy dữ liệu</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.slice(0, 10).map(r => `
+        <tr>
+            <td style="font-weight:600;color:var(--text3);font-size:11px">${r['Thời gian'] || '--'}</td>
+            <td style="text-align:center;font-weight:700;color:var(--orange)">${r['Tổng đơn trả'] || 0}</td>
+            <td style="text-align:right;font-weight:700;color:var(--red)">${r['Trả hàng tổng'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng SHOPEE Bulky'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng TTS Bulky'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng SME'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng B2B'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng Ecommerce'] || '0%'}</td>
         </tr>
     `).join('');
 }
 
 // ---- RETURNS FD CHART ----
 function renderReturnsFDChart() {
-    const dateMap = {};
-    state.returnsData.forEach(r => {
-        const d = (r['Ngày']||'').split(' - ')[0];
-        if (!d) return;
-        if (!dateMap[d]) dateMap[d] = { sum: 0, cnt: 0 };
-        const v = parsePct(r['% FD']);
-        dateMap[d].sum += v; dateMap[d].cnt++;
-    });
-    const labels = Object.keys(dateMap).sort();
-    const values = labels.map(d => dateMap[d].cnt ? +(dateMap[d].sum / dateMap[d].cnt).toFixed(2) : 0);
+    const data = state.returnsByClientData;
+    if (!data || !data.length) return;
+
+    // Get last 20 days
+    const sortedData = [...data].sort((a,b) => {
+        const da = (a['Thời gian']||'').split(' - ')[0];
+        const db = (b['Thời gian']||'').split(' - ')[0];
+        return da.localeCompare(db); // Oldest to newest
+    }).slice(-20);
+
+    const labels = sortedData.map(r => (r['Thời gian']||'').split(' - ')[0]);
+    const values = sortedData.map(r => parsePct(r['Trả hàng tổng']));
 
     destroyChart('fdTrend');
     const ctx = document.getElementById('chart-fd-trend').getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 180);
-    grad.addColorStop(0, 'rgba(245,54,92,0.15)');
+    const grad = ctx.createLinearGradient(0, 0, 0, 200);
+    grad.addColorStop(0, 'rgba(245,54,92,0.2)');
     grad.addColorStop(1, 'rgba(245,54,92,0)');
+
     charts.fdTrend = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
             datasets: [{
-                label: '% FD',
+                label: '% Trả hàng',
                 data: values,
                 borderColor: C_RED,
                 backgroundColor: grad,
-                borderWidth: 2.5,
+                borderWidth: 3,
                 fill: true,
                 tension: 0.4,
                 pointBackgroundColor: '#fff',
                 pointBorderColor: C_RED,
                 pointBorderWidth: 2,
                 pointRadius: 4,
+                datalabels: {
+                    align: 'top',
+                    color: C_RED,
+                    font: { weight: '700', size: 10 },
+                    formatter: v => v + '%'
+                }
             }]
         },
         options: {
@@ -613,11 +992,12 @@ function renderReturnsFDChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: c => ' ' + c.raw + '%' } }
+                tooltip: { callbacks: { label: c => ' ' + c.raw + '%' } },
+                datalabels: { display: true }
             },
             scales: {
-                y: { min: 0, grid: { color: '#F0F3F8' }, ticks: { callback: v => v+'%', font:{size:11} } },
-                x: { grid: { display: false }, ticks: { font: {size:11} } }
+                y: { min: 0, max: 15, grid: { color: '#F0F3F8', drawBorder: false }, ticks: { callback: v => v+'%', font:{size:10} } },
+                x: { grid: { display: false }, ticks: { font: {size:10}, maxRotation: 45, minRotation: 45 } }
             }
         }
     });
@@ -716,45 +1096,120 @@ function renderPersonnelSection(filter = '', posFilter = '') {
 // ---- NĂNG SUẤT NV SECTION ----
 let currentNsPeriod = 'day';
 
-function renderNangSuatSection() {
-    if (!state.nangSuatData || !state.nangSuatData.length) return;
+let currentProdDays = 7;
+window.switchProdTab = function(btn, days) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentProdDays = days;
+    renderProductivityWarnings();
+};
 
-    const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']||'').filter(Boolean))].sort((a,b) => {
-        const parseDate = s => {
-            const m = s.match(/(\d+) thg (\d+), (\d+)/);
-            if(m) return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1])).getTime();
-            return 0;
-        };
-        return parseDate(b) - parseDate(a);
+function renderProductivityWarnings() {
+    if (!state.nangSuatData || !state.nangSuatData.length) return;
+    const tbody = document.getElementById('tbody-productivity-warnings');
+    if (!tbody) return;
+
+    const daysLimit = currentProdDays;
+    const nowTs = new Date().getTime();
+    const cutoffTs = nowTs - (daysLimit * 24 * 60 * 60 * 1000);
+
+    const empMap = new Map();
+    state.nangSuatData.forEach(r => {
+        const ts = parseVN(r['Ngày']);
+        if (ts >= cutoffTs) {
+            const name = r['driver'] || '';
+            if (!name) return;
+            if (!empMap.has(name)) {
+                empMap.set(name, { name, province: r['to_province_name'] || '', totalVol: 0, totalSuccess: 0, sumRate: 0, count: 0 });
+            }
+            const d = empMap.get(name);
+            const vol = parseInt(r['volume'] || 0);
+            d.totalVol += vol;
+            d.totalSuccess += (parsePct(r['Tỉ lệ GTC']) / 100) * vol;
+            d.sumRate += parseFloat((r['avg_delivery_volume_per_hour'] || '0').toString().replace(',', '.'));
+            d.count += 1;
+        }
     });
 
+    const list = Array.from(empMap.values())
+        .filter(d => d.totalVol > 30)
+        .map(d => ({
+            name: d.name,
+            province: d.province,
+            totalVol: d.totalVol,
+            avgRate: d.count > 0 ? d.sumRate / d.count : 0,
+            pctGtc: d.totalVol > 0 ? (d.totalSuccess / d.totalVol * 100) : 0
+        }));
+
+    list.sort((a, b) => a.pctGtc - b.pctGtc);
+
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thỏa mãn điều kiện (Tổng đơn > 30 trong ${daysLimit} ngày)</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = list.slice(0, 10).map((r, idx) => `
+        <tr>
+            <td><span class="badge ${idx < 3 ? 'p1' : 'waiting'}">#${idx + 1}</span></td>
+            <td style="font-weight:600">${r.name}</td>
+            <td>${r.province}</td>
+            <td style="text-align:right;font-weight:700">${r.totalVol.toLocaleString()} đơn</td>
+            <td style="text-align:right;font-weight:700;color:var(--red)">${r.pctGtc.toFixed(2)}%</td>
+        </tr>
+    `).join('');
+}
+
+// ---- NĂNG SUẤT NV SECTION ----
+function switchNsPeriod(period) {
+    currentNsPeriod = period;
+    document.querySelectorAll('#section-productivity .filter-tabs .btn').forEach(btn => btn.classList.remove('active'));
+    const btnId = period === 'day' ? 'btn-ns-day' : (period === 'week' ? 'btn-ns-week' : 'btn-ns-month');
+    document.getElementById(btnId)?.classList.add('active');
+    renderNangSuatSection();
+}
+
+function renderNangSuatSection() {
+    renderProductivityWarnings();
+    if (!state.nangSuatData || !state.nangSuatData.length) return;
+
+    const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
+    if (!latestDate) return;
+
+    const latestTs = parseVN(latestDate);
+    const d = new Date(latestTs);
+    
+    // Calendar Week
+    const day = d.getDay() || 7;
+    const startOfWeek = new Date(d);
+    startOfWeek.setDate(d.getDate() - day + 1);
+    startOfWeek.setHours(0,0,0,0);
+    
+    // Calendar Month
+    const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    startOfMonth.setHours(0,0,0,0);
+
     let filteredData = [];
-
-    const provSelect = document.getElementById('filter-ns-province');
-    if (provSelect && provSelect.options.length <= 1) {
-        const provs = [...new Set(state.nangSuatData.map(r => r['to_province_name']).filter(Boolean))].sort();
-        provs.forEach(p => {
-            const o = document.createElement('option');
-            o.value = p; o.textContent = p;
-            provSelect.appendChild(o);
-        });
-    }
-    const selProv = provSelect ? provSelect.value : '';
-
     if (currentNsPeriod === 'day') {
         filteredData = state.nangSuatData.filter(r => r['Ngày'] === latestDate);
+    } else if (currentNsPeriod === 'week') {
+        filteredData = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
     } else {
-        const daysToInclude = currentNsPeriod === 'week' ? 7 : 30;
-        const validDates = allDates.slice(0, daysToInclude);
-        filteredData = state.nangSuatData.filter(r => validDates.includes(r['Ngày']));
+        filteredData = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= startOfMonth.getTime());
     }
 
-    if (selProv) {
-        filteredData = filteredData.filter(r => r['to_province_name'] === selProv);
+    const provSelect = document.getElementById('filter-ns-province');
+    
+    // POPULATE PROVINCE FILTER
+    if (provSelect && provSelect.options.length <= 1) {
+        const provinces = [...new Set(state.nangSuatData.map(r => r['to_province_name']).filter(Boolean))].sort();
+        provinces.forEach(p => provSelect.add(new Option(p, p)));
     }
+
+    const selProv = provSelect ? provSelect.value : '';
+    if (selProv) filteredData = filteredData.filter(r => r['to_province_name'] === selProv);
 
     const driverMap = {};
     filteredData.forEach(r => {
@@ -764,117 +1219,131 @@ function renderNangSuatSection() {
             driverMap[idName] = { name: idName, province: r['to_province_name'] || '', totalVol: 0, totalSuccess: 0, sumRate: 0, daysCount: 0 };
         }
         driverMap[idName].totalVol += parseInt(r['volume']||0);
-        driverMap[idName].totalSuccess += parseInt(r['success_volume']||0);
+        driverMap[idName].totalSuccess += (parsePct(r['Tỉ lệ GTC'])/100) * parseInt(r['volume']||0);
         driverMap[idName].sumRate += parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.'));
         driverMap[idName].daysCount += 1;
     });
 
-    let drivers = Object.values(driverMap).map(d => {
-        const avgRate = d.daysCount > 0 ? (d.sumRate / d.daysCount) : 0;
-        const pctGtc = d.totalVol > 0 ? (d.totalSuccess / d.totalVol * 100) : 0;
-        return { ...d, avgRate, pctGtc };
-    });
-
-    const minVol = 30;
-    const validDrivers = drivers.filter(d => d.totalVol > minVol);
-    const listToSort = validDrivers.length >= 20 ? validDrivers : drivers;
-
-    listToSort.sort((a,b) => {
-        if (Math.abs(b.pctGtc - a.pctGtc) > 0.01) return b.pctGtc - a.pctGtc;
-        return b.avgRate - a.avgRate;
-    });
-    const top10 = listToSort.slice(0, 10);
+    let drivers = Object.values(driverMap).map(d => ({ 
+        ...d, 
+        avgRate: d.daysCount > 0 ? (d.sumRate / d.daysCount) : 0, 
+        pctGtc: d.totalVol > 0 ? (d.totalSuccess / d.totalVol * 100) : 0 
+    }));
     
-    const bottom10 = [...listToSort].sort((a,b) => {
-        if (Math.abs(a.pctGtc - b.pctGtc) > 0.01) return a.pctGtc - b.pctGtc;
-        return a.avgRate - b.avgRate;
-    }).slice(0, 10);
-
-    const parseDateStr = s => {
-        const m = s.match(/(\d+) thg (\d+), (\d+)/);
-        if(m) return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1])).getTime();
-        return 0;
-    };
-
-    let detailData = state.nangSuatData;
-    if (selProv) {
-        detailData = detailData.filter(r => r['to_province_name'] === selProv);
-    }
-
-    const allDrivers = [...detailData].sort((a,b) => {
-        const dateA = parseDateStr(a['Ngày']||'');
-        const dateB = parseDateStr(b['Ngày']||'');
-        if (dateA !== dateB) return dateB - dateA;
-        
-        const gtcA = parsePct(a['Tỉ lệ GTC']);
-        const gtcB = parsePct(b['Tỉ lệ GTC']);
-        if (Math.abs(gtcB - gtcA) > 0.01) return gtcB - gtcA;
-        
-        const volA = parseInt(a['volume']||0);
-        const volB = parseInt(b['volume']||0);
-        return volB - volA;
-    });
+    const minVol = 30;
+    const listToSort = drivers.filter(d => d.totalVol >= minVol);
+    listToSort.sort((a,b) => b.pctGtc - a.pctGtc);
 
     const formatRow = (r, idx, isTop) => `
         <tr>
-            <td><span class="badge ${isTop ? (idx<3?'storing':'p3') : (idx<3?'p1':'waiting')}">#${idx+1}</span></td>
+            <td><span class="badge ${isTop ? 'storing' : 'p1'}">#${idx+1}</span></td>
             <td style="font-weight:600">${r.name}</td>
             <td>${r.province}</td>
-            <td style="text-align:right;font-weight:700;color:${isTop?'var(--green)':'var(--red)'}">${r.avgRate.toFixed(1)}</td>
+            <td style="text-align:right">${r.avgRate.toFixed(1)}</td>
             <td style="text-align:right">${r.totalVol.toLocaleString()}</td>
-            <td style="text-align:right" class="${pctClass(r.pctGtc.toFixed(2)+'%')}">${r.pctGtc.toFixed(2)}%</td>
-        </tr>
-    `;
+            <td style="text-align:right;font-weight:700;color:${isTop?'var(--green)':'var(--red)'}">${r.pctGtc.toFixed(1)}%</td>
+        </tr>`;
 
-    const formatAllRow = (r, idx) => `
-        <tr>
-            <td><span class="badge storing">${r['Ngày']||''}</span></td>
-            <td style="font-weight:600">${r['driver']||''}</td>
-            <td>${r['to_province_name']||''}</td>
-            <td style="text-align:right;font-weight:700">${parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.')).toFixed(1)}</td>
-            <td style="text-align:right">${parseInt(r['volume']||0).toLocaleString()}</td>
-            <td style="text-align:right" class="${pctClass(r['Tỉ lệ GTC'])}">${r['Tỉ lệ GTC']||'0%'}</td>
-            <td>${r['first_3_delivery']||'--'}</td>
-            <td>${r['last_3_delivery']||'--'}</td>
-        </tr>
-    `;
+    document.getElementById('tbody-ns-top').innerHTML = listToSort.slice(0, 10).map((r,i) => formatRow(r, i, true)).join('');
+    document.getElementById('tbody-ns-bottom').innerHTML = [...listToSort].sort((a,b) => a.pctGtc - b.pctGtc).slice(0, 10).map((r,i) => formatRow(r, i, false)).join('');
 
-    document.getElementById('tbody-ns-top').innerHTML = top10.map((r,i) => formatRow(r, i, true)).join('');
-    document.getElementById('tbody-ns-bottom').innerHTML = bottom10.map((r,i) => formatRow(r, i, false)).join('');
-    
-    const tbodyAll = document.getElementById('tbody-ns-all');
-    if (tbodyAll) tbodyAll.innerHTML = allDrivers.map((r,i) => formatAllRow(r, i)).join('');
+    // RENDER ALL DRIVERS TABLE
+    const allTbody = document.getElementById('tbody-ns-all');
+    if (allTbody) {
+        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
+            <tr>
+                <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
+                <td style="font-weight:600">${r['driver'] || '--'}</td>
+                <td>${r['to_province_name'] || '--'}</td>
+                <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
+                <td style="text-align:right;font-weight:600">${parseInt(r['volume']||0).toLocaleString()}</td>
+                <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
+                <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
+                <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
+            </tr>
+        `).join('');
+    }
 }
 
 // ---- WARNINGS SECTION ----
-function renderWarningsSection() {
-    const data = state.warningsData;
+function renderWarningsSection(khoFilter = '', statusFilter = '') {
+    let data = state.warningsData;
     if (!data) return;
 
-    // KPI Cards
-    const critical = data.filter(r => r['Tình hình hiện tại'] === 'Nghiêm trọng');
-    const warning  = data.filter(r => r['Tình hình hiện tại'] === 'Cảnh báo');
+    const ngayKey = 'Total ngày';
+
+    // Xử lý dữ liệu
+    const processedData = state.warningsData.map(r => {
+        // Helper để lấy giá trị linh hoạt
+        const getV = (keys, defaultVal = '') => {
+            for (const k of keys) {
+                if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
+            }
+            const allKeys = Object.keys(r);
+            for (const search of keys) {
+                const found = allKeys.find(k => k.toLowerCase().includes(search.toLowerCase()));
+                if (found && r[found] !== undefined && r[found] !== null && r[found] !== '') return r[found];
+            }
+            return defaultVal;
+        };
+
+        const soNgay = parseFloat(getV(['Số ngày trở về ngày thường', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
+        
+        return { 
+            ...r, 
+            soNgayVal: soNgay, 
+            sheetStatus: sheetStatus 
+        };
+    });
+
+    // KPI Cards:
+    // 1. Kho Nghiêm trọng: tính theo số ngày > 6
+    const criticalList = processedData.filter(r => r.soNgayVal > 6);
+    // 2. Kho Bất ổn: đếm theo cột trạng thái hiện tại của sheet
+    const warningList  = processedData.filter(r => r.sheetStatus === 'Bất ổn');
 
     const critEl = document.getElementById('warn-critical-count');
-    if (critEl) critEl.textContent = critical.length;
+    if (critEl) critEl.textContent = criticalList.length;
 
     const warnEl = document.getElementById('warn-warning-count');
-    if (warnEl) warnEl.textContent = warning.length;
+    if (warnEl) warnEl.textContent = warningList.length;
 
-    // Cột N = "Số ngày trở về ngày thường"
-    const ngayKey = 'Số ngày trở về ngày thường';
-    const totalNgay = data.reduce((sum, r) => sum + (parseFloat(r[ngayKey]) || 0), 0);
-    const avgDays = data.length ? totalNgay / data.length : 0;
+    const upcoming = processedData.filter(r => {
+        const next = (r['Tình hình sắp tới'] || '').toLowerCase();
+        return next.includes('cảnh báo') || next.includes('nghiêm trọng');
+    });
+    const upcomingEl = document.getElementById('warn-upcoming-count');
+    if (upcomingEl) upcomingEl.textContent = upcoming.length;
+
+    const totalNgay = processedData.reduce((sum, r) => sum + r.soNgayVal, 0);
+    const avgDays = processedData.length ? totalNgay / processedData.length : 0;
     const avgDaysEl = document.getElementById('warn-avg-days');
     if (avgDaysEl) avgDaysEl.textContent = avgDays.toFixed(1);
 
-    // Table — hiện tất cả kho, không giới hạn
+    // Lọc dữ liệu theo filter người dùng
+    let filtered = processedData;
+    if (khoFilter) filtered = filtered.filter(r => shortKho(r['kho gxt'] || r['Kho'] || '').toLowerCase().includes(khoFilter.toLowerCase()));
+    if (statusFilter) filtered = filtered.filter(r => r.sheetStatus === statusFilter);
+
+    // Sắp xếp giảm dần theo số ngày
+    filtered.sort((a, b) => b.soNgayVal - a.soNgayVal);
+
+    // Render Table
     const tbody = document.getElementById('tbody-warnings');
     if (tbody) {
-        tbody.innerHTML = data.map(r => {
-            const status = r['Tình hình hiện tại'] || 'Bình thường';
+        // Tối ưu hóa: Nhóm dữ liệu GTC theo kho trước khi render
+        const gtcMap = new Map();
+        state.gtcData.forEach(g => {
+            const name = shortKho(g['Kho']);
+            if (!gtcMap.has(name)) gtcMap.set(name, []);
+            gtcMap.get(name).push(g);
+        });
+
+        tbody.innerHTML = filtered.map((r, index) => {
+            const status = r.sheetStatus;
             let badgeClass = 'storing';
-            if (status === 'Cảnh báo') badgeClass = 'waiting';
+            if (status === 'Bất ổn') badgeClass = 'waiting';
             if (status === 'Nghiêm trọng') badgeClass = 'p1';
 
             const nextStatus = r['Tình hình sắp tới'] || 'Bình thường';
@@ -882,27 +1351,51 @@ function renderWarningsSection() {
             if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
             if (nextStatus === 'Nghiêm trọng') nextBadgeClass = 'p1';
 
-            // Backlog last mile — thử nhiều tên cột có thể có
-            const backlogLM = r['backlog last mile'] || r['Backlog Last Mile'] || r['backlog_last_mile'] || 0;
-            const backlogKTC = r['backlog ktc'] || r['Backlog KTC'] || r['backlog_ktc'] || 0;
+            const backlogLM = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
+            const backlogKTC = parseInt(r['backlog ktc'] || 0);
+            const totalBL = backlogLM + backlogKTC;
+            
+            const donTao = r['đơn tạo N-1'] || r['??n t?o N-1'] || 0;
+            const donGtc = r['đơn gtc N-1'] || r['??n gtc N-1'] || 0;
 
-            // Số ngày về bình thường (cột N)
-            const soNgay = parseFloat(r[ngayKey]) || 0;
+            // Truy xuất từ Map đã nhóm sẵn
+            const warehouseName = shortKho(r['kho gxt'] || r['Kho'] || '');
+            const warehouseGtcData = gtcMap.get(warehouseName) || [];
+            
+            // Sắp xếp ngày giảm dần và lấy 7 bản ghi gần nhất
+            const latestGtc = warehouseGtcData.sort((a, b) => {
+                const dateA = a['Ngày'] || '';
+                const dateB = b['Ngày'] || '';
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return dateB.localeCompare(dateA);
+            }).slice(0, 7);
+
+            let avgGtcVol = 0;
+            let maxGtcVol = 0;
+            if (latestGtc.length > 0) {
+                const volumes = latestGtc.map(g => parseInt(g['Số đơn GTC'] || g['success_volume'] || 0));
+                avgGtcVol = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+                maxGtcVol = Math.max(...volumes);
+            }
 
             return `
                 <tr>
                     <td style="font-weight:600">${shortKho(r['kho gxt'] || r['Kho'] || '--')}</td>
                     <td><span class="badge ${badgeClass}">${status}</span></td>
-                    <td style="text-align:right;font-weight:700;color:var(--red)">${backlogLM}</td>
-                    <td style="text-align:right">${backlogKTC}</td>
-                    <td>${r['đơn tạo N-1'] || 0} / ${r['đơn gtc N-1'] || 0}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--red)">${backlogLM.toLocaleString()}</td>
+                    <td style="text-align:right">${backlogKTC.toLocaleString()}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--blue)">${totalBL.toLocaleString()}</td>
+                    <td style="text-align:center;font-weight:600;color:var(--orange)">${donTao} / ${donGtc}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--green)">${Math.round(avgGtcVol).toLocaleString()}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--blue)">${maxGtcVol.toLocaleString()}</td>
                     <td style="text-align:right">
-                        <span class="aging-chip ${soNgay > 2 ? 'aging-critical' : soNgay > 0 ? 'aging-high' : 'aging-normal'}">
-                            ${soNgay} ngày
+                        <span class="aging-chip ${r.soNgayVal > 6 ? 'aging-critical' : r.soNgayVal > 0 ? 'aging-high' : 'aging-normal'}">
+                            ${r.soNgayVal} ngày
                         </span>
                     </td>
                     <td><span class="badge ${nextBadgeClass}">${nextStatus}</span></td>
-                    <td style="font-weight:800;color:var(--orange)">${r['Rank'] || '--'}</td>
+                    <td style="font-weight:800;color:var(--orange)">${index + 1}</td>
                 </tr>
             `;
         }).join('');
@@ -913,6 +1406,171 @@ function renderWarningsSection() {
 function destroyChart(key) {
     if (charts[key]) { charts[key].destroy(); charts[key] = null; }
 }
+
+// ---- TELEGRAM REPORTING (DIRECT FROM DASHBOARD UI) ----
+function assembleTelegramReport() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('vi-VN');
+    const timeStr = now.toLocaleTimeString('vi-VN');
+
+    let msg = `📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n⏱ _${dateStr} ${timeStr}_\n\n`;
+
+    // 1. KHO NGHIÊM TRỌNG (Lấy từ Hệ Thống Cảnh Báo)
+    msg += `🏥 *1. KHO NGHIÊM TRỌNG (>6 NGÀY):*\n`;
+    const warnRows = document.querySelectorAll('#tbody-warnings tr');
+    let warnCount = 0;
+    warnRows.forEach(tr => {
+        if (warnCount >= 10) return;
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 9) return;
+        
+        const kho = tds[0].innerText.trim();
+        const status = tds[1].innerText.trim();
+        const days = tds[8].innerText.trim(); // Số ngày về bình thường
+        
+        if (parseInt(days) > 6 || status.includes('Nghiêm trọng')) {
+            msg += `${warnCount + 1}. *${kho}*: ${status} (${days})\n`;
+            warnCount++;
+        }
+    });
+    if (warnCount === 0) msg += `_Không có kho nào_\n`;
+    msg += `\n`;
+
+    // 2. CẢNH BÁO NV NĂNG SUẤT TỆ
+    msg += `👤 *2. CẢNH BÁO NV NĂNG SUẤT TỆ:*
+`;
+    
+    function getNsWorst(days, label, minVol) {
+        const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        if (!allDates.length) return `*${label}:*
+_Trống_
+`;
+        
+        const latestTs = parseVN(allDates[0]);
+        let filtered = [];
+        
+        if (days === 1) {
+            filtered = state.nangSuatData.filter(r => r['Ngày'] === allDates[0]);
+        } else {
+            const cutoff = latestTs - (days * 24 * 60 * 60 * 1000);
+            filtered = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= cutoff);
+        }
+        
+        const map = {};
+        filtered.forEach(r => {
+            const id = r['driver']; if (!id) return;
+            if (!map[id]) map[id] = { name: id, prov: r['to_province_name'], vol: 0, succ: 0 };
+            const v = parseInt(r['volume']||0);
+            map[id].vol += v;
+            map[id].succ += (parsePct(r['Tỉ lệ GTC'])/100) * v;
+        });
+        
+        const list = Object.values(map)
+            .map(d => ({ ...d, pct: d.vol > 0 ? (d.succ/d.vol*100) : 0 }))
+            .filter(d => d.vol >= minVol)
+            .sort((a,b) => a.pct - b.pct)
+            .slice(0, 5);
+            
+        let res = `*${label}:*
+`;
+        list.forEach(d => res += `• ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)
+`);
+        if (list.length === 0) res += `_Trống_
+`;
+        return res;
+    }
+
+    msg += getNsWorst(1, "Ngày gần nhất", 30);
+    msg += "\n" + getNsWorst(7, "Tuần gần nhất", 30);
+    msg += "\n" + getNsWorst(30, "Tháng gần nhất", 30);
+    msg += "\n";
+
+    // 4. HIỆU SUẤT KHO (GTC) (Lấy từ GTC rankings)
+    msg += `🏪 *4. HIỆU SUẤT KHO (GTC):*\n`;
+    const gtcPanels = document.querySelectorAll('#gtc-top-bottom .table-card');
+    gtcPanels.forEach(panel => {
+        const title = panel.querySelector('h3')?.innerText.trim() || 'GTC';
+        msg += `*${title}:*\n`;
+        const rows = Array.from(panel.querySelectorAll('tbody tr'));
+        
+        const tops = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tốt')).slice(0, 3);
+        const bottoms = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tệ')).slice(-3).reverse();
+
+        tops.forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            msg += ` ✅ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
+        });
+        bottoms.forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            msg += ` ❌ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
+        });
+    });
+
+    // 5. ĐƠN B2B ĐẾN HẠN GIAO (Lấy trực tiếp từ Dashboard DOM)
+    msg += `👑 *5. ĐƠN B2B ĐẾN HẠN GIAO:*\n`;
+    const b2bRows = document.querySelectorAll('#tbody-b2b tr');
+    const b2bSummary = new Map();
+    let b2bTotal = 0;
+
+    b2bRows.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 5) return;
+        
+        const priority = tds[0].innerText.toLowerCase();
+        const kho = tds[1].innerText.trim();
+        const loai = tds[4].innerText.toLowerCase();
+        
+        // Điều kiện: Loại có chữ 'giao' và Ưu tiên có mã '1:'
+        if (loai.includes('giao') && priority.includes('1:')) {
+            b2bSummary.set(kho, (b2bSummary.get(kho) || 0) + 1);
+            b2bTotal++;
+        }
+    });
+    
+    if (b2bTotal > 0) {
+        const sortedB2B = Array.from(b2bSummary.entries()).sort((a,b) => b[1] - a[1]);
+        sortedB2B.forEach(([k, v]) => msg += `• *${k}*: ${v} đơn\n`);
+    } else {
+        msg += `_Không có đơn B2B đến hạn_\n`;
+    }
+
+    msg += `\n🔗 [Mở Dashboard Chi Tiết](https://ghn-ops-dashboard.railway.app)`;
+    return msg;
+}
+
+async function sendTelegramReport() {
+    const btn = document.getElementById('telegram-btn');
+    if (!btn) return;
+    
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang chuẩn bị...';
+    btn.disabled = true;
+
+    try {
+        const message = assembleTelegramReport();
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...';
+
+        const resp = await fetch('/api/telegram/report', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: message })
+        });
+        const result = await resp.json();
+        
+        if (result.status === 'success') {
+            alert('✅ Báo cáo chi tiết đã được gửi!');
+        } else {
+            alert('❌ Lỗi: ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Không thể kết nối với server.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+document.getElementById('telegram-btn')?.addEventListener('click', sendTelegramReport);
 
 // ---- NAVIGATION ----
 const SECTION_META = {
@@ -945,13 +1603,8 @@ document.querySelectorAll('.view-all[data-section]').forEach(link => {
     link.addEventListener('click', e => { e.preventDefault(); showSection(e.currentTarget.dataset.section); });
 });
 
-document.getElementById('refresh-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('refresh-btn');
-    btn.classList.add('loading');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
-    await fetchAll();
-    btn.classList.remove('loading');
-    btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
+document.getElementById('refresh-btn').addEventListener('click', () => {
+    fetchAll(true);
 });
 
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
@@ -961,25 +1614,41 @@ document.getElementById('sidebar-toggle').addEventListener('click', () => {
 
 // Filters
 document.getElementById('filter-kho-gtc').addEventListener('input', e => renderGtcSection(e.target.value));
+document.getElementById('filter-kho-gtc-select')?.addEventListener('change', () => renderGtcSection());
+
 document.getElementById('filter-kho-backlog').addEventListener('input', e =>
     renderBacklogSection(e.target.value, document.getElementById('filter-luong').value));
 document.getElementById('filter-luong').addEventListener('change', e =>
     renderBacklogSection(document.getElementById('filter-kho-backlog').value, e.target.value));
 document.getElementById('filter-b2b').addEventListener('input', e =>
-    renderB2bSection(e.target.value, document.getElementById('filter-priority').value));
+    renderB2bSection(e.target.value, document.getElementById('filter-priority').value, document.getElementById('filter-b2b-client').value, document.getElementById('filter-b2b-type').value));
 document.getElementById('filter-priority').addEventListener('change', e =>
-    renderB2bSection(document.getElementById('filter-b2b').value, e.target.value));
+    renderB2bSection(document.getElementById('filter-b2b').value, e.target.value, document.getElementById('filter-b2b-client').value, document.getElementById('filter-b2b-type').value));
+document.getElementById('filter-b2b-client').addEventListener('change', e =>
+    renderB2bSection(document.getElementById('filter-b2b').value, document.getElementById('filter-priority').value, e.target.value, document.getElementById('filter-b2b-type').value));
+document.getElementById('filter-b2b-type').addEventListener('change', e =>
+    renderB2bSection(document.getElementById('filter-b2b').value, document.getElementById('filter-priority').value, document.getElementById('filter-b2b-client').value, e.target.value));
 document.getElementById('filter-personnel').addEventListener('input', e =>
     renderPersonnelSection(e.target.value, document.getElementById('filter-position').value));
 document.getElementById('filter-position').addEventListener('change', e =>
     renderPersonnelSection(document.getElementById('filter-personnel').value, e.target.value));
 
-function switchNsTab(period, btnId) {
+// Warning Filters
+document.getElementById('filter-kho-warnings').addEventListener('input', e => 
+    renderWarningsSection(e.target.value, document.getElementById('filter-status-warnings').value));
+document.getElementById('filter-status-warnings').addEventListener('change', e => 
+    renderWarningsSection(document.getElementById('filter-kho-warnings').value, e.target.value));
+
+// Return Filters
+document.getElementById('filter-client-returns').addEventListener('input', e =>
+    renderReturnsSection(e.target.value));
+
+window.switchNsPeriod = function(period, btnId) {
     document.querySelectorAll('#section-nangsuat .filter-tabs button').forEach(b => {
         b.classList.remove('active');
         b.style.cssText = '';
     });
-    const btn = document.getElementById(btnId);
+    const btn = document.getElementById(btnId || ('btn-ns-' + period));
     if(btn) {
         btn.classList.add('active');
         btn.style.cssText = 'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700';
@@ -988,14 +1657,16 @@ function switchNsTab(period, btnId) {
     renderNangSuatSection();
 }
 
-document.getElementById('btn-ns-day').addEventListener('click', () => switchNsTab('day', 'btn-ns-day'));
-document.getElementById('btn-ns-week').addEventListener('click', () => switchNsTab('week', 'btn-ns-week'));
-document.getElementById('btn-ns-month').addEventListener('click', () => switchNsTab('month', 'btn-ns-month'));
+document.getElementById('btn-ns-day')?.addEventListener('click', () => switchNsPeriod('day', 'btn-ns-day'));
+document.getElementById('btn-ns-week')?.addEventListener('click', () => switchNsPeriod('week', 'btn-ns-week'));
+document.getElementById('btn-ns-month')?.addEventListener('click', () => switchNsPeriod('month', 'btn-ns-month'));
 
-document.getElementById('filter-ns-province').addEventListener('change', () => {
+document.getElementById('filter-ns-province')?.addEventListener('change', () => {
     renderNangSuatSection();
 });
 
 // ---- INIT ----
-fetchAll();
-setInterval(fetchAll, 5 * 60 * 1000);
+document.addEventListener('DOMContentLoaded', () => {
+    fetchAll();
+    startSyncTimer();
+});
