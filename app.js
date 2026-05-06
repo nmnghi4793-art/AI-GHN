@@ -365,16 +365,20 @@ function renderReturnsPieChart() {
 // ---- BACKLOG OVERVIEW TABLE ----
 function renderBacklogOverviewTable() {
     const tbody = document.getElementById('tbody-backlog-overview');
-    const sorted = [...state.backlogData]
-        .sort((a,b) => parseInt(b['backlog_aging']||0) - parseInt(a['backlog_aging']||0))
-        .slice(0, 7);
+    if (!tbody) return;
+    const khoMap = {};
+    state.backlogData.forEach(r => {
+        const k = shortKho(r['kho_giao'] || r['Kho'] || '--');
+        khoMap[k] = (khoMap[k] || 0) + 1;
+    });
+    const sorted = Object.entries(khoMap)
+        .map(([kho, count]) => ({ kho, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
     tbody.innerHTML = sorted.map(r => `
         <tr>
-            <td class="order-code">${r['order_code'] || '--'}</td>
-            <td>${shortKho(r['kho_giao'] || r['Kho'] || '--')}</td>
-            <td>${agingChip(r['backlog_aging'] || r['Số ngày tồn'])}</td>
-            <td>${r['client_type'] || '--'}</td>
-            <td>${r['status'] || '--'}</td>
+            <td style="font-weight:600">${r.kho}</td>
+            <td style="text-align:right;font-weight:700;color:var(--red)">${r.count.toLocaleString()}</td>
         </tr>
     `).join('');
 }
@@ -382,17 +386,22 @@ function renderBacklogOverviewTable() {
 // ---- B2B OVERVIEW TABLE ----
 function renderB2bOverviewTable() {
     const tbody = document.getElementById('tbody-b2b-overview');
-    const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày mốt'];
-    const sorted = [...state.b2bData]
-        .sort((a,b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']))
-        .slice(0, 7);
+    if (!tbody) return;
+    const khoMap = {};
+    state.b2bData.forEach(r => {
+        if (r['Mức độ ưu tiên'] === '1: trong hôm nay') {
+            const k = shortKho(r['Kho hiện tại'] || '--');
+            khoMap[k] = (khoMap[k] || 0) + 1;
+        }
+    });
+    const sorted = Object.entries(khoMap)
+        .map(([kho, count]) => ({ kho, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
     tbody.innerHTML = sorted.map(r => `
         <tr>
-            <td class="order-code">${r['Order code'] || '--'}</td>
-            <td>${shortKho(r['Kho hiện tại'])}</td>
-            <td>${agingChip(r['Đã lưu kho (ngày)'])}</td>
-            <td>${r['Khách'] || '--'}</td>
-            <td>${priorityBadge(r['Mức độ ưu tiên'])}</td>
+            <td style="font-weight:600">${r.kho}</td>
+            <td style="text-align:right;font-weight:700;color:var(--orange)">${r.count.toLocaleString()}</td>
         </tr>
     `).join('');
 }
