@@ -225,7 +225,14 @@ function renderOverviewCards() {
     if (blAllEl) blAllEl.textContent = (ov.total_backlog_all || 0).toLocaleString();
 
     const xeTotalEl = document.getElementById('val-xegxt-total');
-    if (xeTotalEl) xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${ov.total_personnel || 0}`;
+    if (xeTotalEl) {
+        let pCount = ov.total_personnel || 0;
+        // Fallback to frontend calculation if available and server returns 0
+        if (pCount === 0 && state.personnelData && state.personnelData.length) {
+            pCount = state.personnelData.filter(r => (r['Tên vị trí']||'').trim().toLowerCase() === 'delivery staff').length;
+        }
+        xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${pCount}`;
+    }
 
     const khoGxtTotalEl = document.getElementById('val-khogxt-total');
     if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
@@ -234,6 +241,21 @@ function renderOverviewCards() {
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
     document.getElementById('sub-gtc').textContent    = 'Đã đồng bộ: ' + syncTime;
 }
+
+window.toggleDropdown = function(id) {
+    document.getElementById(id).classList.toggle('active');
+    // Close other dropdowns
+    document.querySelectorAll('.dropdown-list').forEach(list => {
+        if (list.id !== id) list.classList.remove('active');
+    });
+};
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-multi')) {
+        document.querySelectorAll('.dropdown-list').forEach(l => l.classList.remove('active'));
+    }
+});
 
 function updateNavBadges() {
     document.getElementById('nav-backlog-count').textContent = state.backlogData.length;
@@ -1582,18 +1604,21 @@ function renderXeSuCoSection() {
         const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
-        return `W${getWeek(d)}/${d.getFullYear()}`;
+        const w = getWeek(d);
+        return `Tuần ${d.getFullYear()}-W${w < 10 ? '0'+w : w}`;
     }).filter(Boolean))].sort().reverse();
 
     if (weekCont && weekCont.children.length === 0) {
         weeks.forEach(w => {
             const lbl = document.createElement('label');
-            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
             lbl.innerHTML = `<input type="checkbox" value="${w}" class="filter-xesuco-week"> ${w}`;
             weekCont.appendChild(lbl);
         });
-        // Add event listener to re-render when checked
-        weekCont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderXeSuCoSection));
+        weekCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
+            renderXeSuCoSection();
+            const checked = Array.from(document.querySelectorAll('.filter-xesuco-week:checked'));
+            document.getElementById('label-xesuco-week').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Tuần...';
+        }));
     }
 
     const months = [...new Set(data.map(r => {
@@ -1610,12 +1635,14 @@ function renderXeSuCoSection() {
     if (monthCont && monthCont.children.length === 0) {
         months.forEach(m => {
             const lbl = document.createElement('label');
-            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
             lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Tháng ${m}`;
             monthCont.appendChild(lbl);
         });
-        // Add event listener to re-render when checked
-        monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderXeSuCoSection));
+        monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
+            renderXeSuCoSection();
+            const checked = Array.from(document.querySelectorAll('.filter-xesuco-month:checked'));
+            document.getElementById('label-xesuco-month').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Tháng...';
+        }));
     }
 
     // Apply Filters

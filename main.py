@@ -284,7 +284,7 @@ def get_overview(force: bool = False):
     total_kho_gxt = len(kho_data)
     
     # Total Personnel (Delivery Staff)
-    total_delivery_staff = len([r for r in pers_data if r.get('position_name') == 'Delivery Staff'])
+    total_delivery_staff = len([r for r in pers_data if str(r.get('Tên vị trí','')).strip().lower() == 'delivery staff'])
 
     return {
         "avg_gtc": avg_gtc,

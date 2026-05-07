@@ -3,12 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GHN Miền Trung - Operations Dashboard</title>
+    <title>GHN Operations Dashboard | Miền Trung</title>
     <meta name="description" content="Hệ thống theo dõi vận hành GHN Miền Trung - GTC, Ontime, Backlog, B2B">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --orange: #FF5200;
+            --blue: #0076BE;
+            --green: #0CA678;
+            --red: #F5365C;
+            --purple: #5E72E4;
+            --yellow: #FB6340;
+            --bg: #F8F9FE;
+            --card: #FFFFFF;
+            --text1: #32325D;
+            --text2: #525F7F;
+            --text3: #8898AA;
+            --border: #E9ECEF;
+            --shadow-sm: 0 2px 10px rgba(0,0,0,0.05);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* Dropdown Multi-select styles */
+        .dropdown-multi {
+            position: relative;
+            width: 100%;
+        }
+        .dropdown-trigger {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--text2);
+        }
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 250px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: none;
+            padding: 10px;
+            margin-top: 5px;
+        }
+        .dropdown-list.active {
+            display: block;
+        }
+        .dropdown-items {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .dropdown-items label {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+            font-size: 0.85rem;
+        }
+        .dropdown-items label:hover {
+            background: #f0f4f8;
+        }
+        .dropdown-items input {
+            margin-right: 10px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text2);
+        }
+    </style>
     <link rel="stylesheet" href="styles.css?v=1.1">
 </head>
 <body>
@@ -776,16 +858,28 @@
                             <option value="">-- Tất cả --</option>
                         </select>
                     </div>
-                    <div>
-                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn nhiều Tuần</label>
-                        <div class="multi-select-box" id="filter-xesuco-week-container" style="max-height: 120px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 6px; background: #fafafa;">
-                            <!-- JS will populate -->
+                    <div class="filter-group">
+                        <label>Chọn nhiều Tuần</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-week">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-week-list')">
+                                <span id="label-xesuco-week">Chọn Tuần...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-week-list">
+                                <div class="dropdown-items" id="filter-xesuco-week-container"></div>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn nhiều Tháng</label>
-                        <div class="multi-select-box" id="filter-xesuco-month-container" style="max-height: 120px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 6px; background: #fafafa;">
-                            <!-- JS will populate -->
+                    <div class="filter-group">
+                        <label>Chọn nhiều Tháng</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-month">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-month-list')">
+                                <span id="label-xesuco-month">Chọn Tháng...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-month-list">
+                                <div class="dropdown-items" id="filter-xesuco-month-container"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
