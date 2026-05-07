@@ -196,7 +196,7 @@
             <!-- ===== SECTION: TỔNG QUAN ===== -->
             <section class="section active" id="section-overview">
 
-                <!-- 5 KPI CARDS -->
+                <!-- MAIN KPI CARDS GRID -->
                 <div class="overview-cards">
                     <!-- 1. GTC -->
                     <div class="stat-card green-card">
@@ -270,10 +270,8 @@
                             <p class="stat-sub" style="color:#0288D1">Điểm nhận hàng</p>
                         </div>
                     </div>
-                </div>
 
-                <!-- ADDITIONAL WARNING CARDS (From Warning System) -->
-                <div class="overview-cards" style="margin-top: 15px;">
+                    <!-- WARNING CARDS INTEGRATED INTO MAIN GRID -->
                     <div class="stat-card red-card">
                         <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
                         <div class="stat-details">
@@ -497,9 +495,6 @@
                     </div>
                 </div>
             </section>
-
-                <!-- GTC Overview Chart Filter (Overview Section) -->
-                <!-- Note: Overview chart is at line 169. Let's add filters there too. -->
 
             <!-- ===== SECTION: GTC & NĂNG SUẤT ===== -->
             <section class="section" id="section-gtc">
@@ -843,20 +838,18 @@
                                     <th>STT</th>
                                     <th>Tỉnh</th>
                                     <th>Kho</th>
-                                    <th style="text-align:right">Tổng Xe Đang Chạy</th>
+                                    <th style="text-align:right">Tổng xe đang chạy</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-xegxt">
-                                <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                                <tr><td colspan="4" style="text-align:center">Đang tải...</td></tr>
                             </tbody>
-                            <tfoot id="tfoot-xegxt" style="background:var(--bg2); font-weight:bold;">
-                                <!-- Dòng tổng cộng sẽ hiện ở đây -->
-                            </tfoot>
+                            <tfoot id="tfoot-xegxt" style="background:#f8fafc; font-weight:700"></tfoot>
                         </table>
                     </div>
                 </div>
 
-                <div class="table-card" style="margin-top:20px">
+                <div class="table-card" style="margin-top: 20px;">
                     <div class="table-header">
                         <h3><i class="fa-solid fa-list-check"></i> Dữ Liệu Chi Tiết Xe GXT</h3>
                     </div>
@@ -870,20 +863,21 @@
                                     <th>Tên NCC</th>
                                     <th>Loại Xe</th>
                                     <th style="text-align:right">SL Xe</th>
-                                    <th>Ca Làm Việc</th>
-                                    <th>Ghi Chú</th>
+                                    <th>Ca làm việc</th>
+                                    <th>Ghi chú</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-xegxt-detail">
-                                <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                                <tr><td colspan="8" style="text-align:center">Đang tải...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
+
             <!-- ===== SECTION: XE SỰ CỐ ===== -->
             <section class="section" id="section-xesuco">
-                <div class="section-filters" style="display: grid; grid-template-columns: 1fr 150px 200px 200px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+                <div class="section-filters" style="display: grid; grid-template-columns: 1fr 200px 200px 200px 180px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
                     <div>
                         <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm kiếm thông tin</label>
                         <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..." class="filter-input" style="width: 100%;">
@@ -923,6 +917,12 @@
                                 <div class="dropdown-items" id="filter-xesuco-month-container"></div>
                             </div>
                         </div>
+                    </div>
+                    <div>
+                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn Kho</label>
+                        <select id="filter-xesuco-kho" class="filter-select" style="width: 100%;">
+                            <option value="">-- Tất cả --</option>
+                        </select>
                     </div>
                 </div>
 
@@ -984,6 +984,6 @@
         </main>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.1"></script>
 </body>
 </html>

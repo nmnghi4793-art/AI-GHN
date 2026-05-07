@@ -282,9 +282,9 @@ def get_overview(force: bool = False):
     total_kho_gxt = len(kho_data)
     
     # Warning metrics
-    critical_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Nghiêm trọng"])
-    unstable_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Cảnh báo"])
-    upcoming_count = len([r for r in warning_data if r.get("Dự báo sắp tới", "") != "Bình thường"])
+    critical_count = len([r for r in warning_data if str(r.get("Tình hình hiện tại", "")).strip() == "Nghiêm trọng"])
+    unstable_count = len([r for r in warning_data if str(r.get("Tình hình hiện tại", "")).strip() == "Cảnh báo"])
+    upcoming_count = len([r for r in warning_data if str(r.get("Dự báo sắp tới", "")).strip() not in ["", "Bình thường"]])
     
     days_vals = []
     for r in warning_data:
