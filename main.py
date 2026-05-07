@@ -280,14 +280,11 @@ def get_overview(force: bool = False):
     # Total Xe GXT
     total_xe = sum(int(r.get("Tổng xe đang chạy", 0) or 0) for r in xe_data)
 
-    # Total Xe Sự Cố (Trong ngày mới nhất hoặc tổng)
-    total_su_co = len(su_co_data)
-
     # Total Kho GXT
     total_kho_gxt = len(kho_data)
     
-    # Total Personnel
-    total_personnel = len(pers_data)
+    # Total Personnel (Delivery Staff)
+    total_delivery_staff = len([r for r in pers_data if r.get('position_name') == 'Delivery Staff'])
 
     return {
         "avg_gtc": avg_gtc,
@@ -302,9 +299,8 @@ def get_overview(force: bool = False):
         "total_backlog_ktc": total_bl_ktc,
         "total_backlog_all": total_bl_lm + total_bl_ktc,
         "total_xe_gxt": total_xe,
-        "total_xe_su_co": total_su_co,
         "total_kho_gxt": total_kho_gxt,
-        "total_personnel": total_personnel,
+        "total_personnel": total_delivery_staff,
         "last_sync": max(gtc_sync, warn_sync)
     }
 

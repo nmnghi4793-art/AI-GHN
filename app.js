@@ -227,9 +227,6 @@ function renderOverviewCards() {
     const xeTotalEl = document.getElementById('val-xegxt-total');
     if (xeTotalEl) xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${ov.total_personnel || 0}`;
 
-    const xeSuCoEl = document.getElementById('val-xesuco-total');
-    if (xeSuCoEl) xeSuCoEl.textContent = (ov.total_xe_su_co || 0).toLocaleString();
-
     const khoGxtTotalEl = document.getElementById('val-khogxt-total');
     if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
     
@@ -1441,11 +1438,8 @@ function renderXeGxtSection() {
         return;
     }
 
-    // Populate dropdowns if they are empty (only first time or after data refresh)
+    // Populate dropdowns if they are empty
     populateXeGxtFilters();
-    renderXeSuCoSection();
-    renderKhoGxtSection();
-    renderGxtOverviewSection();
 
     const f_kho  = (document.getElementById('filter-xegxt-kho')?.value || '').toLowerCase();
     const f_tinh = (document.getElementById('filter-xegxt-tinh')?.value || '').toLowerCase();
@@ -1591,13 +1585,15 @@ function renderXeSuCoSection() {
         return `W${getWeek(d)}/${d.getFullYear()}`;
     }).filter(Boolean))].sort().reverse();
 
-    if (weekCont && !weekCont.innerHTML.trim()) {
+    if (weekCont && weekCont.children.length === 0) {
         weeks.forEach(w => {
             const lbl = document.createElement('label');
             lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
             lbl.innerHTML = `<input type="checkbox" value="${w}" class="filter-xesuco-week"> ${w}`;
             weekCont.appendChild(lbl);
         });
+        // Add event listener to re-render when checked
+        weekCont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderXeSuCoSection));
     }
 
     const months = [...new Set(data.map(r => {
@@ -1605,15 +1601,21 @@ function renderXeSuCoSection() {
         if (!ts) return null;
         const d = new Date(ts);
         return `${d.getMonth() + 1}/${d.getFullYear()}`;
-    }).filter(Boolean))].sort().reverse();
+    }).filter(Boolean))].sort((a,b) => {
+        const [m1,y1] = a.split('/');
+        const [m2,y2] = b.split('/');
+        return y2 - y1 || m2 - m1;
+    });
 
-    if (monthCont && !monthCont.innerHTML.trim()) {
+    if (monthCont && monthCont.children.length === 0) {
         months.forEach(m => {
             const lbl = document.createElement('label');
             lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
             lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Tháng ${m}`;
             monthCont.appendChild(lbl);
         });
+        // Add event listener to re-render when checked
+        monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderXeSuCoSection));
     }
 
     // Apply Filters
