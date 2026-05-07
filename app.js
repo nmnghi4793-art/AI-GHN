@@ -19,6 +19,7 @@ let state = {
     gtcData: [], ontimeData: [], returnsData: [],
     backlogData: [], b2bData: [], personnelData: [], nangSuatData: [],
     warningsData: [], returnsByClientData: [], xeGxtData: [],
+    xeSuCoData: [], khoGxtData: [],
     overview: {}
 };
 let charts = {};
@@ -87,7 +88,7 @@ async function fetchAll(force = false) {
 
     try {
         const query = force ? '?force=true' : '';
-        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt] = await Promise.all([
+        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt] = await Promise.all([
             fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
             fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({data:[]})),
@@ -99,6 +100,8 @@ async function fetchAll(force = false) {
             fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/xe-su-co${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/kho-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
         ]);
 
         state = { 
@@ -112,7 +115,9 @@ async function fetchAll(force = false) {
             nangSuatData: ns.data || [], 
             warningsData: warn.data || [],
             returnsByClientData: retC.data || [],
-            xeGxtData: xegxt.data || []
+            xeGxtData: xegxt.data || [],
+            xeSuCoData: xesuco.data || [],
+            khoGxtData: khogxt.data || []
         };
         filtersPopulated = false; // Reset filters on fresh data
         
@@ -177,6 +182,9 @@ function renderAll() {
         { name: 'NangSuatSection', fn: renderNangSuatSection },
         { name: 'WarningsSection', fn: renderWarningsSection },
         { name: 'XeGxtSection', fn: renderXeGxtSection },
+        { name: 'XeSuCoSection', fn: renderXeSuCoSection },
+        { name: 'KhoGxtSection', fn: renderKhoGxtSection },
+        { name: 'GxtOverviewSection', fn: renderGxtOverviewSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -219,6 +227,9 @@ function renderOverviewCards() {
 
     const xeTotalEl = document.getElementById('val-xegxt-total');
     if (xeTotalEl) xeTotalEl.textContent = (ov.total_xe_gxt || 0).toLocaleString();
+
+    const xeSuCoEl = document.getElementById('val-xesuco-total');
+    if (xeSuCoEl) xeSuCoEl.textContent = (ov.total_xe_su_co || 0).toLocaleString();
     
     // Last Sync indicator
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
@@ -1430,6 +1441,9 @@ function renderXeGxtSection() {
 
     // Populate dropdowns if they are empty (only first time or after data refresh)
     populateXeGxtFilters();
+    renderXeSuCoSection();
+    renderKhoGxtSection();
+    renderGxtOverviewSection();
 
     const f_kho  = (document.getElementById('filter-xegxt-kho')?.value || '').toLowerCase();
     const f_tinh = (document.getElementById('filter-xegxt-tinh')?.value || '').toLowerCase();
@@ -1533,6 +1547,215 @@ function populateXeGxtFilters() {
     populateSelect('filter-xegxt-loai', loaiSet);
 
     filtersPopulated = true;
+}
+
+// ---- SECTION: XE SỰ CỐ ----
+function getWeek(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
+}
+
+function renderXeSuCoSection() {
+    const tbodyRaw = document.getElementById('tbody-xesuco-raw');
+    const tbodySum = document.getElementById('tbody-xesuco-summary');
+    if (!tbodyRaw) return;
+
+    const data = state.xeSuCoData;
+    if (!data.length) {
+        tbodyRaw.innerHTML = '<tr><td colspan="6" style="text-align:center">Không có dữ liệu</td></tr>';
+        tbodySum.innerHTML = '<tr><td colspan="4" style="text-align:center">Không có dữ liệu</td></tr>';
+        return;
+    }
+
+    // Populate Filters
+    const daySelect = document.getElementById('filter-xesuco-day');
+    const weekCont  = document.getElementById('filter-xesuco-week-container');
+    const monthCont = document.getElementById('filter-xesuco-month-container');
+
+    const days = [...new Set(data.map(r => r['Ngày']))].sort((a,b) => parseVN(b) - parseVN(a));
+    if (daySelect && daySelect.options.length <= 1) {
+        days.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d; opt.textContent = d;
+            daySelect.appendChild(opt);
+        });
+    }
+
+    const weeks = [...new Set(data.map(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts) return null;
+        const d = new Date(ts);
+        return `W${getWeek(d)}/${d.getFullYear()}`;
+    }).filter(Boolean))].sort().reverse();
+
+    if (weekCont && !weekCont.innerHTML.trim()) {
+        weekCont.style.maxHeight = '100px';
+        weekCont.style.overflowY = 'auto';
+        weekCont.style.border = '1px solid #ddd';
+        weekCont.style.padding = '5px';
+        weekCont.style.borderRadius = '4px';
+        weeks.forEach(w => {
+            const lbl = document.createElement('label');
+            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer';
+            lbl.innerHTML = `<input type="checkbox" value="${w}" class="filter-xesuco-week"> ${w}`;
+            weekCont.appendChild(lbl);
+        });
+    }
+
+    const months = [...new Set(data.map(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts) return null;
+        const d = new Date(ts);
+        return `${d.getMonth() + 1}/${d.getFullYear()}`;
+    }).filter(Boolean))].sort().reverse();
+
+    if (monthCont && !monthCont.innerHTML.trim()) {
+        monthCont.style.maxHeight = '100px';
+        monthCont.style.overflowY = 'auto';
+        monthCont.style.border = '1px solid #ddd';
+        monthCont.style.padding = '5px';
+        monthCont.style.borderRadius = '4px';
+        months.forEach(m => {
+            const lbl = document.createElement('label');
+            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer';
+            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Thg ${m}`;
+            monthCont.appendChild(lbl);
+        });
+    }
+
+    // Apply Filters
+    const search = (document.getElementById('filter-xesuco-search')?.value || '').toLowerCase();
+    const selDay = daySelect ? daySelect.value : '';
+    const selWeeks = Array.from(document.querySelectorAll('.filter-xesuco-week:checked')).map(i => i.value);
+    const selMonths = Array.from(document.querySelectorAll('.filter-xesuco-month:checked')).map(i => i.value);
+
+    const filtered = data.filter(r => {
+        const ts = parseVN(r['Ngày']);
+        const d = new Date(ts);
+        const w = `W${getWeek(d)}/${d.getFullYear()}`;
+        const m = `${d.getMonth() + 1}/${d.getFullYear()}`;
+
+        const matchSearch = !search || JSON.stringify(r).toLowerCase().includes(search);
+        const matchDay = !selDay || r['Ngày'] === selDay;
+        const matchWeek = !selWeeks.length || selWeeks.includes(w);
+        const matchMonth = !selMonths.length || selMonths.includes(m);
+
+        return matchSearch && matchDay && matchWeek && matchMonth;
+    });
+
+    // Render Raw
+    tbodyRaw.innerHTML = filtered.slice(0, 50).map((r, i) => `
+        <tr>
+            <td style="color:var(--text3)">${i+1}</td>
+            <td>${r['Ngày'] || ''}</td>
+            <td style="font-weight:600">${r['Kho'] || ''}</td>
+            <td>${r['Biển Số Xe'] || ''}</td>
+            <td style="color:var(--red)">${r['Lỗi'] || ''}</td>
+            <td>${r['NCC'] || ''}</td>
+        </tr>
+    `).join('');
+
+    // Render Summary (NCC x Kho x Lỗi)
+    const sumMap = {};
+    filtered.forEach(r => {
+        const key = `${r['NCC'] || 'N/A'}|${r['Kho'] || 'N/A'}|${r['Lỗi'] || 'N/A'}`;
+        sumMap[key] = (sumMap[key] || 0) + 1;
+    });
+
+    const sumList = Object.entries(sumMap).map(([k, v]) => {
+        const [ncc, kho, loi] = k.split('|');
+        return { ncc, kho, loi, count: v };
+    }).sort((a, b) => b.count - a.count);
+
+    tbodySum.innerHTML = sumList.map(item => `
+        <tr>
+            <td>${item.ncc}</td>
+            <td>${item.kho}</td>
+            <td style="color:var(--red); font-size:0.85rem">${item.loi}</td>
+            <td style="text-align:right; font-weight:700">${item.count}</td>
+        </tr>
+    `).join('');
+}
+
+// ---- SECTION: KHO GXT ----
+function renderKhoGxtSection() {
+    const tbody = document.getElementById('tbody-khogxt');
+    if (!tbody) return;
+    const search = (document.getElementById('filter-khogxt-search')?.value || '').toLowerCase();
+
+    const filtered = state.khoGxtData.filter(r => {
+        return !search || JSON.stringify(r).toLowerCase().includes(search);
+    });
+
+    tbody.innerHTML = filtered.map(r => `
+        <tr>
+            <td style="color:var(--text3)">${r['ID Kho'] || ''}</td>
+            <td style="font-weight:700; color:var(--blue)">${r['Tên Kho GXT'] || ''}</td>
+            <td>${r['Tỉnh'] || ''}</td>
+            <td>${r['Diện Tích'] || ''}</td>
+            <td style="font-size:0.85rem">${r['Địa chỉ kho'] || ''}</td>
+            <td><span class="badge" style="background:${r['Tình trạng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['Tình trạng'] === 'Active' ? '#2E7D32' : '#C62828'}">${r['Tình trạng'] || ''}</span></td>
+        </tr>
+    `).join('');
+}
+
+// ---- SECTION: GXT OVERVIEW ----
+function renderGxtOverviewSection() {
+    const xeOvEl = document.getElementById('gxt-ov-total-xe');
+    const scOvEl = document.getElementById('gxt-ov-total-suco');
+    const khOvEl = document.getElementById('gxt-ov-total-kho');
+    
+    if (xeOvEl) xeOvEl.textContent = state.xeGxtData.length;
+    if (scOvEl) scOvEl.textContent = state.xeSuCoData.length;
+    if (khOvEl) khOvEl.textContent = state.khoGxtData.length;
+
+    // Table 1: Xe GXT by Kho (Top 10)
+    const xeSummary = {};
+    state.xeGxtData.forEach(r => {
+        const kho = r['Kho'] || 'N/A';
+        const tinh = r['Tỉnh'] || 'N/A';
+        const key = `${tinh}|${kho}`;
+        const count = parseInt(r['Tổng xe đang chạy'] || 0);
+        if (!xeSummary[key]) xeSummary[key] = { tinh, kho, total: 0 };
+        xeSummary[key].total += count;
+    });
+    const sortedXe = Object.values(xeSummary).sort((a,b) => b.total - a.total).slice(0, 10);
+    const tbodyXe = document.getElementById('tbody-gxtoverview-xe');
+    if (tbodyXe) {
+        tbodyXe.innerHTML = sortedXe.map(i => `
+            <tr>
+                <td>${i.tinh}</td>
+                <td style="font-weight:600">${i.kho}</td>
+                <td style="text-align:right; font-weight:700; color:var(--blue)">${i.total}</td>
+            </tr>
+        `).join('');
+    }
+
+    // Table 2: Top Errors
+    const errMap = {};
+    state.xeSuCoData.forEach(r => {
+        const key = `${r['NCC'] || 'N/A'}|${r['Kho'] || 'N/A'}|${r['Lỗi'] || 'N/A'}`;
+        errMap[key] = (errMap[key] || 0) + 1;
+    });
+    const sortedErr = Object.entries(errMap).map(([k,v]) => {
+        const [ncc, kho, loi] = k.split('|');
+        return { ncc, kho, loi, count: v };
+    }).sort((a,b) => b.count - a.count).slice(0, 10);
+
+    const tbodyErr = document.getElementById('tbody-gxtoverview-errors');
+    if (tbodyErr) {
+        tbodyErr.innerHTML = sortedErr.map(i => `
+            <tr>
+                <td>${i.ncc}</td>
+                <td style="font-size:0.85rem">${i.kho}</td>
+                <td style="color:var(--red); font-size:0.85rem">${i.loi}</td>
+                <td style="text-align:right; font-weight:700">${i.count}</td>
+            </tr>
+        `).join('');
+    }
 }
 
 // ---- HELPER: destroy chart safely ----
@@ -1717,6 +1940,9 @@ const SECTION_META = {
     nangsuat:  ['Năng Suất Nhân Viên', 'Bảng xếp hạng năng suất giao hàng của nhân viên'],
     warnings:  ['Hệ Thống Cảnh Báo Vận Hành', 'Theo dõi sức khỏe mạng lưới và dự báo giải tỏa hàng'],
     xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
+    xesuco:    ['Quản Lý Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
+    khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    gxtoverview: ['Tổng Quan Vận Hành GXT', 'Báo cáo tổng hợp hiệu suất và sự cố mảng GXT'],
 };
 
 function showSection(name) {
@@ -1783,6 +2009,18 @@ document.getElementById('filter-xegxt-kho')?.addEventListener('input', () => ren
 document.getElementById('filter-xegxt-tinh')?.addEventListener('change', () => renderXeGxtSection());
 document.getElementById('filter-xegxt-ncc')?.addEventListener('change', () => renderXeGxtSection());
 document.getElementById('filter-xegxt-loai')?.addEventListener('change', () => renderXeGxtSection());
+
+// Xe Su Co Filters
+document.getElementById('filter-xesuco-search')?.addEventListener('input', () => renderXeSuCoSection());
+document.getElementById('filter-xesuco-day')?.addEventListener('change', () => renderXeSuCoSection());
+document.body.addEventListener('change', e => {
+    if (e.target.classList.contains('filter-xesuco-week') || e.target.classList.contains('filter-xesuco-month')) {
+        renderXeSuCoSection();
+    }
+});
+
+// Kho GXT Filters
+document.getElementById('filter-khogxt-search')?.addEventListener('input', () => renderKhoGxtSection());
 
 window.switchNsPeriod = function(period, btnId) {
     document.querySelectorAll('#section-nangsuat .filter-tabs button').forEach(b => {

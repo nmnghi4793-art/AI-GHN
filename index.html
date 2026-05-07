@@ -54,6 +54,15 @@
                 <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
                     <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
                 </a>
+                <a href="#" class="nav-item" data-section="xesuco" id="nav-xesuco">
+                    <i class="fa-solid fa-triangle-exclamation"></i><span>Xe Sự Cố</span>
+                </a>
+                <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
+                    <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
+                </a>
+                <a href="#" class="nav-item" data-section="gxtoverview" id="nav-gxtoverview">
+                    <i class="fa-solid fa-chart-line"></i><span>Tổng Quan Xe GXT</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -171,6 +180,15 @@
                             <h3>Tổng Xe GXT</h3>
                             <h2 id="val-xegxt-total" style="color:#1565C0">--</h2>
                             <p class="stat-sub" style="color:#1E88E5">Đang vận hành</p>
+                        </div>
+                    </div>
+                    <!-- 8. XE SỰ CỐ -->
+                    <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFE0B2">
+                        <div class="stat-icon" style="background:#FFE0B2;color:#E65100"><i class="fa-solid fa-car-burst"></i></div>
+                        <div class="stat-details">
+                            <h3>Xe Sự Cố</h3>
+                            <h2 id="val-xesuco-total" style="color:#E65100">--</h2>
+                            <p class="stat-sub" style="color:#FB8C00">Ghi nhận sự cố</p>
                         </div>
                     </div>
                 </div>
@@ -745,6 +763,172 @@
                                 <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+            <!-- ===== SECTION: XE SỰ CỐ ===== -->
+            <section class="section" id="section-xesuco">
+                <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap; background: #fff; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 0.8rem; color: var(--text3); margin-bottom: 5px; display: block;">Tìm kiếm</label>
+                        <input type="text" id="filter-xesuco-search" placeholder="🔍 Tìm kho, NCC, biển số..." class="filter-input" style="width: 100%;">
+                    </div>
+                    <div style="min-width: 150px;">
+                        <label style="font-size: 0.8rem; color: var(--text3); margin-bottom: 5px; display: block;">Lọc theo Ngày</label>
+                        <select id="filter-xesuco-day" class="filter-select" style="width: 100%;">
+                            <option value="">-- Tất cả ngày --</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 180px;">
+                        <label style="font-size: 0.8rem; color: var(--text3); margin-bottom: 5px; display: block;">Lọc theo Tuần (Chọn nhiều)</label>
+                        <div class="multi-select-container" id="filter-xesuco-week-container">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+                    <div style="min-width: 180px;">
+                        <label style="font-size: 0.8rem; color: var(--text3); margin-bottom: 5px; display: block;">Lọc theo Tháng (Chọn nhiều)</label>
+                        <div class="multi-select-container" id="filter-xesuco-month-container">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tables-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-chart-pie"></i> Thống kê Lỗi theo NCC & Kho</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>NCC</th>
+                                        <th>Kho</th>
+                                        <th>Loại Lỗi</th>
+                                        <th style="text-align:right">Số vụ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-xesuco-summary">
+                                    <tr><td colspan="4" style="text-align:center">Đang tính toán...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-truck-medical"></i> Danh Sách Xe Sự Cố</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Ngày</th>
+                                        <th>Kho</th>
+                                        <th>Biển Số</th>
+                                        <th>Lỗi</th>
+                                        <th>NCC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-xesuco-raw">
+                                    <tr><td colspan="6" style="text-align:center">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: KHO GXT ===== -->
+            <section class="section" id="section-khogxt">
+                <div class="section-filters">
+                    <input type="text" id="filter-khogxt-search" placeholder="🔍 Tìm tên kho, địa chỉ, tỉnh..." class="filter-input">
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-warehouse"></i> Danh Sách Kho GXT</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID Kho</th>
+                                    <th>Tên Kho GXT</th>
+                                    <th>Tỉnh</th>
+                                    <th>Diện Tích</th>
+                                    <th>Địa chỉ</th>
+                                    <th>Tình trạng</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-khogxt">
+                                <tr><td colspan="6" style="text-align:center">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SECTION: TỔNG QUAN XE GXT ===== -->
+            <section class="section" id="section-gxtoverview">
+                <div class="grid-3" style="margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-truck"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng Xe Vận Hành</h3>
+                            <h2 id="gxt-ov-total-xe">--</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color:var(--red)"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng Sự Cố Ghi Nhận</h3>
+                            <h2 id="gxt-ov-total-suco">--</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color:var(--blue)"><i class="fa-solid fa-warehouse"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng Số Kho GXT</h3>
+                            <h2 id="gxt-ov-total-kho">--</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tables-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-ranking-star"></i> Xe GXT Theo Kho</h3>
+                        </div>
+                        <div class="table-scroll" style="max-height: 400px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tỉnh</th>
+                                        <th>Kho</th>
+                                        <th style="text-align:right">Số Xe</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-gxtoverview-xe"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-bug"></i> Thống Kê Lỗi Phổ Biến</h3>
+                        </div>
+                        <div class="table-scroll" style="max-height: 400px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>NCC</th>
+                                        <th>Kho</th>
+                                        <th>Lỗi</th>
+                                        <th style="text-align:right">SL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-gxtoverview-errors"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -44,6 +44,8 @@ GIDS = {
     "warnings":  "1291851253",
     "returns_by_client": "1277610973",
     "xe_gxt": "541379955",
+    "xe_su_co": "938546985",
+    "kho_gxt": "1962460963",
 }
 
 CACHE = {}
@@ -170,6 +172,18 @@ def get_xe_gxt(force: bool = False):
     data, last_sync = read_csv("xe_gxt", force)
     return {"data": data, "last_sync": last_sync}
 
+# ---- DATA XE SỰ CỐ ----
+@app.get("/api/xe-su-co")
+def get_xe_su_co(force: bool = False):
+    data, last_sync = read_csv("xe_su_co", force)
+    return {"data": data, "last_sync": last_sync}
+
+# ---- DATA KHO GXT ----
+@app.get("/api/kho-gxt")
+def get_kho_gxt(force: bool = False):
+    data, last_sync = read_csv("kho_gxt", force)
+    return {"data": data, "last_sync": last_sync}
+
 # ---- DATA CẢNH BÁO ----
 @app.get("/api/warnings")
 def get_warnings(force: bool = False):
@@ -195,6 +209,7 @@ def get_overview(force: bool = False):
     ns_data, _             = read_csv("nang_suat", force)
     warning_data, warn_sync = read_csv("warnings", force)
     xe_data, _             = read_csv("xe_gxt", force)
+    su_co_data, _          = read_csv("xe_su_co", force)
 
     # Latest GTC date
     dates = sorted(set(r.get("Ngày", "") for r in gtc_data if r.get("Ngày")), reverse=True)
@@ -263,6 +278,9 @@ def get_overview(force: bool = False):
     # Total Xe GXT
     total_xe = sum(int(r.get("Tổng xe đang chạy", 0) or 0) for r in xe_data)
 
+    # Total Xe Sự Cố (Trong ngày mới nhất hoặc tổng)
+    total_su_co = len(su_co_data)
+
     return {
         "avg_gtc": avg_gtc,
         "latest_date": latest_date,
@@ -276,6 +294,7 @@ def get_overview(force: bool = False):
         "total_backlog_ktc": total_bl_ktc,
         "total_backlog_all": total_bl_lm + total_bl_ktc,
         "total_xe_gxt": total_xe,
+        "total_xe_su_co": total_su_co,
         "last_sync": max(gtc_sync, warn_sync)
     }
 
