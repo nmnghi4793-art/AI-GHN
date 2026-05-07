@@ -684,8 +684,20 @@
             </section>
             <!-- ===== SECTION: XE GXT ===== -->
             <section class="section" id="section-xegxt">
-                <div class="section-filters">
-                    <input type="text" id="filter-xegxt" placeholder="🔍 Tìm kho hoặc tỉnh..." class="filter-input">
+                <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="filter-xegxt-kho" placeholder="🔍 Tìm tên kho..." class="filter-input" style="flex: 1; min-width: 200px;">
+                    
+                    <select id="filter-xegxt-tinh" class="filter-select">
+                        <option value="">-- Tất cả Tỉnh --</option>
+                    </select>
+
+                    <select id="filter-xegxt-ncc" class="filter-select">
+                        <option value="">-- Tất cả NCC --</option>
+                    </select>
+
+                    <select id="filter-xegxt-loai" class="filter-select">
+                        <option value="">-- Tất cả Loại xe --</option>
+                    </select>
                 </div>
                 <div class="table-card">
                     <div class="table-header">

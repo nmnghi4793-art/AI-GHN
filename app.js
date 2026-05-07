@@ -114,6 +114,7 @@ async function fetchAll(force = false) {
             returnsByClientData: retC.data || [],
             xeGxtData: xegxt.data || []
         };
+        filtersPopulated = false; // Reset filters on fresh data
         
         // Reset countdown
         nextSyncTime = Date.now() + 5 * 60 * 1000;
@@ -1418,7 +1419,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
 }
 
 // ---- SECTION: XE GXT ----
-function renderXeGxtSection(filter = '') {
+function renderXeGxtSection() {
     const tbody = document.getElementById('tbody-xegxt');
     if (!tbody) return;
 
@@ -1427,9 +1428,26 @@ function renderXeGxtSection(filter = '') {
         return;
     }
 
-    // Aggregate by Kho and Province
+    // Populate dropdowns if they are empty (only first time or after data refresh)
+    populateXeGxtFilters();
+
+    const f_kho  = (document.getElementById('filter-xegxt-kho')?.value || '').toLowerCase();
+    const f_tinh = (document.getElementById('filter-xegxt-tinh')?.value || '').toLowerCase();
+    const f_ncc  = (document.getElementById('filter-xegxt-ncc')?.value || '').toLowerCase();
+    const f_loai = (document.getElementById('filter-xegxt-loai')?.value || '').toLowerCase();
+
+    // Filter the raw data first
+    const filteredRaw = state.xeGxtData.filter(r => {
+        const matchKho  = !f_kho  || (r['Kho']||'').toLowerCase().includes(f_kho);
+        const matchTinh = !f_tinh || (r['Tỉnh']||'').toLowerCase() === f_tinh;
+        const matchNcc  = !f_ncc  || (r['Tên NCC']||'').toLowerCase() === f_ncc;
+        const matchLoai = !f_loai || (r['Loại xe']||'').toLowerCase() === f_loai;
+        return matchKho && matchTinh && matchNcc && matchLoai;
+    });
+
+    // Aggregate by Kho and Province for the summary table
     const summary = {};
-    state.xeGxtData.forEach(r => {
+    filteredRaw.forEach(r => {
         const kho = r['Kho'] || 'N/A';
         const tinh = r['Tỉnh'] || 'N/A';
         const key = `${tinh}|${kho}`;
@@ -1442,11 +1460,6 @@ function renderXeGxtSection(filter = '') {
     });
 
     let list = Object.values(summary).sort((a,b) => b.total - a.total);
-
-    if (filter) {
-        const f = filter.toLowerCase();
-        list = list.filter(i => i.kho.toLowerCase().includes(f) || i.tinh.toLowerCase().includes(f));
-    }
 
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không tìm thấy kết quả</td></tr>';
@@ -1473,20 +1486,10 @@ function renderXeGxtSection(filter = '') {
     // Render Detailed Table
     const tbodyDetail = document.getElementById('tbody-xegxt-detail');
     if (tbodyDetail) {
-        let rawList = state.xeGxtData;
-        if (filter) {
-            const f = filter.toLowerCase();
-            rawList = rawList.filter(r => 
-                (r['Kho']||'').toLowerCase().includes(f) || 
-                (r['Tỉnh']||'').toLowerCase().includes(f) ||
-                (r['Tên NCC']||'').toLowerCase().includes(f)
-            );
-        }
-
-        if (rawList.length === 0) {
+        if (filteredRaw.length === 0) {
             tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có dữ liệu chi tiết</td></tr>';
         } else {
-            tbodyDetail.innerHTML = rawList.map((r, index) => `
+            tbodyDetail.innerHTML = filteredRaw.map((r, index) => `
                 <tr>
                     <td style="color:var(--text3)">${index + 1}</td>
                     <td>${r['Tỉnh'] || '--'}</td>
@@ -1500,6 +1503,36 @@ function renderXeGxtSection(filter = '') {
             `).join('');
         }
     }
+}
+
+let filtersPopulated = false;
+function populateXeGxtFilters() {
+    if (filtersPopulated) return;
+    
+    const tinhSet = new Set();
+    const nccSet  = new Set();
+    const loaiSet = new Set();
+
+    state.xeGxtData.forEach(r => {
+        if (r['Tỉnh']) tinhSet.add(r['Tỉnh']);
+        if (r['Tên NCC']) nccSet.add(r['Tên NCC']);
+        if (r['Loại xe']) loaiSet.add(r['Loại xe']);
+    });
+
+    const populateSelect = (id, items) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        el.innerHTML = `<option value="">-- Tất cả ${id.split('-').pop()} --</option>` + 
+            Array.from(items).sort().map(i => `<option value="${i}">${i}</option>`).join('');
+        el.value = currentVal;
+    };
+
+    populateSelect('filter-xegxt-tinh', tinhSet);
+    populateSelect('filter-xegxt-ncc', nccSet);
+    populateSelect('filter-xegxt-loai', loaiSet);
+
+    filtersPopulated = true;
 }
 
 // ---- HELPER: destroy chart safely ----
@@ -1746,7 +1779,10 @@ document.getElementById('filter-client-returns').addEventListener('input', e =>
     renderReturnsSection(e.target.value));
 
 // Xe GXT Filters
-document.getElementById('filter-xegxt')?.addEventListener('input', e => renderXeGxtSection(e.target.value));
+document.getElementById('filter-xegxt-kho')?.addEventListener('input', () => renderXeGxtSection());
+document.getElementById('filter-xegxt-tinh')?.addEventListener('change', () => renderXeGxtSection());
+document.getElementById('filter-xegxt-ncc')?.addEventListener('change', () => renderXeGxtSection());
+document.getElementById('filter-xegxt-loai')?.addEventListener('change', () => renderXeGxtSection());
 
 window.switchNsPeriod = function(period, btnId) {
     document.querySelectorAll('#section-nangsuat .filter-tabs button').forEach(b => {
