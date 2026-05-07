@@ -210,6 +210,8 @@ def get_overview(force: bool = False):
     warning_data, warn_sync = read_csv("warnings", force)
     xe_data, _             = read_csv("xe_gxt", force)
     su_co_data, _          = read_csv("xe_su_co", force)
+    kho_data, _            = read_csv("kho_gxt", force)
+    pers_data, _           = read_csv("personnel", force)
 
     # Latest GTC date
     dates = sorted(set(r.get("Ngày", "") for r in gtc_data if r.get("Ngày")), reverse=True)
@@ -281,6 +283,12 @@ def get_overview(force: bool = False):
     # Total Xe Sự Cố (Trong ngày mới nhất hoặc tổng)
     total_su_co = len(su_co_data)
 
+    # Total Kho GXT
+    total_kho_gxt = len(kho_data)
+    
+    # Total Personnel
+    total_personnel = len(pers_data)
+
     return {
         "avg_gtc": avg_gtc,
         "latest_date": latest_date,
@@ -295,6 +303,8 @@ def get_overview(force: bool = False):
         "total_backlog_all": total_bl_lm + total_bl_ktc,
         "total_xe_gxt": total_xe,
         "total_xe_su_co": total_su_co,
+        "total_kho_gxt": total_kho_gxt,
+        "total_personnel": total_personnel,
         "last_sync": max(gtc_sync, warn_sync)
     }
 

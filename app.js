@@ -184,7 +184,6 @@ function renderAll() {
         { name: 'XeGxtSection', fn: renderXeGxtSection },
         { name: 'XeSuCoSection', fn: renderXeSuCoSection },
         { name: 'KhoGxtSection', fn: renderKhoGxtSection },
-        { name: 'GxtOverviewSection', fn: renderGxtOverviewSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -226,10 +225,13 @@ function renderOverviewCards() {
     if (blAllEl) blAllEl.textContent = (ov.total_backlog_all || 0).toLocaleString();
 
     const xeTotalEl = document.getElementById('val-xegxt-total');
-    if (xeTotalEl) xeTotalEl.textContent = (ov.total_xe_gxt || 0).toLocaleString();
+    if (xeTotalEl) xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${ov.total_personnel || 0}`;
 
     const xeSuCoEl = document.getElementById('val-xesuco-total');
     if (xeSuCoEl) xeSuCoEl.textContent = (ov.total_xe_su_co || 0).toLocaleString();
+
+    const khoGxtTotalEl = document.getElementById('val-khogxt-total');
+    if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
     
     // Last Sync indicator
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
@@ -1560,13 +1562,11 @@ function getWeek(d) {
 
 function renderXeSuCoSection() {
     const tbodyRaw = document.getElementById('tbody-xesuco-raw');
-    const tbodySum = document.getElementById('tbody-xesuco-summary');
     if (!tbodyRaw) return;
 
     const data = state.xeSuCoData;
     if (!data.length) {
-        tbodyRaw.innerHTML = '<tr><td colspan="6" style="text-align:center">Không có dữ liệu</td></tr>';
-        tbodySum.innerHTML = '<tr><td colspan="4" style="text-align:center">Không có dữ liệu</td></tr>';
+        tbodyRaw.innerHTML = '<tr><td colspan="9" style="text-align:center">Không có dữ liệu</td></tr>';
         return;
     }
 
@@ -1592,14 +1592,9 @@ function renderXeSuCoSection() {
     }).filter(Boolean))].sort().reverse();
 
     if (weekCont && !weekCont.innerHTML.trim()) {
-        weekCont.style.maxHeight = '100px';
-        weekCont.style.overflowY = 'auto';
-        weekCont.style.border = '1px solid #ddd';
-        weekCont.style.padding = '5px';
-        weekCont.style.borderRadius = '4px';
         weeks.forEach(w => {
             const lbl = document.createElement('label');
-            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer';
+            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
             lbl.innerHTML = `<input type="checkbox" value="${w}" class="filter-xesuco-week"> ${w}`;
             weekCont.appendChild(lbl);
         });
@@ -1613,15 +1608,10 @@ function renderXeSuCoSection() {
     }).filter(Boolean))].sort().reverse();
 
     if (monthCont && !monthCont.innerHTML.trim()) {
-        monthCont.style.maxHeight = '100px';
-        monthCont.style.overflowY = 'auto';
-        monthCont.style.border = '1px solid #ddd';
-        monthCont.style.padding = '5px';
-        monthCont.style.borderRadius = '4px';
         months.forEach(m => {
             const lbl = document.createElement('label');
-            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer';
-            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Thg ${m}`;
+            lbl.style.display = 'block'; lbl.style.fontSize = '0.85rem'; lbl.style.cursor = 'pointer'; lbl.style.marginBottom = '4px';
+            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Tháng ${m}`;
             monthCont.appendChild(lbl);
         });
     }
@@ -1646,36 +1636,19 @@ function renderXeSuCoSection() {
         return matchSearch && matchDay && matchWeek && matchMonth;
     });
 
-    // Render Raw
-    tbodyRaw.innerHTML = filtered.slice(0, 50).map((r, i) => `
+    // Render Raw (Show all columns from sheet)
+    // Tỉnh, ID, Kho, Ngày, Lỗi, Nội Dung Chi Tiết, Biển Số Xe, NCC
+    tbodyRaw.innerHTML = filtered.map((r, i) => `
         <tr>
             <td style="color:var(--text3)">${i+1}</td>
-            <td>${r['Ngày'] || ''}</td>
+            <td>${r['Tỉnh'] || ''}</td>
+            <td>${r['ID'] || ''}</td>
             <td style="font-weight:600">${r['Kho'] || ''}</td>
-            <td>${r['Biển Số Xe'] || ''}</td>
+            <td>${r['Ngày'] || ''}</td>
             <td style="color:var(--red)">${r['Lỗi'] || ''}</td>
+            <td style="font-size:0.85rem; max-width:300px; white-space:normal">${r['Nội Dung Chi Tiết'] || ''}</td>
+            <td style="font-weight:600">${r['Biển Số Xe'] || ''}</td>
             <td>${r['NCC'] || ''}</td>
-        </tr>
-    `).join('');
-
-    // Render Summary (NCC x Kho x Lỗi)
-    const sumMap = {};
-    filtered.forEach(r => {
-        const key = `${r['NCC'] || 'N/A'}|${r['Kho'] || 'N/A'}|${r['Lỗi'] || 'N/A'}`;
-        sumMap[key] = (sumMap[key] || 0) + 1;
-    });
-
-    const sumList = Object.entries(sumMap).map(([k, v]) => {
-        const [ncc, kho, loi] = k.split('|');
-        return { ncc, kho, loi, count: v };
-    }).sort((a, b) => b.count - a.count);
-
-    tbodySum.innerHTML = sumList.map(item => `
-        <tr>
-            <td>${item.ncc}</td>
-            <td>${item.kho}</td>
-            <td style="color:var(--red); font-size:0.85rem">${item.loi}</td>
-            <td style="text-align:right; font-weight:700">${item.count}</td>
         </tr>
     `).join('');
 }
@@ -1702,61 +1675,6 @@ function renderKhoGxtSection() {
     `).join('');
 }
 
-// ---- SECTION: GXT OVERVIEW ----
-function renderGxtOverviewSection() {
-    const xeOvEl = document.getElementById('gxt-ov-total-xe');
-    const scOvEl = document.getElementById('gxt-ov-total-suco');
-    const khOvEl = document.getElementById('gxt-ov-total-kho');
-    
-    if (xeOvEl) xeOvEl.textContent = state.xeGxtData.length;
-    if (scOvEl) scOvEl.textContent = state.xeSuCoData.length;
-    if (khOvEl) khOvEl.textContent = state.khoGxtData.length;
-
-    // Table 1: Xe GXT by Kho (Top 10)
-    const xeSummary = {};
-    state.xeGxtData.forEach(r => {
-        const kho = r['Kho'] || 'N/A';
-        const tinh = r['Tỉnh'] || 'N/A';
-        const key = `${tinh}|${kho}`;
-        const count = parseInt(r['Tổng xe đang chạy'] || 0);
-        if (!xeSummary[key]) xeSummary[key] = { tinh, kho, total: 0 };
-        xeSummary[key].total += count;
-    });
-    const sortedXe = Object.values(xeSummary).sort((a,b) => b.total - a.total).slice(0, 10);
-    const tbodyXe = document.getElementById('tbody-gxtoverview-xe');
-    if (tbodyXe) {
-        tbodyXe.innerHTML = sortedXe.map(i => `
-            <tr>
-                <td>${i.tinh}</td>
-                <td style="font-weight:600">${i.kho}</td>
-                <td style="text-align:right; font-weight:700; color:var(--blue)">${i.total}</td>
-            </tr>
-        `).join('');
-    }
-
-    // Table 2: Top Errors
-    const errMap = {};
-    state.xeSuCoData.forEach(r => {
-        const key = `${r['NCC'] || 'N/A'}|${r['Kho'] || 'N/A'}|${r['Lỗi'] || 'N/A'}`;
-        errMap[key] = (errMap[key] || 0) + 1;
-    });
-    const sortedErr = Object.entries(errMap).map(([k,v]) => {
-        const [ncc, kho, loi] = k.split('|');
-        return { ncc, kho, loi, count: v };
-    }).sort((a,b) => b.count - a.count).slice(0, 10);
-
-    const tbodyErr = document.getElementById('tbody-gxtoverview-errors');
-    if (tbodyErr) {
-        tbodyErr.innerHTML = sortedErr.map(i => `
-            <tr>
-                <td>${i.ncc}</td>
-                <td style="font-size:0.85rem">${i.kho}</td>
-                <td style="color:var(--red); font-size:0.85rem">${i.loi}</td>
-                <td style="text-align:right; font-weight:700">${i.count}</td>
-            </tr>
-        `).join('');
-    }
-}
 
 // ---- HELPER: destroy chart safely ----
 function destroyChart(key) {
@@ -1940,9 +1858,8 @@ const SECTION_META = {
     nangsuat:  ['Năng Suất Nhân Viên', 'Bảng xếp hạng năng suất giao hàng của nhân viên'],
     warnings:  ['Hệ Thống Cảnh Báo Vận Hành', 'Theo dõi sức khỏe mạng lưới và dự báo giải tỏa hàng'],
     xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
-    xesuco:    ['Quản Lý Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
+    xesuco:    ['Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
     khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
-    gxtoverview: ['Tổng Quan Vận Hành GXT', 'Báo cáo tổng hợp hiệu suất và sự cố mảng GXT'],
 };
 
 function showSection(name) {
