@@ -1543,7 +1543,7 @@ _Trống_
         msg += `_Không có đơn B2B đến hạn_\n`;
     }
 
-    msg += `\n🔗 [Mở Dashboard Chi Tiết](https://ghn-ops-dashboard.railway.app)`;
+    msg += `\n🔗 [Mở Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)`;
     return msg;
 }
 
