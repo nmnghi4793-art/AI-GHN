@@ -1450,7 +1450,9 @@ function renderXeGxtSection(filter = '') {
 
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không tìm thấy kết quả</td></tr>';
+        document.getElementById('tfoot-xegxt').innerHTML = '';
     } else {
+        const grandTotal = list.reduce((sum, item) => sum + item.total, 0);
         tbody.innerHTML = list.map((item, index) => `
             <tr>
                 <td style="color:var(--text3)">${index + 1}</td>
@@ -1459,6 +1461,44 @@ function renderXeGxtSection(filter = '') {
                 <td style="text-align:right;font-weight:700;color:var(--orange)">${item.total.toLocaleString()} xe</td>
             </tr>
         `).join('');
+
+        document.getElementById('tfoot-xegxt').innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align:right; padding:12px">TỔNG CỘNG TOÀN MẠNG LƯỚI:</td>
+                <td style="text-align:right; color:var(--orange); font-size:1.1rem; padding:12px">${grandTotal.toLocaleString()} xe</td>
+            </tr>
+        `;
+    }
+
+    // Render Detailed Table
+    const tbodyDetail = document.getElementById('tbody-xegxt-detail');
+    if (tbodyDetail) {
+        let rawList = state.xeGxtData;
+        if (filter) {
+            const f = filter.toLowerCase();
+            rawList = rawList.filter(r => 
+                (r['Kho']||'').toLowerCase().includes(f) || 
+                (r['Tỉnh']||'').toLowerCase().includes(f) ||
+                (r['Tên NCC']||'').toLowerCase().includes(f)
+            );
+        }
+
+        if (rawList.length === 0) {
+            tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có dữ liệu chi tiết</td></tr>';
+        } else {
+            tbodyDetail.innerHTML = rawList.map((r, index) => `
+                <tr>
+                    <td style="color:var(--text3)">${index + 1}</td>
+                    <td>${r['Tỉnh'] || '--'}</td>
+                    <td style="font-weight:600">${r['Kho'] || '--'}</td>
+                    <td>${r['Tên NCC'] || '--'}</td>
+                    <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loại xe'] || '--'}</span></td>
+                    <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tổng xe đang chạy'] || 0).toLocaleString()}</td>
+                    <td style="font-size:0.85rem">${r['Ca làm việc'] || '--'}</td>
+                    <td style="font-size:0.85rem;color:var(--text3)">${r['Ghi chú'] || ''}</td>
+                </tr>
+            `).join('');
+        }
     }
 }
 
