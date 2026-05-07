@@ -247,9 +247,55 @@ function renderOverviewCards() {
     const ovWarnDays = document.getElementById('ov-warn-avg-days');
     if (ovWarnDays) ovWarnDays.textContent = (ov.avg_days_to_normal || 0);
     
-    // Last Sync indicator
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
     document.getElementById('sub-gtc').textContent    = 'Đã đồng bộ: ' + syncTime;
+
+    // Sync warning cards from frontend state if available
+    syncOverviewWarningCards();
+}
+
+function syncOverviewWarningCards() {
+    if (!state.warningsData || !state.warningsData.length) return;
+
+    const getV = (r, keys, defaultVal = '') => {
+        for (const k of keys) {
+            if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
+        }
+        const allKeys = Object.keys(r);
+        for (const search of keys) {
+            const found = allKeys.find(k => k.toLowerCase().includes(search.toLowerCase()));
+            if (found && r[found] !== undefined && r[found] !== null && r[found] !== '') return r[found];
+        }
+        return defaultVal;
+    };
+
+    const processedData = state.warningsData.map(r => {
+        const soNgay = parseFloat(getV(r, ['Số ngày trở về ngày thường', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(r, ['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
+        return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus };
+    });
+
+    const criticalCount = processedData.filter(r => r.soNgayVal > 6).length;
+    const warningCount  = processedData.filter(r => r.sheetStatus === 'Bất ổn').length;
+    const upcomingCount = processedData.filter(r => {
+        const next = (r['Tình hình sắp tới'] || r['Dự báo sắp tới'] || '').toLowerCase();
+        return next.includes('cảnh báo') || next.includes('nghiêm trọng');
+    }).length;
+
+    const totalNgay = processedData.reduce((sum, r) => sum + r.soNgayVal, 0);
+    const avgDays = processedData.length ? (totalNgay / processedData.length).toFixed(1) : 0;
+
+    const ids = {
+        'ov-warn-critical-count': criticalCount,
+        'ov-warn-warning-count': warningCount,
+        'ov-warn-upcoming-count': upcomingCount,
+        'ov-warn-avg-days': avgDays
+    };
+
+    for (const [id, val] of Object.entries(ids)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    }
 }
 
 window.toggleDropdown = function(id) {
@@ -1378,6 +1424,9 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     const avgDays = processedData.length ? totalNgay / processedData.length : 0;
     const avgDaysEl = document.getElementById('warn-avg-days');
     if (avgDaysEl) avgDaysEl.textContent = avgDays.toFixed(1);
+
+    // Sync to Overview
+    syncOverviewWarningCards();
 
     // Lọc dữ liệu theo filter người dùng
     let filtered = processedData;

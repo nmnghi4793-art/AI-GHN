@@ -281,18 +281,30 @@ def get_overview(force: bool = False):
     # Total Kho GXT
     total_kho_gxt = len(kho_data)
     
-    # Warning metrics
-    critical_count = len([r for r in warning_data if str(r.get("Tình hình hiện tại", "")).strip() == "Nghiêm trọng"])
-    unstable_count = len([r for r in warning_data if str(r.get("Tình hình hiện tại", "")).strip() == "Cảnh báo"])
-    upcoming_count = len([r for r in warning_data if str(r.get("Dự báo sắp tới", "")).strip() not in ["", "Bình thường"]])
-    
+    # Warning metrics (Sync with frontend logic)
+    critical_count = 0
+    unstable_count = 0
+    upcoming_count = 0
     days_vals = []
+    
     for r in warning_data:
         try:
-            d = float(r.get("Số ngày trở về ngày thường", 0) or 0)
-            if d > 0: days_vals.append(d)
+            # 1. Critical if days > 6
+            days = float(r.get("Số ngày trở về ngày thường") or r.get("Total ngày") or 0)
+            if days > 6: critical_count += 1
+            if days > 0: days_vals.append(days)
+            
+            # 2. Unstable if status is "Bất ổn"
+            status = str(r.get("Tình hình hiện tại") or r.get("trạng thái hiện tại") or "").strip()
+            if status == "Bất ổn": unstable_count += 1
+            
+            # 3. Upcoming if next status is warning/critical
+            next_status = str(r.get("Dự báo sắp tới") or r.get("Tình hình sắp tới") or "").lower()
+            if "cảnh báo" in next_status or "nghiêm trọng" in next_status:
+                upcoming_count += 1
         except (ValueError, TypeError):
             pass
+            
     avg_days = round(sum(days_vals) / len(days_vals), 1) if days_vals else 0
 
     # Total Personnel (Delivery Staff)
