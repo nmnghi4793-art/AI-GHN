@@ -51,6 +51,9 @@
                 <a href="#" class="nav-item" data-section="nangsuat" id="nav-nangsuat">
                     <i class="fa-solid fa-motorcycle"></i><span>Năng Suất NV</span>
                 </a>
+                <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
+                    <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -159,6 +162,15 @@
                             <h3>Năng Suất NV</h3>
                             <h2 id="val-nangsuat" style="color:#E65100">--</h2>
                             <p class="stat-sub" style="color:#F57C00">Đơn/giờ/nhân viên</p>
+                        </div>
+                    </div>
+                    <!-- 7. XE GXT -->
+                    <div class="stat-card" style="background:#E3F2FD;border:1px solid #BBDEFB">
+                        <div class="stat-icon" style="background:#BBDEFB;color:#1565C0"><i class="fa-solid fa-truck-moving"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng Xe GXT</h3>
+                            <h2 id="val-xegxt-total" style="color:#1565C0">--</h2>
+                            <p class="stat-sub" style="color:#1E88E5">Đang vận hành</p>
                         </div>
                     </div>
                 </div>
@@ -666,6 +678,32 @@
                                 </tr>
                             </thead>
                             <tbody id="tbody-ns-all"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <!-- ===== SECTION: XE GXT ===== -->
+            <section class="section" id="section-xegxt">
+                <div class="section-filters">
+                    <input type="text" id="filter-xegxt" placeholder="🔍 Tìm kho hoặc tỉnh..." class="filter-input">
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-truck-fast"></i> Số Lượng Xe GXT Theo Kho</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Tỉnh</th>
+                                    <th>Kho</th>
+                                    <th style="text-align:right">Tổng Xe Đang Chạy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-xegxt">
+                                <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>

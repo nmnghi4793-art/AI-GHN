@@ -18,7 +18,7 @@ Chart.register(ChartDataLabels);
 let state = {
     gtcData: [], ontimeData: [], returnsData: [],
     backlogData: [], b2bData: [], personnelData: [], nangSuatData: [],
-    warningsData: [], returnsByClientData: [],
+    warningsData: [], returnsByClientData: [], xeGxtData: [],
     overview: {}
 };
 let charts = {};
@@ -87,7 +87,7 @@ async function fetchAll(force = false) {
 
     try {
         const query = force ? '?force=true' : '';
-        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC] = await Promise.all([
+        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt] = await Promise.all([
             fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
             fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({data:[]})),
@@ -98,6 +98,7 @@ async function fetchAll(force = false) {
             fetch(`${API}/nang-suat${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
         ]);
 
         state = { 
@@ -110,7 +111,8 @@ async function fetchAll(force = false) {
             personnelData: pers.data || [], 
             nangSuatData: ns.data || [], 
             warningsData: warn.data || [],
-            returnsByClientData: retC.data || []
+            returnsByClientData: retC.data || [],
+            xeGxtData: xegxt.data || []
         };
         
         // Reset countdown
@@ -173,6 +175,7 @@ function renderAll() {
         { name: 'PersonnelSection', fn: renderPersonnelSection },
         { name: 'NangSuatSection', fn: renderNangSuatSection },
         { name: 'WarningsSection', fn: renderWarningsSection },
+        { name: 'XeGxtSection', fn: renderXeGxtSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -212,6 +215,9 @@ function renderOverviewCards() {
     if (blKtcEl) blKtcEl.textContent = (ov.total_backlog_ktc || 0).toLocaleString();
     const blAllEl = document.getElementById('val-bl-all');
     if (blAllEl) blAllEl.textContent = (ov.total_backlog_all || 0).toLocaleString();
+
+    const xeTotalEl = document.getElementById('val-xegxt-total');
+    if (xeTotalEl) xeTotalEl.textContent = (ov.total_xe_gxt || 0).toLocaleString();
     
     // Last Sync indicator
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
@@ -1411,6 +1417,51 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     }
 }
 
+// ---- SECTION: XE GXT ----
+function renderXeGxtSection(filter = '') {
+    const tbody = document.getElementById('tbody-xegxt');
+    if (!tbody) return;
+
+    if (!state.xeGxtData.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không có dữ liệu</td></tr>';
+        return;
+    }
+
+    // Aggregate by Kho and Province
+    const summary = {};
+    state.xeGxtData.forEach(r => {
+        const kho = r['Kho'] || 'N/A';
+        const tinh = r['Tỉnh'] || 'N/A';
+        const key = `${tinh}|${kho}`;
+        const count = parseInt(r['Tổng xe đang chạy'] || 0);
+
+        if (!summary[key]) {
+            summary[key] = { tinh, kho, total: 0 };
+        }
+        summary[key].total += count;
+    });
+
+    let list = Object.values(summary).sort((a,b) => b.total - a.total);
+
+    if (filter) {
+        const f = filter.toLowerCase();
+        list = list.filter(i => i.kho.toLowerCase().includes(f) || i.tinh.toLowerCase().includes(f));
+    }
+
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không tìm thấy kết quả</td></tr>';
+    } else {
+        tbody.innerHTML = list.map((item, index) => `
+            <tr>
+                <td style="color:var(--text3)">${index + 1}</td>
+                <td>${item.tinh}</td>
+                <td style="font-weight:600;color:var(--blue)">${item.kho}</td>
+                <td style="text-align:right;font-weight:700;color:var(--orange)">${item.total.toLocaleString()} xe</td>
+            </tr>
+        `).join('');
+    }
+}
+
 // ---- HELPER: destroy chart safely ----
 function destroyChart(key) {
     if (charts[key]) { charts[key].destroy(); charts[key] = null; }
@@ -1592,6 +1643,7 @@ const SECTION_META = {
     personnel: ['Danh Sách Nhân Sự', 'Thông tin nhân viên giao nhận và xử lý'],
     nangsuat:  ['Năng Suất Nhân Viên', 'Bảng xếp hạng năng suất giao hàng của nhân viên'],
     warnings:  ['Hệ Thống Cảnh Báo Vận Hành', 'Theo dõi sức khỏe mạng lưới và dự báo giải tỏa hàng'],
+    xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
 };
 
 function showSection(name) {
@@ -1652,6 +1704,9 @@ document.getElementById('filter-status-warnings').addEventListener('change', e =
 // Return Filters
 document.getElementById('filter-client-returns').addEventListener('input', e =>
     renderReturnsSection(e.target.value));
+
+// Xe GXT Filters
+document.getElementById('filter-xegxt')?.addEventListener('input', e => renderXeGxtSection(e.target.value));
 
 window.switchNsPeriod = function(period, btnId) {
     document.querySelectorAll('#section-nangsuat .filter-tabs button').forEach(b => {
