@@ -272,6 +272,42 @@
                     </div>
                 </div>
 
+                <!-- ADDITIONAL WARNING CARDS (From Warning System) -->
+                <div class="overview-cards" style="margin-top: 15px;">
+                    <div class="stat-card red-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Nghiêm Trọng</h3>
+                            <h2 id="ov-warn-critical-count" class="text-danger">--</h2>
+                            <p class="stat-sub">Cần xử lý tức thì</p>
+                        </div>
+                    </div>
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Bất Ổn</h3>
+                            <h2 id="ov-warn-warning-count" class="text-warning">--</h2>
+                            <p class="stat-sub">Cần theo dõi sát</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i></div>
+                        <div class="stat-details">
+                            <h3>Cảnh Báo Sắp Tới</h3>
+                            <h2 id="ov-warn-upcoming-count" style="color:#F08C00">--</h2>
+                            <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
+                        </div>
+                    </div>
+                    <div class="stat-card blue-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="stat-details">
+                            <h3>Ngày Trở Lại Bình Thường</h3>
+                            <h2 id="ov-warn-avg-days" style="color:var(--blue)">--</h2>
+                            <p class="stat-sub">Trung bình toàn vùng</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- CHARTS -->
                 <div class="charts-row">
                     <!-- GTC Trend Line -->
@@ -852,11 +888,17 @@
                         <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm kiếm thông tin</label>
                         <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..." class="filter-input" style="width: 100%;">
                     </div>
-                    <div>
-                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Lọc theo Ngày</label>
-                        <select id="filter-xesuco-day" class="filter-select" style="width: 100%;">
-                            <option value="">-- Tất cả --</option>
-                        </select>
+                    <div class="filter-group">
+                        <label>Chọn nhiều Ngày</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-day">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-day-list')">
+                                <span id="label-xesuco-day">Chọn Ngày...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-day-list">
+                                <div class="dropdown-items" id="filter-xesuco-day-container"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="filter-group">
                         <label>Chọn nhiều Tuần</label>

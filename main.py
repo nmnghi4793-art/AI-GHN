@@ -261,8 +261,6 @@ def get_overview(force: bool = False):
             pass
     avg_nang_suat = round(sum(ns_vals) / len(ns_vals), 1) if ns_vals else 0
 
-    # Warning count (Critical)
-    critical_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Nghiêm trọng"])
 
     # Backlog LM and KTC totals from warnings sheet
     total_bl_lm = 0
@@ -283,6 +281,20 @@ def get_overview(force: bool = False):
     # Total Kho GXT
     total_kho_gxt = len(kho_data)
     
+    # Warning metrics
+    critical_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Nghiêm trọng"])
+    unstable_count = len([r for r in warning_data if r.get("Tình hình hiện tại", "") == "Cảnh báo"])
+    upcoming_count = len([r for r in warning_data if r.get("Dự báo sắp tới", "") != "Bình thường"])
+    
+    days_vals = []
+    for r in warning_data:
+        try:
+            d = float(r.get("Số ngày trở về ngày thường", 0) or 0)
+            if d > 0: days_vals.append(d)
+        except (ValueError, TypeError):
+            pass
+    avg_days = round(sum(days_vals) / len(days_vals), 1) if days_vals else 0
+
     # Total Personnel (Delivery Staff)
     total_delivery_staff = len([r for r in pers_data if str(r.get('Tên vị trí','')).strip().lower() == 'delivery staff'])
 
@@ -295,6 +307,9 @@ def get_overview(force: bool = False):
         "avg_fd_return": avg_fd,
         "avg_nang_suat": avg_nang_suat,
         "critical_warnings": critical_count,
+        "unstable_warnings": unstable_count,
+        "upcoming_warnings": upcoming_count,
+        "avg_days_to_normal": avg_days,
         "total_backlog_lm": total_bl_lm,
         "total_backlog_ktc": total_bl_ktc,
         "total_backlog_all": total_bl_lm + total_bl_ktc,

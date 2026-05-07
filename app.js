@@ -236,6 +236,16 @@ function renderOverviewCards() {
 
     const khoGxtTotalEl = document.getElementById('val-khogxt-total');
     if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
+
+    // Warning System Metrics for Overview
+    const ovWarnCrit = document.getElementById('ov-warn-critical-count');
+    if (ovWarnCrit) ovWarnCrit.textContent = (ov.critical_warnings || 0);
+    const ovWarnWarn = document.getElementById('ov-warn-warning-count');
+    if (ovWarnWarn) ovWarnWarn.textContent = (ov.unstable_warnings || 0); // Assuming backend returns unstable_warnings
+    const ovWarnUp = document.getElementById('ov-warn-upcoming-count');
+    if (ovWarnUp) ovWarnUp.textContent = (ov.upcoming_warnings || 0);
+    const ovWarnDays = document.getElementById('ov-warn-avg-days');
+    if (ovWarnDays) ovWarnDays.textContent = (ov.avg_days_to_normal || 0);
     
     // Last Sync indicator
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
@@ -1587,17 +1597,22 @@ function renderXeSuCoSection() {
     }
 
     // Populate Filters
-    const daySelect = document.getElementById('filter-xesuco-day');
+    const dayCont = document.getElementById('filter-xesuco-day-container');
     const weekCont  = document.getElementById('filter-xesuco-week-container');
     const monthCont = document.getElementById('filter-xesuco-month-container');
 
-    const days = [...new Set(data.map(r => r['Ngày']))].sort((a,b) => parseVN(b) - parseVN(a));
-    if (daySelect && daySelect.options.length <= 1) {
+    const days = [...new Set(data.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    if (dayCont && dayCont.children.length === 0) {
         days.forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d; opt.textContent = d;
-            daySelect.appendChild(opt);
+            const lbl = document.createElement('label');
+            lbl.innerHTML = `<input type="checkbox" value="${d}" class="filter-xesuco-day"> ${d}`;
+            dayCont.appendChild(lbl);
         });
+        dayCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
+            renderXeSuCoSection();
+            const checked = Array.from(document.querySelectorAll('.filter-xesuco-day:checked'));
+            document.getElementById('label-xesuco-day').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Ngày...';
+        }));
     }
 
     const weeks = [...new Set(data.map(r => {
@@ -1646,23 +1661,30 @@ function renderXeSuCoSection() {
     }
 
     // Apply Filters
-    const search = (document.getElementById('filter-xesuco-search')?.value || '').toLowerCase();
-    const selDay = daySelect ? daySelect.value : '';
-    const selWeeks = Array.from(document.querySelectorAll('.filter-xesuco-week:checked')).map(i => i.value);
-    const selMonths = Array.from(document.querySelectorAll('.filter-xesuco-month:checked')).map(i => i.value);
+    const f_search = (document.getElementById('filter-xesuco-search')?.value || '').toLowerCase();
+    const f_days   = Array.from(document.querySelectorAll('.filter-xesuco-day:checked')).map(i => i.value);
+    const f_weeks  = Array.from(document.querySelectorAll('.filter-xesuco-week:checked')).map(i => i.value);
+    const f_months = Array.from(document.querySelectorAll('.filter-xesuco-month:checked')).map(i => i.value);
+    const f_kho    = (document.getElementById('filter-xesuco-kho')?.value || '').toLowerCase();
 
     const filtered = data.filter(r => {
         const ts = parseVN(r['Ngày']);
-        const d = new Date(ts);
-        const w = `W${getWeek(d)}/${d.getFullYear()}`;
-        const m = `${d.getMonth() + 1}/${d.getFullYear()}`;
+        const d_obj = new Date(ts);
+        const w_str = `Tuần ${d_obj.getFullYear()}-W${String(getWeek(d_obj)).padStart(2, '0')}`;
+        const m_str = `${d_obj.getMonth() + 1}/${d_obj.getFullYear()}`;
 
-        const matchSearch = !search || JSON.stringify(r).toLowerCase().includes(search);
-        const matchDay = !selDay || r['Ngày'] === selDay;
-        const matchWeek = !selWeeks.length || selWeeks.includes(w);
-        const matchMonth = !selMonths.length || selMonths.includes(m);
+        const matchSearch = !f_search || 
+            (r['Kho']||'').toLowerCase().includes(f_search) || 
+            (r['NCC']||'').toLowerCase().includes(f_search) || 
+            (r['Biển Số']||'').toLowerCase().includes(f_search) || 
+            (r['ID']||'').toLowerCase().includes(f_search);
+        
+        const matchDay   = f_days.length === 0 || f_days.includes(r['Ngày']);
+        const matchWeek  = f_weeks.length === 0 || f_weeks.includes(w_str);
+        const matchMonth = f_months.length === 0 || f_months.includes(m_str);
+        const matchKho   = !f_kho || (r['Kho']||'').toLowerCase().includes(f_kho);
 
-        return matchSearch && matchDay && matchWeek && matchMonth;
+        return matchSearch && matchDay && matchWeek && matchMonth && matchKho;
     });
 
     // Render Raw (Show all columns from sheet)
