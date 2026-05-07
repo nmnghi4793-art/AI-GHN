@@ -289,13 +289,19 @@ def get_gtc_by_kho(force: bool = False):
 import httpx
 from datetime import datetime
 
-# Cấu hình Telegram (Bạn thay bằng Token và Chat ID của mình nhé)
+# Cấu hình Telegram
 TELEGRAM_TOKEN = "8161133962:AAHsGqX7D5z0IGJDTvJTSrMIeu1NyiQHv-E"
 CHAT_ID = "-1002712779761"
+ADMIN_KEY = "gxt1103" # Mã bí mật để gửi báo cáo
 
 @app.post("/api/telegram/report")
 async def send_telegram_report(payload: dict):
     try:
+        # Kiểm tra mã bí mật
+        client_key = payload.get("key", "")
+        if client_key != ADMIN_KEY:
+            return {"status": "error", "message": "Bạn không có quyền thực hiện hành động này."}
+
         message = payload.get("message", "")
         if not message:
             return {"status": "error", "message": "Nội dung báo cáo trống."}

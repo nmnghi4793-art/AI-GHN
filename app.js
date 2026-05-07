@@ -1557,12 +1557,13 @@ async function sendTelegramReport() {
 
     try {
         const message = assembleTelegramReport();
+        const adminKey = localStorage.getItem('ghn_admin_key') || '';
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...';
 
         const resp = await fetch('/api/telegram/report', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message })
+            body: JSON.stringify({ message: message, key: adminKey })
         });
         const result = await resp.json();
         
@@ -1674,8 +1675,34 @@ document.getElementById('filter-ns-province')?.addEventListener('change', () => 
     renderNangSuatSection();
 });
 
+// ---- ADMIN ACCESS CHECK ----
+function checkAdminAccess() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlKey = urlParams.get('key');
+    const secretKey = "gxt1103";
+
+    if (urlKey === secretKey) {
+        localStorage.setItem('ghn_admin_key', urlKey);
+        // Clear the key from URL for cleanliness
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    const savedKey = localStorage.getItem('ghn_admin_key');
+    const telegramBtn = document.getElementById('telegram-btn');
+    
+    if (telegramBtn) {
+        if (savedKey === secretKey) {
+            telegramBtn.style.display = 'flex';
+            console.log("[ADMIN] Admin mode enabled.");
+        } else {
+            telegramBtn.style.display = 'none';
+        }
+    }
+}
+
 // ---- INIT ----
 document.addEventListener('DOMContentLoaded', () => {
     fetchAll();
     startSyncTimer();
+    checkAdminAccess();
 });
