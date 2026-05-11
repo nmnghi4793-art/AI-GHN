@@ -1790,7 +1790,7 @@ function assembleTelegramReport() {
     let msg = `📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n⏱ _${dateStr} ${timeStr}_\n\n`;
 
     // 1. KHO NGHIÊM TRỌNG (Lấy từ Hệ Thống Cảnh Báo)
-    msg += `🏥 *1. KHO NGHIÊM TRỌNG (>6 NGÀY):*\n`;
+    msg += `🏥 *1. KHO NGHIÊM TRỌNG (>5 NGÀY):*\n`;
     const warnRows = document.querySelectorAll('#tbody-warnings tr');
     let warnCount = 0;
     warnRows.forEach(tr => {
@@ -1802,7 +1802,7 @@ function assembleTelegramReport() {
         const status = tds[1].innerText.trim();
         const days = tds[8].innerText.trim(); // Số ngày về bình thường
         
-        if (parseInt(days) > 6 || status.includes('Nghiêm trọng')) {
+        if (parseInt(days) > 5 || status.includes('Nghiêm trọng')) {
             msg += `${warnCount + 1}. *${kho}*: ${status} (${days})\n`;
             warnCount++;
         }
