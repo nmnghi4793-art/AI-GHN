@@ -1589,7 +1589,7 @@ function renderXeGxtSection() {
                     <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loại xe'] || '--'}</span></td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tổng xe đang chạy'] || 0).toLocaleString()}</td>
                     <td style="font-size:0.85rem">${r['Ca làm việc'] || '--'}</td>
-                    <td style="font-size:0.85rem;color:var(--text3)">${r['Ghi chú'] || ''}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--orange)">${r['Gía thuê xe'] || '--'}</td>
                 </tr>
             `).join('');
         }
