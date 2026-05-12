@@ -785,11 +785,25 @@ function renderGtcByKhoChart() {
     }
 
     const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
-    const sorted = [...dayRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
+    
+    // Filter active warehouses to keep chart output strictly equal to multi-selection lists
+    let chartRows = dayRows;
+    if (selectedGtcKhos.length > 0) chartRows = chartRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
+
+    const sorted = [...chartRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
 
     const labels = sorted.map(r => shortKho(r['Kho']));
     const values = sorted.map(r => parsePct(r['% GTC']));
     const colors = values.map(v => v >= 90 ? C_GREEN : v >= 80 ? C_ORANGE : C_RED);
+
+    // Calculate totals for Legend display
+    let sumGtc = 0;
+    let sumGan = 0;
+    sorted.forEach(r => {
+        sumGtc += parseInt((r['Số đơn GTC'] || '0').toString().replace(/\./g, '')) || 0;
+        sumGan += parseInt((r['Số đơn gán'] || '0').toString().replace(/\./g, '')) || 0;
+    });
+    const totalPctStr = sumGan > 0 ? (sumGtc / sumGan * 100).toFixed(2) + '%' : '0%';
 
     const chartHeight = Math.max(300, labels.length * 30 + 40);
     const wrapper = document.getElementById('gtc-by-kho-wrapper');
@@ -803,18 +817,33 @@ function renderGtcByKhoChart() {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ 
-                label: '% GTC', 
-                data: values, 
-                backgroundColor: colors, 
-                borderRadius: 4,
-                datalabels: { anchor: 'end', align: 'right', color: ctx2 => colors[ctx2.dataIndex], font: { weight: 'bold' }, formatter: v => v + '%' }
-            }]
+            datasets: [
+                { 
+                    label: `GTC: ${sumGtc.toLocaleString('vi-VN')} (${totalPctStr})`, 
+                    data: values, 
+                    backgroundColor: colors, 
+                    borderRadius: 4,
+                    datalabels: { anchor: 'end', align: 'right', color: ctx2 => colors[ctx2.dataIndex], font: { weight: 'bold' }, formatter: v => v + '%' }
+                },
+                {
+                    label: `Gán: ${sumGan.toLocaleString('vi-VN')}`,
+                    data: [], // Purely visual legend item supporting accessible Yellow palette
+                    backgroundColor: '#FBC02D',
+                    borderColor: '#FBC02D'
+                }
+            ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             indexAxis: 'y',
-            plugins: { legend: { display: false }, datalabels: { display: true } },
+            plugins: { 
+                legend: { 
+                    display: true, 
+                    position: 'top', 
+                    labels: { color: '#525F7F', padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 } 
+                }, 
+                datalabels: { display: true } 
+            },
             scales: {
                 x: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
                 y: { grid: { display: false } }
