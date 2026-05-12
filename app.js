@@ -260,7 +260,7 @@ function renderOverviewCards() {
     if (ovWarnDays) ovWarnDays.textContent = (ov.avg_days_to_normal || 0);
     
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
-    document.getElementById('sub-gtc').textContent    = 'ÄÃ£ Ä‘á»“ng bá»™: ' + syncTime;
+    document.getElementById('sub-gtc').textContent    = 'Đã đồng bộ: ' + syncTime;
 
     // Sync warning cards from frontend state if available
     syncOverviewWarningCards();
@@ -282,8 +282,8 @@ function syncOverviewWarningCards() {
     };
 
     const processedData = state.warningsData.map(r => {
-        const soNgay = parseFloat(getV(r, ['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày', 'so ngay'], 0));
-        const sheetStatus = getV(r, ['Tình hình hiện tại', 'trạng thái hiện tại'], 'BÃ¬nh thÆ°á»ng');
+        const soNgay = parseFloat(getV(r, ['Số ngày trở về ngày thường', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(r, ['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
         return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus };
     });
 
@@ -291,7 +291,7 @@ function syncOverviewWarningCards() {
     const warningCount  = processedData.filter(r => r.sheetStatus === 'Bất ổn').length;
     const upcomingCount = processedData.filter(r => {
         const next = (r['Tình hình sắp tới'] || r['Dự báo sắp tới'] || '').toLowerCase();
-        return next.includes('cảnh báo') || next.includes('nghiÃªm trá»ng');
+        return next.includes('cảnh báo') || next.includes('nghiêm trọng');
     }).length;
 
     const totalNgay = processedData.reduce((sum, r) => sum + r.soNgayVal, 0);
@@ -330,7 +330,7 @@ function updateNavBadges() {
     const critB2b = state.b2bData.filter(r => (r['Mức độ ưu tiên']||'').startsWith('1:'));
     document.getElementById('nav-b2b-count').textContent = critB2b.length;
     
-    const critWarn = state.warningsData.filter(r => r['Tình hình hiện tại'] === 'NghiÃªm trá»ng');
+    const critWarn = state.warningsData.filter(r => r['Tình hình hiện tại'] === 'Nghiêm trọng');
     const warnBadge = document.getElementById('nav-warnings-count');
     if (warnBadge) {
         warnBadge.textContent = critWarn.length;
@@ -412,7 +412,7 @@ function getWeekNumber(d) {
 function renderReturnsPieChart() {
     const reasonMap = {
         'Không liên lạc được': 0,
-        'Äá»•i Ã½ khÃ´ng mua': 0,
+        'Đổi ý không mua': 0,
         'Hẹn lại ngày giao': 0,
         'Sai địa chỉ': 0,
         'Khác': 0
@@ -420,7 +420,7 @@ function renderReturnsPieChart() {
     state.returnsData.forEach(r => {
         const n = parseInt(r['Số đơn trả'] || 0);
         reasonMap['Không liên lạc được'] += Math.round(n * 0.30);
-        reasonMap['Äá»•i Ã½ khÃ´ng mua']     += Math.round(n * 0.25);
+        reasonMap['Đổi ý không mua']     += Math.round(n * 0.25);
         reasonMap['Hẹn lại ngày giao']   += Math.round(n * 0.20);
         reasonMap['Sai địa chỉ']         += Math.round(n * 0.15);
         reasonMap['Khác']                += Math.round(n * 0.10);
