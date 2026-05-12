@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 import csv
 import os
 import io
@@ -422,28 +422,38 @@ if os.path.exists(FRONTEND_DIR):
 else:
     print(f"[STARTUP] WARNING: frontend/ directory not found at {FRONTEND_DIR}")
 
+def serve_utf8(filepath: str, media_type: str):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return Response(content=content, media_type=f"{media_type}; charset=utf-8")
+    except Exception as e:
+        print(f"[SERVE ERROR] Failed to read {filepath} as utf-8: {e}")
+        return FileResponse(filepath, media_type=media_type)
+
 @app.get("/app.js")
 def read_js():
     js_path = os.path.join(FRONTEND_DIR, "app.js")
-    if os.path.exists(js_path):
-        return FileResponse(js_path, media_type="application/javascript")
-    return FileResponse(os.path.join(BASE_DIR, "app.js"), media_type="application/javascript")
+    target = js_path if os.path.exists(js_path) else os.path.join(BASE_DIR, "app.js")
+    return serve_utf8(target, "application/javascript")
 
 @app.get("/styles.css")
 def read_css():
     css_path = os.path.join(FRONTEND_DIR, "styles.css")
-    if os.path.exists(css_path):
-        return FileResponse(css_path, media_type="text/css")
-    return FileResponse(os.path.join(BASE_DIR, "styles.css"), media_type="text/css")
+    target = css_path if os.path.exists(css_path) else os.path.join(BASE_DIR, "styles.css")
+    return serve_utf8(target, "text/css")
 
 @app.get("/")
 def read_index():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    index_path_base = os.path.join(BASE_DIR, "index.html")
-    if os.path.exists(index_path_base):
-        return FileResponse(index_path_base)
+    target = index_path if os.path.exists(index_path) else os.path.join(BASE_DIR, "index.html")
+    if os.path.exists(target):
+        try:
+            with open(target, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return HTMLResponse(content=content)
+        except Exception:
+            return FileResponse(target)
     return {
         "message": "Frontend not found",
         "base_dir": BASE_DIR,
@@ -451,3 +461,4 @@ def read_index():
         "frontend_exists": os.path.exists(FRONTEND_DIR),
         "files_in_base": os.listdir(BASE_DIR)
     }
+

@@ -34,9 +34,9 @@ function pctClass(v) {
 
 function agingChip(days) {
     const n = parseInt(days) || 0;
-    if (n >= 14) return `<span class="aging-chip aging-critical">${n} ngÃ y</span>`;
-    if (n >= 10) return `<span class="aging-chip aging-high">${n} ngÃ y</span>`;
-    return `<span class="aging-chip aging-normal">${n} ngÃ y</span>`;
+    if (n >= 14) return `<span class="aging-chip aging-critical">${n} ngày</span>`;
+    if (n >= 10) return `<span class="aging-chip aging-high">${n} ngày</span>`;
+    return `<span class="aging-chip aging-normal">${n} ngày</span>`;
 }
 
 function priorityBadge(p) {
@@ -48,7 +48,7 @@ function priorityBadge(p) {
 
 function shortKho(k) {
     if (!k) return '--';
-    return k.replace('Kho Giao HÃ ng Náº·ng - ', '');
+    return k.replace(/Kho Giao Hàng Nặng[\s\-]+/gi, '').trim();
 }
 
 function parsePct(str) {
@@ -59,7 +59,7 @@ function parseVN(s) {
     if (!s) return 0;
     if (typeof s !== 'string') s = s.toString();
     
-    // Format: "2026-05-05 - Thá»© 3" hoáº·c "2026-05-05"
+    // Format: "2026-05-05 - Thứ 3" hoáº·c "2026-05-05"
     let m0 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m0) return new Date(parseInt(m0[1]), parseInt(m0[2]) - 1, parseInt(m0[3])).getTime();
 
@@ -129,13 +129,13 @@ async function fetchAll(force = false) {
         
         if (force) {
             btn.classList.remove('loading');
-            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> LÃ m má»›i';
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
         }
     } catch(e) {
         console.error('Fetch error:', e);
         if (force) {
             btn.classList.remove('loading');
-            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lá»—i';
+            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lỗi';
         }
     }
 }
@@ -203,7 +203,7 @@ function renderAll() {
 function updateMeta() {
     const now = new Date();
     document.getElementById('last-update-time').textContent =
-        'Cáº­p nháº­t: ' + now.toLocaleTimeString('vi-VN');
+        'Cập nhật: ' + now.toLocaleTimeString('vi-VN');
     document.getElementById('current-date').textContent =
         now.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
 }
@@ -233,7 +233,7 @@ function renderOverviewCards() {
         let pCount = ov.total_personnel || 0;
         // Fallback to frontend calculation if available and server returns 0
         if (pCount === 0 && state.personnelData && state.personnelData.length) {
-            pCount = state.personnelData.filter(r => (r['TÃªn vá»‹ trÃ­']||'').trim().toLowerCase() === 'delivery staff').length;
+            pCount = state.personnelData.filter(r => (r['Tên vị trí']||'').trim().toLowerCase() === 'delivery staff').length;
         }
         xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${pCount}`;
     }
@@ -282,16 +282,16 @@ function syncOverviewWarningCards() {
     };
 
     const processedData = state.warningsData.map(r => {
-        const soNgay = parseFloat(getV(r, ['Sá»‘ ngÃ y trá»Ÿ vá» ngÃ y thÆ°á»ng', 'Total ngÃ y', 'so ngay'], 0));
-        const sheetStatus = getV(r, ['TÃ¬nh hÃ¬nh hiá»‡n táº¡i', 'tráº¡ng thÃ¡i hiá»‡n táº¡i'], 'BÃ¬nh thÆ°á»ng');
+        const soNgay = parseFloat(getV(r, ['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(r, ['Tình hình hiện tại', 'trạng thái hiện tại'], 'BÃ¬nh thÆ°á»ng');
         return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus };
     });
 
     const criticalCount = processedData.filter(r => r.soNgayVal > 6).length;
-    const warningCount  = processedData.filter(r => r.sheetStatus === 'Báº¥t á»•n').length;
+    const warningCount  = processedData.filter(r => r.sheetStatus === 'Bất ổn').length;
     const upcomingCount = processedData.filter(r => {
-        const next = (r['TÃ¬nh hÃ¬nh sáº¯p tá»›i'] || r['Dá»± bÃ¡o sáº¯p tá»›i'] || '').toLowerCase();
-        return next.includes('cáº£nh bÃ¡o') || next.includes('nghiÃªm trá»ng');
+        const next = (r['Tình hình sắp tới'] || r['Dự báo sắp tới'] || '').toLowerCase();
+        return next.includes('cảnh báo') || next.includes('nghiÃªm trá»ng');
     }).length;
 
     const totalNgay = processedData.reduce((sum, r) => sum + r.soNgayVal, 0);
@@ -327,10 +327,10 @@ document.addEventListener('click', (e) => {
 
 function updateNavBadges() {
     document.getElementById('nav-backlog-count').textContent = state.backlogData.length;
-    const critB2b = state.b2bData.filter(r => (r['Má»©c Ä‘á»™ Æ°u tiÃªn']||'').startsWith('1:'));
+    const critB2b = state.b2bData.filter(r => (r['Mức độ ưu tiên']||'').startsWith('1:'));
     document.getElementById('nav-b2b-count').textContent = critB2b.length;
     
-    const critWarn = state.warningsData.filter(r => r['TÃ¬nh hÃ¬nh hiá»‡n táº¡i'] === 'NghiÃªm trá»ng');
+    const critWarn = state.warningsData.filter(r => r['Tình hình hiện tại'] === 'NghiÃªm trá»ng');
     const warnBadge = document.getElementById('nav-warnings-count');
     if (warnBadge) {
         warnBadge.textContent = critWarn.length;
@@ -351,10 +351,10 @@ window.switchOverviewGtcPeriod = function(p) {
 function renderGtcTrendChart() {
     const dateMap = {};
     state.gtcData.forEach(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         if (!ts) return;
         const dObj = new Date(ts);
-        let key = (r['NgÃ y'] || '').split(' - ')[0]; // Day default
+        let key = (r['Ngày'] || '').split(' - ')[0]; // Day default
         
         if (currentOverviewGtcPeriod === 'week') {
             key = getWeekNumber(dObj);
@@ -363,8 +363,8 @@ function renderGtcTrendChart() {
         }
 
         if (!dateMap[key]) dateMap[key] = { total: 0, gtc: 0 };
-        dateMap[key].total += parseInt(r['Sá»‘ Ä‘Æ¡n gÃ¡n'] || 0);
-        dateMap[key].gtc   += parseInt(r['Sá»‘ Ä‘Æ¡n GTC'] || 0);
+        dateMap[key].total += parseInt(r['Số đơn gán'] || 0);
+        dateMap[key].gtc   += parseInt(r['Số đơn GTC'] || 0);
     });
 
     const allKeys = Object.keys(dateMap).sort();
@@ -411,19 +411,19 @@ function getWeekNumber(d) {
 // ---- RETURNS PIE ----
 function renderReturnsPieChart() {
     const reasonMap = {
-        'KhÃ´ng liÃªn láº¡c Ä‘Æ°á»£c': 0,
+        'Không liên lạc được': 0,
         'Äá»•i Ã½ khÃ´ng mua': 0,
-        'Háº¹n láº¡i ngÃ y giao': 0,
-        'Sai Ä‘á»‹a chá»‰': 0,
-        'KhÃ¡c': 0
+        'Hẹn lại ngày giao': 0,
+        'Sai địa chỉ': 0,
+        'Khác': 0
     };
     state.returnsData.forEach(r => {
-        const n = parseInt(r['Sá»‘ Ä‘Æ¡n tráº£'] || 0);
-        reasonMap['KhÃ´ng liÃªn láº¡c Ä‘Æ°á»£c'] += Math.round(n * 0.30);
+        const n = parseInt(r['Số đơn trả'] || 0);
+        reasonMap['Không liên lạc được'] += Math.round(n * 0.30);
         reasonMap['Äá»•i Ã½ khÃ´ng mua']     += Math.round(n * 0.25);
-        reasonMap['Háº¹n láº¡i ngÃ y giao']   += Math.round(n * 0.20);
-        reasonMap['Sai Ä‘á»‹a chá»‰']         += Math.round(n * 0.15);
-        reasonMap['KhÃ¡c']                += Math.round(n * 0.10);
+        reasonMap['Hẹn lại ngày giao']   += Math.round(n * 0.20);
+        reasonMap['Sai địa chỉ']         += Math.round(n * 0.15);
+        reasonMap['Khác']                += Math.round(n * 0.10);
     });
 
     destroyChart('returnsPie');
@@ -495,8 +495,8 @@ function renderB2bOverviewTable() {
     if (!tbody) return;
     const khoMap = {};
     state.b2bData.forEach(r => {
-        if (r['Má»©c Ä‘á»™ Æ°u tiÃªn'] === '1: trong hÃ´m nay') {
-            const k = shortKho(r['Kho hiá»‡n táº¡i'] || '--');
+        if (r['Mức độ ưu tiên'] === '1: trong hôm nay') {
+            const k = shortKho(r['Kho hiện tại'] || '--');
             khoMap[k] = (khoMap[k] || 0) + 1;
         }
     });
@@ -531,9 +531,9 @@ function renderCriticalWarningsOverview() {
             return defaultVal;
         };
 
-        const soNgay = parseFloat(getV(['Sá»‘ ngÃ y trá»Ÿ vá» ngÃ y thÆ°á»ng', 'Total ngÃ y'], 0));
-        const sheetStatus = getV(['TÃ¬nh hÃ¬nh hiá»‡n táº¡i'], 'BÃ¬nh thÆ°á»ng');
-        const nextStatus = r['TÃ¬nh hÃ¬nh sáº¯p tá»›i'] || 'BÃ¬nh thÆ°á»ng';
+        const soNgay = parseFloat(getV(['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại'], 'BÃ¬nh thÆ°á»ng');
+        const nextStatus = r['Tình hình sắp tới'] || 'BÃ¬nh thÆ°á»ng';
         return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus, nextStatus: nextStatus };
     });
 
@@ -544,7 +544,7 @@ function renderCriticalWarningsOverview() {
         return;
     }
     
-    // Sáº¯p xáº¿p theo sá»‘ ngÃ y giáº£m dáº§n
+    // Sáº¯p xáº¿p theo sá»‘ ngày giáº£m dáº§n
     const sorted = [...critical].sort((a, b) => b.soNgayVal - a.soNgayVal);
 
     tbody.innerHTML = sorted.slice(0, 10).map(r => {
@@ -556,7 +556,7 @@ function renderCriticalWarningsOverview() {
         const total = lm + ktc;
 
         let nextBadgeClass = 'storing';
-        if (nextStatus === 'Cáº£nh bÃ¡o') nextBadgeClass = 'waiting';
+        if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
         if (nextStatus === 'NghiÃªm trá»ng') nextBadgeClass = 'p1';
 
         return `
@@ -629,7 +629,7 @@ function updateMultiselectLabel(mode) {
     
     if (checks.length === 0) {
         if (mode === 'kho') label.innerText = 'Chá»n Kho...';
-        else if (mode === 'day') label.innerText = 'Chá»n NgÃ y...';
+        else if (mode === 'day') label.innerText = 'Chá»n Ngày...';
         else if (mode === 'week') label.innerText = 'Chá»n Tuáº§n...';
         else label.innerText = 'Chá»n ThÃ¡ng...';
     } else {
@@ -649,17 +649,17 @@ function populateGtcTimeSelects() {
     const dayMenu = document.getElementById('menu-gtc-day');
     if (!dayMenu || dayMenu.children.length > 0) return;
 
-    const days = [...new Set(state.gtcData.map(r => r['NgÃ y']).filter(Boolean))].sort().reverse();
+    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort().reverse();
     renderMultiselectItems('day', days);
 
     const weeks = [...new Set(state.gtcData.map(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         return ts ? getWeekNumber(new Date(ts)) : null;
     }).filter(Boolean))].sort().reverse();
     renderMultiselectItems('week', weeks);
 
     const months = [...new Set(state.gtcData.map(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
         return d.getFullYear() + '-' + ((d.getMonth()+1)<10?'0':'') + (d.getMonth()+1);
@@ -676,7 +676,7 @@ function renderMultiselectItems(mode, values) {
     menu.innerHTML = values.map(v => `
         <div class="ghn-filter-item">
             <input type="checkbox" id="chk-${mode}-${v}" value="${v}" onchange="updateGtcTimeMode('${mode}')">
-            <label for="chk-${mode}-${v}">${mode === 'day' ? v : (mode === 'week' ? 'Tuáº§n ' + v : (mode === 'month' ? 'ThÃ¡ng ' + v : v))}</label>
+            <label for="chk-${mode}-${v}">${mode === 'day' ? v : (mode === 'week' ? 'Tuần ' + v : (mode === 'month' ? 'Tháng ' + v : v))}</label>
         </div>
     `).join('');
 }
@@ -690,10 +690,10 @@ function renderGtcSection(searchFilter = '') {
 
     if (selectedGtcVals.length > 0) {
         filteredData = filteredData.filter(r => {
-            const ts = parseVN(r['NgÃ y']);
+            const ts = parseVN(r['Ngày']);
             if (!ts) return false;
             const dObj = new Date(ts);
-            if (gtcTimeMode === 'day') return selectedGtcVals.includes(r['NgÃ y']);
+            if (gtcTimeMode === 'day') return selectedGtcVals.includes(r['Ngày']);
             if (gtcTimeMode === 'week') return selectedGtcVals.includes(getWeekNumber(dObj));
             if (gtcTimeMode === 'month') {
                 const m = dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1);
@@ -702,8 +702,8 @@ function renderGtcSection(searchFilter = '') {
             return true;
         });
     } else {
-        const allDates = [...new Set(state.gtcData.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
-        filteredData = filteredData.filter(r => r['NgÃ y'] === allDates[0]);
+        const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        filteredData = filteredData.filter(r => r['Ngày'] === allDates[0]);
     }
 
     if (selectedGtcKhos.length > 0) filteredData = filteredData.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
@@ -715,22 +715,22 @@ function renderGtcSection(searchFilter = '') {
         const aggMap = {};
         filteredData.forEach(r => {
             const k = shortKho(r['Kho']);
-            const ts = parseVN(r['NgÃ y']);
+            const ts = parseVN(r['Ngày']);
             const dObj = new Date(ts);
             let periodKey = gtcTimeMode === 'week' ? getWeekNumber(dObj) : 
                             (dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1));
             
             const groupKey = k + '|' + periodKey;
             if (!aggMap[groupKey]) {
-                aggMap[groupKey] = { kho: k, period: (gtcTimeMode==='week'?'Tuáº§n ':'ThÃ¡ng ') + periodKey, kl: 0, gan: 0, gtc: 0, ts: ts };
+                aggMap[groupKey] = { kho: k, period: (gtcTimeMode==='week'?'Tuần ':'Tháng ') + periodKey, kl: 0, gan: 0, gtc: 0, ts: ts };
             }
             
             const parseVal = (v) => parseFloat((v || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
             const parseCount = (v) => parseInt((v || '0').toString().replace(/\./g, '')) || 0;
 
             aggMap[groupKey].kl += parseVal(r['KL gÃ¡n']);
-            aggMap[groupKey].gan += parseCount(r['Sá»‘ Ä‘Æ¡n gÃ¡n']);
-            aggMap[groupKey].gtc += parseCount(r['Sá»‘ Ä‘Æ¡n GTC']);
+            aggMap[groupKey].gan += parseCount(r['Số đơn gán']);
+            aggMap[groupKey].gtc += parseCount(r['Số đơn GTC']);
         });
         displayData = Object.values(aggMap)
             .sort((a,b) => b.ts - a.ts)
@@ -744,13 +744,13 @@ function renderGtcSection(searchFilter = '') {
                 pct: r.gan > 0 ? (r.gtc / r.gan * 100).toFixed(2) + '%' : '0%'
             }));
     } else {
-        displayData = filteredData.sort((a,b) => parseVN(b['NgÃ y']) - parseVN(a['NgÃ y'])).map((r, idx) => ({
+        displayData = filteredData.sort((a,b) => parseVN(b['Ngày']) - parseVN(a['Ngày'])).map((r, idx) => ({
             stt: idx + 1,
             kho: shortKho(r['Kho']),
-            ngay: r['NgÃ y'],
+            ngay: r['Ngày'],
             kl: r['KL gÃ¡n'] || '0',
-            gan: r['Sá»‘ Ä‘Æ¡n gÃ¡n'] || '0',
-            gtc: r['Sá»‘ Ä‘Æ¡n GTC'] || '0',
+            gan: r['Số đơn gán'] || '0',
+            gtc: r['Số đơn GTC'] || '0',
             pct: r['% GTC'] || '0%'
         }));
     }
@@ -775,7 +775,7 @@ function renderGtcByRegionChart() { /* Removed per user request */ }
 
 // ---- GTC BY KHO BAR CHART ----
 function renderGtcByKhoChart() {
-    const allDates = [...new Set(state.gtcData.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     let referenceDate = allDates[0];
     
     if (gtcTimeMode === 'day' && selectedGtcVals.length > 0) {
@@ -784,7 +784,7 @@ function renderGtcByKhoChart() {
         referenceDate = sortedSelected[0];
     }
 
-    const dayRows = state.gtcData.filter(r => r['NgÃ y'] === referenceDate);
+    const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
     const sorted = [...dayRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
 
     const labels = sorted.map(r => shortKho(r['Kho']));
@@ -835,7 +835,7 @@ function renderGtcTopBottom() {
     const el = document.getElementById('gtc-top-bottom');
     if (!el) return;
 
-    const allDates = [...new Set(state.gtcData.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
@@ -858,8 +858,8 @@ function renderGtcTopBottom() {
             const k = shortKho(r['Kho'] || '');
             if (!k) return;
             if (!khoMap[k]) khoMap[k] = { gan: 0, gtc: 0 };
-            khoMap[k].gan += parseInt(r['Sá»‘ Ä‘Æ¡n gÃ¡n'] || 0);
-            khoMap[k].gtc += parseInt(r['Sá»‘ Ä‘Æ¡n GTC'] || 0);
+            khoMap[k].gan += parseInt(r['Số đơn gán'] || 0);
+            khoMap[k].gtc += parseInt(r['Số đơn GTC'] || 0);
         });
         return Object.entries(khoMap)
             .filter(([,v]) => v.gan >= 10)
@@ -867,16 +867,16 @@ function renderGtcTopBottom() {
             .sort((a, b) => b.pct - a.pct);
     }
 
-    const rowsDay   = state.gtcData.filter(r => r['NgÃ y'] === latestDate);
-    const rowsWeek  = state.gtcData.filter(r => parseVN(r['NgÃ y']) >= startOfWeek.getTime());
-    const rowsMonth = state.gtcData.filter(r => parseVN(r['NgÃ y']) >= startOfMonth.getTime());
+    const rowsDay   = state.gtcData.filter(r => r['Ngày'] === latestDate);
+    const rowsWeek  = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
+    const rowsMonth = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfMonth.getTime());
 
     const rankDay   = computeKhoRanking(rowsDay);
     const rankWeek  = computeKhoRanking(rowsWeek);
     const rankMonth = computeKhoRanking(rowsMonth);
 
     function renderPanel(title, icon, ranking) {
-        if (!ranking.length) return `<div class="table-card"><div class="table-header"><h3>${title}</h3></div><p style="padding:16px;color:var(--text3)">KhÃ´ng cÃ³ dá»¯ liá»‡u</p></div>`;
+        if (!ranking.length) return `<div class="table-card"><div class="table-header"><h3>${title}</h3></div><p style="padding:16px;color:var(--text3)">Không có dữ liệu</p></div>`;
         const top5 = ranking.slice(0, 5);
         const bottom5 = ranking.slice(-5);
         const renderRow = (r, isTop) => `
@@ -903,7 +903,7 @@ function renderGtcTopBottom() {
     const displayDate = latestDate.split(' ')[0];
     el.innerHTML = `
         <div class="tables-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:18px">
-            ${renderPanel('GTC NgÃ y (' + displayDate + ')', 'fa-calendar-day', rankDay)}
+            ${renderPanel('GTC Ngày (' + displayDate + ')', 'fa-calendar-day', rankDay)}
             ${renderPanel('GTC Tuáº§n', 'fa-calendar-week', rankWeek)}
             ${renderPanel('GTC ThÃ¡ng', 'fa-calendar', rankMonth)}
         </div>`;
@@ -913,7 +913,7 @@ function renderGtcTopBottom() {
 function renderBacklogSection(khoFilter = '', luongFilter = '') {
     let data = [...state.backlogData];
     const getKho = r => r['kho_giao'] || r['Kho'] || '';
-    const getAging = r => parseInt(r['backlog_aging'] || r['Sá»‘ ngÃ y tá»“n'] || 0);
+    const getAging = r => parseInt(r['backlog_aging'] || r['Sá»‘ ngày tá»“n'] || 0);
     if (khoFilter) data = data.filter(r =>
         shortKho(getKho(r)).toLowerCase().includes(khoFilter.toLowerCase()) ||
         (r['order_code']||'').toLowerCase().includes(khoFilter.toLowerCase())
@@ -972,7 +972,7 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     let data = [...state.b2bData];
     
     // POPULATE FILTERS
-    const clients = [...new Set(state.b2bData.map(r => r['KhÃ¡ch']).filter(Boolean))].sort();
+    const clients = [...new Set(state.b2bData.map(r => r['Khách']).filter(Boolean))].sort();
     const types = [...new Set(state.b2bData.map(r => r['Loáº¡i']).filter(Boolean))].sort();
     
     const clientSelect = document.getElementById('filter-b2b-client');
@@ -986,27 +986,27 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     }
 
     if (khoFilter) data = data.filter(r =>
-        (shortKho(r['Kho hiá»‡n táº¡i'])||'').toLowerCase().includes(khoFilter.toLowerCase()) ||
+        (shortKho(r['Kho hiện tại'])||'').toLowerCase().includes(khoFilter.toLowerCase()) ||
         (r['Order code']||'').toLowerCase().includes(khoFilter.toLowerCase())
     );
-    if (prioFilter) data = data.filter(r => (r['Má»©c Ä‘á»™ Æ°u tiÃªn']||'') === prioFilter);
-    if (clientFilter) data = data.filter(r => (r['KhÃ¡ch']||'') === clientFilter);
+    if (prioFilter) data = data.filter(r => (r['Mức độ ưu tiên']||'') === prioFilter);
+    if (clientFilter) data = data.filter(r => (r['Khách']||'') === clientFilter);
     if (typeFilter) data = data.filter(r => (r['Loáº¡i']||'') === typeFilter);
 
-    const prio = ['1: trong hÃ´m nay','2: trong ngÃ y mai','3: trong ngÃ y má»‘t'];
-    data.sort((a,b) => prio.indexOf(a['Má»©c Ä‘á»™ Æ°u tiÃªn']) - prio.indexOf(b['Má»©c Ä‘á»™ Æ°u tiÃªn']));
+    const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày má»‘t'];
+    data.sort((a,b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']));
 
     document.getElementById('b2b-count-label').textContent = data.length + ' Ä‘Æ¡n';
     document.getElementById('tbody-b2b').innerHTML = data.map(r => `
         <tr>
-            <td>${priorityBadge(r['Má»©c Ä‘á»™ Æ°u tiÃªn'])}</td>
-            <td>${shortKho(r['Kho hiá»‡n táº¡i'])}</td>
+            <td>${priorityBadge(r['Mức độ ưu tiên'])}</td>
+            <td>${shortKho(r['Kho hiện tại'])}</td>
             <td>${r['PIC']||''}</td>
             <td class="order-code">${r['Order code']||''}</td>
             <td><span class="badge ${r['Loáº¡i']==='Giao'?'storing':'waiting'}">${r['Loáº¡i']||''}</span></td>
-            <td>${r['KhÃ¡ch']||''}</td>
-            <td>${r['NgÃ y nháº­p kho']||''}</td>
-            <td>${agingChip(r['ÄÃ£ lÆ°u kho (ngÃ y)'])}</td>
+            <td>${r['Khách']||''}</td>
+            <td>${r['Ngày nháº­p kho']||''}</td>
+            <td>${agingChip(r['ÄÃ£ lÆ°u kho (ngày)'])}</td>
             <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Äá»‹a chá»‰ giao']||''}</td>
         </tr>
     `).join('');
@@ -1017,15 +1017,15 @@ function renderReturnsSection(clientFilter = '') {
     renderReturnsByClient(clientFilter);
     
     const sorted = [...state.returnsData].sort((a,b) => {
-        const da = (a['NgÃ y']||'').split(' - ')[0];
-        const db = (b['NgÃ y']||'').split(' - ')[0];
+        const da = (a['Ngày']||'').split(' - ')[0];
+        const db = (b['Ngày']||'').split(' - ')[0];
         return db.localeCompare(da);
     });
     document.getElementById('tbody-returns').innerHTML = sorted.map(r => `
         <tr>
             <td>${shortKho(r['Kho'])}</td>
-            <td>${r['NgÃ y']||''}</td>
-            <td style="text-align:center;font-weight:700">${r['Sá»‘ Ä‘Æ¡n tráº£']||0}</td>
+            <td>${r['Ngày']||''}</td>
+            <td style="text-align:center;font-weight:700">${r['Số đơn trả']||0}</td>
             <td style="text-align:right;font-weight:800;color:var(--red)">${r['% FD']||''}</td>
         </tr>
     `).join('');
@@ -1126,7 +1126,7 @@ function renderPersonnelOverview() {
     // Count by position
     const posMap = {};
     data.forEach(r => {
-        const pos = r['TÃªn vá»‹ trÃ­'] || 'KhÃ¡c';
+        const pos = r['Tên vị trí'] || 'Khác';
         posMap[pos] = (posMap[pos] || 0) + 1;
     });
     const posSorted = Object.entries(posMap).sort((a,b) => b[1]-a[1]);
@@ -1135,7 +1135,7 @@ function renderPersonnelOverview() {
     const tenureMap = {};
     data.forEach(r => {
         // Extract short label from e.g. "G01: DÆ°á»›i 1 thÃ¡ng" -> "<1 thÃ¡ng"
-        let tn = r['ThÃ¢m niÃªn'] || 'KhÃ¡c';
+        let tn = r['ThÃ¢m niÃªn'] || 'Khác';
         const m = tn.match(/G(\d+): (.+)/);
         tn = m ? m[2].trim() : tn;
         tenureMap[tn] = (tenureMap[tn] || 0) + 1;
@@ -1192,14 +1192,14 @@ function renderPersonnelSection(filter = '', posFilter = '') {
         const f = filter.toLowerCase();
         data = data.filter(r => (r['Há» tÃªn']||'').toLowerCase().includes(f) || shortKho(r['Kho']).toLowerCase().includes(f));
     }
-    if (posFilter) data = data.filter(r => (r['TÃªn vá»‹ trÃ­']||'').includes(posFilter));
+    if (posFilter) data = data.filter(r => (r['Tên vị trí']||'').includes(posFilter));
     document.getElementById('personnel-count-label').textContent = data.length + ' ngÆ°á»i';
     document.getElementById('tbody-personnel').innerHTML = data.map((r, i) => `
         <tr>
             <td>${i + 1}</td>
             <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID']||''}</td>
             <td style="font-weight:600">${r['Há» tÃªn']||''}</td>
-            <td>${r['TÃªn vá»‹ trÃ­']||''}</td>
+            <td>${r['Tên vị trí']||''}</td>
             <td><span class="badge ${r['Loáº¡i HÄ']==='NhÃ¢n viÃªn chÃ­nh thá»©c'?'storing':'p3'}">${r['Loáº¡i HÄ']||''}</span></td>
             <td>${r['ThÃ¢m niÃªn']||''}</td>
             <td>${shortKho(r['Kho']) || ''}</td>
@@ -1230,7 +1230,7 @@ function renderProductivityWarnings() {
 
     const empMap = new Map();
     state.nangSuatData.forEach(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         if (ts >= cutoffTs) {
             const name = r['driver'] || '';
             if (!name) return;
@@ -1259,7 +1259,7 @@ function renderProductivityWarnings() {
     list.sort((a, b) => a.pctGtc - b.pctGtc);
 
     if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">KhÃ´ng cÃ³ dá»¯ liá»‡u thá»a mÃ£n Ä‘iá»u kiá»‡n (Tá»•ng Ä‘Æ¡n > 30 trong ${daysLimit} ngÃ y)</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thá»a mÃ£n Ä‘iá»u kiá»‡n (Tá»•ng Ä‘Æ¡n > 30 trong ${daysLimit} ngày)</td></tr>`;
         return;
     }
 
@@ -1287,7 +1287,7 @@ function renderNangSuatSection() {
     renderProductivityWarnings();
     if (!state.nangSuatData || !state.nangSuatData.length) return;
 
-    const allDates = [...new Set(state.nangSuatData.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
@@ -1308,11 +1308,11 @@ function renderNangSuatSection() {
 
     let filteredData = [];
     if (currentNsPeriod === 'day') {
-        filteredData = state.nangSuatData.filter(r => r['NgÃ y'] === latestDate);
+        filteredData = state.nangSuatData.filter(r => r['Ngày'] === latestDate);
     } else if (currentNsPeriod === 'week') {
-        filteredData = state.nangSuatData.filter(r => parseVN(r['NgÃ y']) >= startOfWeek.getTime());
+        filteredData = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
     } else {
-        filteredData = state.nangSuatData.filter(r => parseVN(r['NgÃ y']) >= startOfMonth.getTime());
+        filteredData = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= startOfMonth.getTime());
     }
 
     const provSelect = document.getElementById('filter-ns-province');
@@ -1365,9 +1365,9 @@ function renderNangSuatSection() {
     // RENDER ALL DRIVERS TABLE
     const allTbody = document.getElementById('tbody-ns-all');
     if (allTbody) {
-        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tá»‰ lá»‡ GTC']), rB = parsePct(b['Tá»‰ lá»‡ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['NgÃ y']) - parseVN(a['NgÃ y']); }).map(r => `
+        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tá»‰ lá»‡ GTC']), rB = parsePct(b['Tá»‰ lá»‡ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
             <tr>
-                <td style="font-size:11px;color:var(--text3)">${r['NgÃ y'] || '--'}</td>
+                <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
                 <td style="font-weight:600">${r['driver'] || '--'}</td>
                 <td>${r['to_province_name'] || '--'}</td>
                 <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
@@ -1385,7 +1385,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     let data = state.warningsData;
     if (!data) return;
 
-    const ngayKey = 'Total ngÃ y';
+    const ngayKey = 'Total ngày';
 
     // Xá»­ lÃ½ dá»¯ liá»‡u
     const processedData = state.warningsData.map(r => {
@@ -1402,8 +1402,8 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             return defaultVal;
         };
 
-        const soNgay = parseFloat(getV(['Sá»‘ ngÃ y trá»Ÿ vá» ngÃ y thÆ°á»ng', 'Total ngÃ y', 'so ngay'], 0));
-        const sheetStatus = getV(['TÃ¬nh hÃ¬nh hiá»‡n táº¡i', 'tráº¡ng thÃ¡i hiá»‡n táº¡i'], 'BÃ¬nh thÆ°á»ng');
+        const soNgay = parseFloat(getV(['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'BÃ¬nh thÆ°á»ng');
         
         return { 
             ...r, 
@@ -1413,10 +1413,10 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     });
 
     // KPI Cards:
-    // 1. Kho NghiÃªm trá»ng: tÃ­nh theo sá»‘ ngÃ y > 6
+    // 1. Kho NghiÃªm trá»ng: tÃ­nh theo sá»‘ ngày > 6
     const criticalList = processedData.filter(r => r.soNgayVal > 6);
-    // 2. Kho Báº¥t á»•n: Ä‘áº¿m theo cá»™t tráº¡ng thÃ¡i hiá»‡n táº¡i cá»§a sheet
-    const warningList  = processedData.filter(r => r.sheetStatus === 'Báº¥t á»•n');
+    // 2. Kho Bất ổn: Ä‘áº¿m theo cá»™t trạng thái hiện tại cá»§a sheet
+    const warningList  = processedData.filter(r => r.sheetStatus === 'Bất ổn');
 
     const critEl = document.getElementById('warn-critical-count');
     if (critEl) critEl.textContent = criticalList.length;
@@ -1425,8 +1425,8 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     if (warnEl) warnEl.textContent = warningList.length;
 
     const upcoming = processedData.filter(r => {
-        const next = (r['TÃ¬nh hÃ¬nh sáº¯p tá»›i'] || '').toLowerCase();
-        return next.includes('cáº£nh bÃ¡o') || next.includes('nghiÃªm trá»ng');
+        const next = (r['Tình hình sắp tới'] || '').toLowerCase();
+        return next.includes('cảnh báo') || next.includes('nghiÃªm trá»ng');
     });
     const upcomingEl = document.getElementById('warn-upcoming-count');
     if (upcomingEl) upcomingEl.textContent = upcoming.length;
@@ -1444,7 +1444,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     if (khoFilter) filtered = filtered.filter(r => shortKho(r['kho gxt'] || r['Kho'] || '').toLowerCase().includes(khoFilter.toLowerCase()));
     if (statusFilter) filtered = filtered.filter(r => r.sheetStatus === statusFilter);
 
-    // Sáº¯p xáº¿p giáº£m dáº§n theo sá»‘ ngÃ y
+    // Sáº¯p xáº¿p giáº£m dáº§n theo sá»‘ ngày
     filtered.sort((a, b) => b.soNgayVal - a.soNgayVal);
 
     // Render Table
@@ -1461,12 +1461,12 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
         tbody.innerHTML = filtered.map((r, index) => {
             const status = r.sheetStatus;
             let badgeClass = 'storing';
-            if (status === 'Báº¥t á»•n') badgeClass = 'waiting';
+            if (status === 'Bất ổn') badgeClass = 'waiting';
             if (status === 'NghiÃªm trá»ng') badgeClass = 'p1';
 
-            const nextStatus = r['TÃ¬nh hÃ¬nh sáº¯p tá»›i'] || 'BÃ¬nh thÆ°á»ng';
+            const nextStatus = r['Tình hình sắp tới'] || 'BÃ¬nh thÆ°á»ng';
             let nextBadgeClass = 'storing';
-            if (nextStatus === 'Cáº£nh bÃ¡o') nextBadgeClass = 'waiting';
+            if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
             if (nextStatus === 'NghiÃªm trá»ng') nextBadgeClass = 'p1';
 
             const backlogLM = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
@@ -1480,10 +1480,10 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             const warehouseName = shortKho(r['kho gxt'] || r['Kho'] || '');
             const warehouseGtcData = gtcMap.get(warehouseName) || [];
             
-            // Sáº¯p xáº¿p ngÃ y giáº£m dáº§n vÃ  láº¥y 7 báº£n ghi gáº§n nháº¥t
+            // Sáº¯p xáº¿p ngày giáº£m dáº§n vÃ  láº¥y 7 báº£n ghi gáº§n nháº¥t
             const latestGtc = warehouseGtcData.sort((a, b) => {
-                const dateA = a['NgÃ y'] || '';
-                const dateB = b['NgÃ y'] || '';
+                const dateA = a['Ngày'] || '';
+                const dateB = b['Ngày'] || '';
                 if (!dateA) return 1;
                 if (!dateB) return -1;
                 return dateB.localeCompare(dateA);
@@ -1492,7 +1492,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             let avgGtcVol = 0;
             let maxGtcVol = 0;
             if (latestGtc.length > 0) {
-                const volumes = latestGtc.map(g => parseInt(g['Sá»‘ Ä‘Æ¡n GTC'] || g['success_volume'] || 0));
+                const volumes = latestGtc.map(g => parseInt(g['Số đơn GTC'] || g['success_volume'] || 0));
                 avgGtcVol = volumes.reduce((a, b) => a + b, 0) / volumes.length;
                 maxGtcVol = Math.max(...volumes);
             }
@@ -1509,7 +1509,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${maxGtcVol.toLocaleString()}</td>
                     <td style="text-align:right">
                         <span class="aging-chip ${r.soNgayVal > 6 ? 'aging-critical' : r.soNgayVal > 0 ? 'aging-high' : 'aging-normal'}">
-                            ${r.soNgayVal} ngÃ y
+                            ${r.soNgayVal} ngày
                         </span>
                     </td>
                     <td><span class="badge ${nextBadgeClass}">${nextStatus}</span></td>
@@ -1526,7 +1526,7 @@ function renderXeGxtSection() {
     if (!tbody) return;
 
     if (!state.xeGxtData.length) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không có dữ liệu</td></tr>';
         return;
     }
 
@@ -1589,7 +1589,7 @@ function renderXeGxtSection() {
     const tbodyDetail = document.getElementById('tbody-xegxt-detail');
     if (tbodyDetail) {
         if (filteredRaw.length === 0) {
-            tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">KhÃ´ng cÃ³ dá»¯ liá»‡u chi tiáº¿t</td></tr>';
+            tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có dữ liệu chi tiáº¿t</td></tr>';
         } else {
             tbodyDetail.innerHTML = filteredRaw.map((r, index) => `
                 <tr>
@@ -1652,7 +1652,7 @@ function renderXeSuCoSection() {
 
     const data = state.xeSuCoData;
     if (!data.length) {
-        tbodyRaw.innerHTML = '<tr><td colspan="9" style="text-align:center">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>';
+        tbodyRaw.innerHTML = '<tr><td colspan="9" style="text-align:center">Không có dữ liệu</td></tr>';
         return;
     }
 
@@ -1661,7 +1661,7 @@ function renderXeSuCoSection() {
     const weekCont  = document.getElementById('filter-xesuco-week-container');
     const monthCont = document.getElementById('filter-xesuco-month-container');
 
-    const days = [...new Set(data.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const days = [...new Set(data.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     if (dayCont && dayCont.children.length === 0) {
         days.forEach(d => {
             const lbl = document.createElement('label');
@@ -1671,16 +1671,16 @@ function renderXeSuCoSection() {
         dayCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
             renderXeSuCoSection();
             const checked = Array.from(document.querySelectorAll('.filter-xesuco-day:checked'));
-            document.getElementById('label-xesuco-day').textContent = checked.length ? `ÄÃ£ chá»n (${checked.length})` : 'Chá»n NgÃ y...';
+            document.getElementById('label-xesuco-day').textContent = checked.length ? `ÄÃ£ chá»n (${checked.length})` : 'Chá»n Ngày...';
         }));
     }
 
     const weeks = [...new Set(data.map(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
         const w = getWeek(d);
-        return `Tuáº§n ${d.getFullYear()}-W${w < 10 ? '0'+w : w}`;
+        return `Tuần ${d.getFullYear()}-W${w < 10 ? '0'+w : w}`;
     }).filter(Boolean))].sort().reverse();
 
     if (weekCont && weekCont.children.length === 0) {
@@ -1697,7 +1697,7 @@ function renderXeSuCoSection() {
     }
 
     const months = [...new Set(data.map(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
         return `${d.getMonth() + 1}/${d.getFullYear()}`;
@@ -1710,7 +1710,7 @@ function renderXeSuCoSection() {
     if (monthCont && monthCont.children.length === 0) {
         months.forEach(m => {
             const lbl = document.createElement('label');
-            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> ThÃ¡ng ${m}`;
+            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Tháng ${m}`;
             monthCont.appendChild(lbl);
         });
         monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
@@ -1728,9 +1728,9 @@ function renderXeSuCoSection() {
     const f_kho    = (document.getElementById('filter-xesuco-kho')?.value || '').toLowerCase();
 
     const filtered = data.filter(r => {
-        const ts = parseVN(r['NgÃ y']);
+        const ts = parseVN(r['Ngày']);
         const d_obj = new Date(ts);
-        const w_str = `Tuáº§n ${d_obj.getFullYear()}-W${String(getWeek(d_obj)).padStart(2, '0')}`;
+        const w_str = `Tuần ${d_obj.getFullYear()}-W${String(getWeek(d_obj)).padStart(2, '0')}`;
         const m_str = `${d_obj.getMonth() + 1}/${d_obj.getFullYear()}`;
 
         const matchSearch = !f_search || 
@@ -1739,7 +1739,7 @@ function renderXeSuCoSection() {
             (r['Biá»ƒn Sá»‘']||'').toLowerCase().includes(f_search) || 
             (r['ID']||'').toLowerCase().includes(f_search);
         
-        const matchDay   = f_days.length === 0 || f_days.includes(r['NgÃ y']);
+        const matchDay   = f_days.length === 0 || f_days.includes(r['Ngày']);
         const matchWeek  = f_weeks.length === 0 || f_weeks.includes(w_str);
         const matchMonth = f_months.length === 0 || f_months.includes(m_str);
         const matchKho   = !f_kho || (r['Kho']||'').toLowerCase().includes(f_kho);
@@ -1748,15 +1748,15 @@ function renderXeSuCoSection() {
     });
 
     // Render Raw (Show all columns from sheet)
-    // Tá»‰nh, ID, Kho, NgÃ y, Lá»—i, Ná»™i Dung Chi Tiáº¿t, Biá»ƒn Sá»‘ Xe, NCC
+    // Tá»‰nh, ID, Kho, Ngày, Lỗi, Ná»™i Dung Chi Tiáº¿t, Biá»ƒn Sá»‘ Xe, NCC
     tbodyRaw.innerHTML = filtered.map((r, i) => `
         <tr>
             <td style="color:var(--text3)">${i+1}</td>
             <td>${r['Tá»‰nh'] || ''}</td>
             <td>${r['ID'] || ''}</td>
             <td style="font-weight:600">${r['Kho'] || ''}</td>
-            <td>${r['NgÃ y'] || ''}</td>
-            <td style="color:var(--red)">${r['Lá»—i'] || ''}</td>
+            <td>${r['Ngày'] || ''}</td>
+            <td style="color:var(--red)">${r['Lỗi'] || ''}</td>
             <td style="font-size:0.85rem; max-width:300px; white-space:normal">${r['Ná»™i Dung Chi Tiáº¿t'] || ''}</td>
             <td style="font-weight:600">${r['Biá»ƒn Sá»‘ Xe'] || ''}</td>
             <td>${r['NCC'] || ''}</td>
@@ -1811,7 +1811,7 @@ function assembleTelegramReport() {
         
         const kho = tds[0].innerText.trim();
         const status = tds[1].innerText.trim();
-        const days = tds[8].innerText.trim(); // Sá»‘ ngÃ y vá» bÃ¬nh thÆ°á»ng
+        const days = tds[8].innerText.trim(); // Sá»‘ ngày vá» bÃ¬nh thÆ°á»ng
         
         if (parseInt(days) > 5 || status.includes('NghiÃªm trá»ng')) {
             msg += `${warnCount + 1}. *${kho}*: ${status} (${days})\n`;
@@ -1826,7 +1826,7 @@ function assembleTelegramReport() {
 `;
     
     function getNsWorst(days, label, minVol) {
-        const allDates = [...new Set(state.nangSuatData.map(r => r['NgÃ y']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
         if (!allDates.length) return `*${label}:*
 _Trá»‘ng_
 `;
@@ -1835,10 +1835,10 @@ _Trá»‘ng_
         let filtered = [];
         
         if (days === 1) {
-            filtered = state.nangSuatData.filter(r => r['NgÃ y'] === allDates[0]);
+            filtered = state.nangSuatData.filter(r => r['Ngày'] === allDates[0]);
         } else {
             const cutoff = latestTs - (days * 24 * 60 * 60 * 1000);
-            filtered = state.nangSuatData.filter(r => parseVN(r['NgÃ y']) >= cutoff);
+            filtered = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= cutoff);
         }
         
         const map = {};
@@ -1865,9 +1865,9 @@ _Trá»‘ng_
         return res;
     }
 
-    msg += getNsWorst(1, "NgÃ y gáº§n nháº¥t", 30);
-    msg += "\n" + getNsWorst(7, "Tuáº§n gáº§n nháº¥t", 30);
-    msg += "\n" + getNsWorst(30, "ThÃ¡ng gáº§n nháº¥t", 30);
+    msg += getNsWorst(1, "Ngày gáº§n nháº¥t", 30);
+    msg += "\n" + getNsWorst(7, "Tuần gáº§n nháº¥t", 30);
+    msg += "\n" + getNsWorst(30, "Tháng gáº§n nháº¥t", 30);
     msg += "\n";
 
     // 4. HIá»†U SUáº¤T KHO (GTC) (Láº¥y tá»« GTC rankings)
@@ -1946,7 +1946,7 @@ async function sendTelegramReport() {
         if (result.status === 'success') {
             alert('âœ… BÃ¡o cÃ¡o chi tiáº¿t Ä‘Ã£ Ä‘Æ°á»£c gá»­i!');
         } else {
-            alert('âŒ Lá»—i: ' + result.message);
+            alert('âŒ Lỗi: ' + result.message);
         }
     } catch (e) {
         alert('âŒ KhÃ´ng thá»ƒ káº¿t ná»‘i vá»›i server.');
@@ -1960,9 +1960,9 @@ document.getElementById('telegram-btn')?.addEventListener('click', sendTelegramR
 
 // ---- NAVIGATION ----
 const SECTION_META = {
-    overview:  ['BÃ¡o CÃ¡o Tá»•ng Quan', 'GiÃ¡m sÃ¡t GTC, Ontime, Backlog vÃ  B2B toÃ n máº¡ng Miá»n Trung'],
+    overview:  ['Báo Cáo Tổng Quan', 'GiÃ¡m sÃ¡t GTC, Ontime, Backlog vÃ  B2B toÃ n máº¡ng Miá»n Trung'],
     gtc:       ['GTC & NÄƒng Suáº¥t', 'Tá»· lá»‡ giao thÃ nh cÃ´ng vÃ  nÄƒng suáº¥t theo tá»«ng kho'],
-    backlog:   ['Danh SÃ¡ch Backlog > 7 NgÃ y', 'CÃ¡c Ä‘Æ¡n hÃ ng tá»“n Ä‘á»ng lÃ¢u hÆ¡n 7 ngÃ y cáº§n xá»­ lÃ½ kháº©n'],
+    backlog:   ['Danh SÃ¡ch Backlog > 7 Ngày', 'CÃ¡c Ä‘Æ¡n hÃ ng tá»“n Ä‘á»ng lÃ¢u hÆ¡n 7 ngày cáº§n xá»­ lÃ½ kháº©n'],
     b2b:       ['ÄÆ¡n HÃ ng B2B & SLA', 'Theo dÃµi Ä‘Æ¡n B2B theo má»©c Ä‘á»™ Æ°u tiÃªn xá»­ lÃ½'],
     returns:   ['BÃ¡o CÃ¡o Tráº£ HÃ ng & FD', 'Tá»· lá»‡ phÃ¢n phá»‘i vÃ  tráº£ hÃ ng theo kho'],
     personnel: ['Danh SÃ¡ch NhÃ¢n Sá»±', 'ThÃ´ng tin nhÃ¢n viÃªn giao nháº­n vÃ  xá»­ lÃ½'],
@@ -1971,7 +1971,7 @@ const SECTION_META = {
     xegxt:     ['Quáº£n LÃ½ Xe GXT', 'Theo dÃµi sá»‘ lÆ°á»£ng xe Ä‘ang váº­n hÃ nh táº¡i cÃ¡c kho Miá»n Trung'],
     xesuco:    ['Xe Sá»± Cá»‘', 'Theo dÃµi vÃ  thá»‘ng kÃª cÃ¡c sá»± cá»‘ xe GXT theo nhÃ  cung cáº¥p'],
     khogxt:    ['Danh SÃ¡ch Kho GXT', 'ThÃ´ng tin chi tiáº¿t cÃ¡c kho GXT trong máº¡ng lÆ°á»›i'],
-    dontao:    ['ÄÆ¡n Táº¡o N-1', 'Thá»‘ng kÃª Ä‘Æ¡n hÃ ng táº¡o trong ngÃ y N-1 theo tá»«ng kho'],
+    dontao:    ['ÄÆ¡n Táº¡o N-1', 'Thá»‘ng kÃª Ä‘Æ¡n hÃ ng táº¡o trong ngày N-1 theo tá»«ng kho'],
 };
 
 function showSection(name) {
