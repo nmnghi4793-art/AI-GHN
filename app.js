@@ -1,4 +1,4 @@
-﻿﻿const API = window.location.origin + '/api';
+﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -245,7 +245,7 @@ function renderOverviewCards() {
     const donTaoEl = document.getElementById('val-dontao');
     if (donTaoEl) {
         const d = (ov.total_don_tao || 0).toLocaleString('vi-VN');
-        const kg = (ov.total_kg_tao || 0).toLocaleString('vi-VN', {maximumFractionDigits:1});
+        const kg = (ov.total_kg_tao || 0).toLocaleString('vi-VN', {maximumFractionDigits:3});
         donTaoEl.textContent = `${d} / ${kg} KG`;
     }
 
