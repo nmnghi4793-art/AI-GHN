@@ -1,4 +1,4 @@
-﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1786,12 +1786,14 @@ function renderKhoGxtSection() {
 
     tbody.innerHTML = filtered.map(r => `
         <tr>
+            <td style="font-weight:600">${r['Tên'] || '--'}</td>
+            <td>${r['Số điện thoại'] || '--'}</td>
             <td style="color:var(--text3)">${r['ID Kho'] || ''}</td>
             <td style="font-weight:700; color:var(--blue)">${r['Tên Kho GXT'] || ''}</td>
             <td>${r['Tỉnh'] || ''}</td>
             <td>${r['Diện Tích'] || ''}</td>
-            <td style="font-size:0.85rem">${r['Äá»‹a chá»‰ kho'] || ''}</td>
             <td><span class="badge" style="background:${r['Tình trạng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['Tình trạng'] === 'Active' ? '#2E7D32' : '#C62828'}">${r['Tình trạng'] || ''}</span></td>
+            <td style="font-size:0.85rem">${r['Địa chỉ kho'] || ''}</td>
         </tr>
     `).join('');
 }
