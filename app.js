@@ -1,4 +1,4 @@
-﻿const API = window.location.origin + '/api';
+﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1960,18 +1960,18 @@ document.getElementById('telegram-btn')?.addEventListener('click', sendTelegramR
 
 // ---- NAVIGATION ----
 const SECTION_META = {
-    overview:  ['Báo Cáo Tổng Quan', 'GiÃ¡m sÃ¡t GTC, Ontime, Backlog vÃ  B2B toÃ n máº¡ng Miá»n Trung'],
-    gtc:       ['GTC & Năng Suất', 'Tá»· lá»‡ giao thÃ nh cÃ´ng vÃ  nÄƒng suáº¥t theo tá»«ng kho'],
-    backlog:   ['Danh SÃ¡ch Backlog > 7 Ngày', 'CÃ¡c đơn hÃ ng tá»“n Ä‘á»ng lÃ¢u hÆ¡n 7 ngày cáº§n xá»­ lÃ½ kháº©n'],
-    b2b:       ['ÄÆ¡n HÃ ng B2B & SLA', 'Theo dÃµi đơn B2B theo má»©c Ä‘á»™ Æ°u tiÃªn xá»­ lÃ½'],
-    returns:   ['BÃ¡o CÃ¡o Tráº£ HÃ ng & FD', 'Tá»· lá»‡ phÃ¢n phá»‘i vÃ  tráº£ hÃ ng theo kho'],
-    personnel: ['Danh SÃ¡ch NhÃ¢n Sá»±', 'ThÃ´ng tin nhÃ¢n viÃªn giao nháº­n vÃ  xá»­ lÃ½'],
-    nangsuat:  ['Năng Suất Nhân Viên', 'Báº£ng xáº¿p háº¡ng nÄƒng suáº¥t giao hÃ ng cá»§a nhÃ¢n viÃªn'],
-    warnings:  ['Há»‡ Thá»‘ng Cáº£nh BÃ¡o Váº­n HÃ nh', 'Theo dÃµi sá»©c khá»e máº¡ng lÆ°á»›i vÃ  dá»± bÃ¡o giáº£i tá»a hÃ ng'],
-    xegxt:     ['Quáº£n LÃ½ Xe GXT', 'Theo dÃµi sá»‘ lÆ°á»£ng xe Ä‘ang váº­n hÃ nh táº¡i cÃ¡c kho Miá»n Trung'],
-    xesuco:    ['Xe Sá»± Cá»‘', 'Theo dÃµi vÃ  thá»‘ng kÃª cÃ¡c sá»± cá»‘ xe GXT theo nhÃ  cung cáº¥p'],
-    khogxt:    ['Danh SÃ¡ch Kho GXT', 'ThÃ´ng tin chi tiáº¿t cÃ¡c kho GXT trong máº¡ng lÆ°á»›i'],
-    dontao:    ['ÄÆ¡n Táº¡o N-1', 'Thá»‘ng kÃª đơn hÃ ng táº¡o trong ngày N-1 theo tá»«ng kho'],
+    overview:  ['Báo Cáo Tổng Quan', 'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
+    gtc:       ['GTC & Năng Suất', 'Tỷ lệ giao thành công và năng suất theo từng kho'],
+    backlog:   ['Danh Sách Backlog > 7 Ngày', 'Các đơn hàng tồn đọng lâu hơn 7 ngày cần xử lý khẩn'],
+    b2b:       ['Đơn Hàng B2B & SLA', 'Theo dõi đơn B2B theo mức độ ưu tiên xử lý'],
+    returns:   ['Báo Cáo Trả Hàng & FD', 'Tỷ lệ phân phối và trả hàng theo kho'],
+    personnel: ['Danh Sách Nhân Sự', 'Thông tin nhân viên giao nhận và xử lý'],
+    nangsuat:  ['Năng Suất Nhân Viên', 'Bảng xếp hạng năng suất giao hàng của nhân viên'],
+    warnings:  ['Hệ Thống Cảnh Báo Vận Hành', 'Theo dõi sức khỏe mạng lưới và dự báo giải tỏa hàng'],
+    xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
+    xesuco:    ['Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
+    khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    dontao:    ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 
 function showSection(name) {
