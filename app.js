@@ -2271,11 +2271,21 @@ function renderDonTaoSection() {
 
     // Aggregate by kho (for chart)
     const khoMap = {};
+    let totalDonChart = 0;
+    let totalKgChart = 0;
+
     data.forEach(r => {
         const k = shortKho(r['Kho giao'] || r['kho_giao'] || '--');
         if (!khoMap[k]) khoMap[k] = { don: 0, kg: 0 };
-        try { khoMap[k].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
-        try { khoMap[k].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
+        
+        const dVal  = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
+        const kgVal = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
+
+        khoMap[k].don += dVal;
+        khoMap[k].kg  += kgVal;
+        
+        totalDonChart += dVal;
+        totalKgChart  += kgVal;
     });
 
     // Sort descending by number of orders (largest left)
@@ -2295,16 +2305,16 @@ function renderDonTaoSection() {
                 labels: khoNames,
                 datasets: [
                     {
-                        label: 'Tổng Đơn Tạo', data: donVals,
-                        backgroundColor: 'rgba(123,31,162,0.75)', borderColor: '#7B1FA2', borderWidth: 1,
+                        label: `Tổng Đơn Tạo: ${totalDonChart.toLocaleString('vi-VN')}`, data: donVals,
+                        backgroundColor: 'rgba(245,54,92,0.75)', borderColor: C_RED, borderWidth: 1,
                         yAxisID: 'y',
-                        datalabels: { display: true, anchor: 'end', align: 'end', color: '#7B1FA2', font: { size: 9, weight: 'bold' }, formatter: v => v.toLocaleString('vi-VN') }
+                        datalabels: { display: true, anchor: 'end', align: 'end', color: C_RED, font: { size: 9, weight: 'bold' }, formatter: v => v.toLocaleString('vi-VN') }
                     },
                     {
-                        label: 'Tổng KG', data: kgVals,
-                        backgroundColor: 'rgba(2,136,209,0.75)', borderColor: '#0288D1', borderWidth: 1,
+                        label: `Tổng KG: ${totalKgChart.toLocaleString('vi-VN', {minimumFractionDigits:3, maximumFractionDigits:3})}`, data: kgVals,
+                        backgroundColor: 'rgba(251,192,45,0.75)', borderColor: '#FBC02D', borderWidth: 1,
                         yAxisID: 'y1',
-                        datalabels: { display: true, anchor: 'end', align: 'end', color: '#0288D1', font: { size: 9 }, formatter: v => v.toLocaleString('vi-VN') }
+                        datalabels: { display: true, anchor: 'end', align: 'end', color: '#FBC02D', font: { size: 9 }, formatter: v => v.toLocaleString('vi-VN') }
                     }
                 ]
             },
@@ -2312,13 +2322,13 @@ function renderDonTaoSection() {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { position: 'top', labels: { color: '#525F7F', padding: 12, font: { size: 11 }, boxWidth: 12 } },
+                    legend: { position: 'top', labels: { color: '#525F7F', padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 } },
                     datalabels: { display: true }
                 },
                 scales: {
                     x: { ticks: { maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
-                    y:  { type:'linear', position:'left',  beginAtZero:true, grid:{borderDash:[2,4],color:'#E8EDF5'}, ticks:{color:'#7B1FA2',font:{size:10}}, title:{display:true,text:'Tổng Đơn',color:'#7B1FA2',font:{size:11}} },
-                    y1: { type:'linear', position:'right', beginAtZero:true, grid:{drawOnChartArea:false},            ticks:{color:'#0288D1',font:{size:10}}, title:{display:true,text:'Tổng KG',  color:'#0288D1',font:{size:11}} }
+                    y:  { type:'linear', position:'left',  beginAtZero:true, grid:{borderDash:[2,4],color:'#E8EDF5'}, ticks:{color:C_RED,font:{size:10}}, title:{display:true,text:'Tổng Đơn',color:C_RED,font:{size:11}} },
+                    y1: { type:'linear', position:'right', beginAtZero:true, grid:{drawOnChartArea:false},            ticks:{color:'#FBC02D',font:{size:10}}, title:{display:true,text:'Tổng KG',  color:'#FBC02D',font:{size:11}} }
                 }
             }
         });
@@ -2334,8 +2344,6 @@ function renderDonTaoSection() {
 
     if (selectedDtVals.length > 0 && (dtTimeMode === 'week' || dtTimeMode === 'month')) {
         const tableMap = {};
-        let totalDonAll = 0;
-        let totalKgAll = 0;
 
         data.forEach(r => {
             const fullK = r['Kho giao'] || r['kho_giao'] || '--';
@@ -2367,9 +2375,6 @@ function renderDonTaoSection() {
 
             tableMap[compKey].don += donVal;
             tableMap[compKey].kg  += kgVal;
-            
-            totalDonAll += donVal;
-            totalKgAll  += kgVal;
         });
 
         const sortedGroup = Object.values(tableMap).sort((a,b) => {
@@ -2377,17 +2382,7 @@ function renderDonTaoSection() {
             return b.don - a.don;
         });
 
-        const summaryRow = `
-            <tr style="background:#FFF9DB; border-bottom:2px solid #F59F00;">
-                <td style="font-weight:700;color:#D9480F">-</td>
-                <td style="font-weight:800;color:#D9480F">TỔNG CỘNG</td>
-                <td style="font-weight:700;color:#D9480F">Các mốc đã chọn</td>
-                <td style="text-align:right;font-weight:800;color:#7B1FA2;font-size:13px">${totalDonAll.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:800;color:#0288D1;font-size:13px">${totalKgAll.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
-            </tr>
-        `;
-
-        tbody.innerHTML = summaryRow + sortedGroup.map((g, i) => `
+        tbody.innerHTML = sortedGroup.map((g, i) => `
             <tr>
                 <td>${i+1}</td>
                 <td>${shortKho(g.khoName)}</td>
@@ -2397,9 +2392,6 @@ function renderDonTaoSection() {
             </tr>
         `).join('');
     } else {
-        let totalDonAll = 0;
-        let totalKgAll = 0;
-
         const sorted = [...data].sort((a,b) => {
             const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
             const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
@@ -2409,14 +2401,11 @@ function renderDonTaoSection() {
             return vb - va;
         });
 
-        const rowsHtml = sorted.map((r, i) => {
+        tbody.innerHTML = sorted.map((r, i) => {
             const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
             const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
             const tStr = r['Thời gian'] || r['time_view'] || '--';
             
-            totalDonAll += don;
-            totalKgAll  += kg;
-
             return `<tr>
                 <td>${i+1}</td>
                 <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
@@ -2425,18 +2414,6 @@ function renderDonTaoSection() {
                 <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
             </tr>`;
         }).join('');
-
-        const summaryRow = `
-            <tr style="background:#FFF9DB; border-bottom:2px solid #F59F00;">
-                <td style="font-weight:700;color:#D9480F">-</td>
-                <td style="font-weight:800;color:#D9480F">TỔNG CỘNG</td>
-                <td style="font-weight:700;color:#D9480F">Các mốc đã chọn</td>
-                <td style="text-align:right;font-weight:800;color:#7B1FA2;font-size:13px">${totalDonAll.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:800;color:#0288D1;font-size:13px">${totalKgAll.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
-            </tr>
-        `;
-
-        tbody.innerHTML = summaryRow + rowsHtml;
     }
 }
 
