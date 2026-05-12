@@ -166,7 +166,6 @@ function renderAll() {
         { name: 'OverviewCards', fn: renderOverviewCards },
         { name: 'GtcTrendChart', fn: renderGtcTrendChart },
         { name: 'ReturnsPieChart', fn: renderReturnsPieChart },
-        { name: 'HealthPieChart', fn: renderHealthPieChart },
         { name: 'BacklogOverviewTable', fn: renderBacklogOverviewTable },
         { name: 'B2bOverviewTable', fn: renderB2bOverviewTable },
         { name: 'CriticalWarningsOverview', fn: renderCriticalWarningsOverview },
@@ -210,7 +209,8 @@ function updateMeta() {
 function renderOverviewCards() {
     const ov = state.overview;
     document.getElementById('val-gtc').textContent    = (ov.avg_gtc || 0) + '%';
-    document.getElementById('val-ontime').textContent = (ov.avg_ontime || 0) + '%';
+    const ontimeEl = document.getElementById('val-ontime');
+    if (ontimeEl) ontimeEl.textContent = (ov.avg_ontime || 0) + '%';
     document.getElementById('val-backlog').textContent = ov.total_backlog_7n || 0;
     document.getElementById('val-b2b').textContent    = ov.total_b2b_priority || 0;
     document.getElementById('val-fd').textContent     = (ov.avg_fd_return || 0) + '%';
@@ -458,99 +458,6 @@ function renderReturnsPieChart() {
     });
 }
 
-// ---- HEALTH STATUS LINE CHART ----
-function renderHealthPieChart() {
-    if (!state.gtcData || state.gtcData.length === 0) return;
-    
-    const dailyHealth = {};
-    
-    state.gtcData.forEach(r => {
-        const dateRaw = r['Ngày'];
-        if (!dateRaw) return;
-        const dateKey = dateRaw.split(' - ')[0];
-        
-        if (!dailyHealth[dateKey]) {
-            dailyHealth[dateKey] = { 'Bình thường': 0, 'Cảnh báo': 0, 'Nghiêm trọng': 0 };
-        }
-        
-        const pctStr = (r['% GTC'] || '0').toString().replace('%', '').replace(',', '.');
-        const pct = parseFloat(pctStr) || 0;
-        
-        if (pct >= 85) {
-            dailyHealth[dateKey]['Bình thường']++;
-        } else if (pct >= 75) {
-            dailyHealth[dateKey]['Cảnh báo']++;
-        } else {
-            dailyHealth[dateKey]['Nghiêm trọng']++;
-        }
-    });
-
-    const sortedDates = Object.keys(dailyHealth).sort().slice(-14);
-    
-    const labels = sortedDates.map(d => d.substring(5)); // MM-DD
-    const normalData = sortedDates.map(d => dailyHealth[d]['Bình thường']);
-    const warningData = sortedDates.map(d => dailyHealth[d]['Cảnh báo']);
-    const criticalData = sortedDates.map(d => dailyHealth[d]['Nghiêm trọng']);
-
-    destroyChart('healthPie');
-    const canvas = document.getElementById('chart-health-pie');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    charts.healthPie = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Bình thường',
-                    data: normalData,
-                    borderColor: C_GREEN,
-                    backgroundColor: C_GREEN,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    datalabels: { display: false }
-                },
-                {
-                    label: 'Cảnh báo',
-                    data: warningData,
-                    borderColor: C_YELLOW,
-                    backgroundColor: C_YELLOW,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    datalabels: { display: false }
-                },
-                {
-                    label: 'Nghiêm trọng',
-                    data: criticalData,
-                    borderColor: C_RED,
-                    backgroundColor: C_RED,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    datalabels: { display: false }
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#525F7F', padding: 10, font: { size: 11 }, boxWidth: 10 }
-                },
-                datalabels: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#E8EDF5' }, ticks: { stepSize: 2 } },
-                x: { grid: { display: false } }
-            }
-        }
-    });
 }
 
 // ---- BACKLOG OVERVIEW TABLE ----
