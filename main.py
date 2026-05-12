@@ -222,7 +222,7 @@ def get_kho_gxt(force: bool = False):
 def get_don_tao(date: str = Query(None), force: bool = False):
     data, last_sync = read_csv("don_tao", force)
     if date:
-        data = [r for r in data if r.get("time_view", "").startswith(date)]
+        data = [r for r in data if r.get("Thời gian", r.get("time_view", "")).startswith(date)]
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA CẢNH BÁO ----
@@ -256,9 +256,9 @@ def get_overview(force: bool = False):
     don_tao_data, _        = read_csv("don_tao", force)
 
     # Đơn Tạo N-1 latest day metrics
-    dt_dates = sorted(set(r.get("time_view", "").split(" - ")[0] for r in don_tao_data if r.get("time_view")), reverse=True)
+    dt_dates = sorted(set(r.get("Thời gian", r.get("time_view", "")).split(" - ")[0] for r in don_tao_data if r.get("Thời gian", r.get("time_view"))), reverse=True)
     dt_latest = dt_dates[0] if dt_dates else ""
-    dt_latest_rows = [r for r in don_tao_data if r.get("time_view", "").startswith(dt_latest)]
+    dt_latest_rows = [r for r in don_tao_data if r.get("Thời gian", r.get("time_view", "")).startswith(dt_latest)]
     
     total_don_tao = 0
     total_kg_tao = 0.0

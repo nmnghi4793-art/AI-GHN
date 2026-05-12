@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -2150,7 +2150,6 @@ function clearDtOtherModes(modes) {
             updateDtLabel(m);
         }
     });
-    selectedDtVals = [];
 }
 
 function updateDtLabel(mode) {
