@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -2186,23 +2186,27 @@ function populateDtSelects() {
     if (!dayMenu || dayMenu.children.length > 0) return;
 
     const allData = state.donTaoData;
-    const days = [...new Set(allData.map(r => (r['time_view']||'').split(' - ')[0]).filter(Boolean))].sort().reverse();
+    const days = [...new Set(allData.map(r => (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]).filter(Boolean))].sort().reverse();
     renderDtMultiItems('day', days);
 
     const weeks = [...new Set(allData.map(r => {
-        const d = new Date((r['time_view']||'').split(' - ')[0]);
-        return isNaN(d) ? null : getWeekNumber(d);
+        const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+        if (!dStr) return null;
+        const d = new Date(dStr);
+        return isNaN(d) ? null : String(getWeekNumber(d));
     }).filter(Boolean))].sort().reverse();
     renderDtMultiItems('week', weeks);
 
     const months = [...new Set(allData.map(r => {
-        const d = new Date((r['time_view']||'').split(' - ')[0]);
+        const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+        if (!dStr) return null;
+        const d = new Date(dStr);
         if (isNaN(d)) return null;
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
     }).filter(Boolean))].sort().reverse();
     renderDtMultiItems('month', months);
 
-    const khos = [...new Set(allData.map(r => shortKho(r['kho_giao']||'')).filter(Boolean))].sort();
+    const khos = [...new Set(allData.map(r => shortKho(r['Kho giao'] || r['kho_giao'] || '')).filter(Boolean))].sort();
     renderDtMultiItems('kho', khos);
 
     // Auto-select latest day
@@ -2242,11 +2246,13 @@ function renderDonTaoSection() {
     // Time filter
     if (selectedDtVals.length > 0) {
         data = data.filter(r => {
-            const dateStr = (r['time_view']||'').split(' - ')[0];
+            const fullT = r['Thời gian'] || r['time_view'] || '';
+            const dateStr = fullT.split(' - ')[0];
             const d = new Date(dateStr);
             if (dtTimeMode === 'day')   return selectedDtVals.includes(dateStr);
-            if (dtTimeMode === 'week')  return selectedDtVals.includes(getWeekNumber(d));
+            if (dtTimeMode === 'week')  return selectedDtVals.includes(String(getWeekNumber(d)));
             if (dtTimeMode === 'month') {
+                if (isNaN(d)) return false;
                 const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
                 return selectedDtVals.includes(m);
             }
@@ -2256,18 +2262,18 @@ function renderDonTaoSection() {
 
     // Kho multi-select
     if (selectedDtKhos.length > 0) {
-        data = data.filter(r => selectedDtKhos.includes(shortKho(r['kho_giao']||'')));
+        data = data.filter(r => selectedDtKhos.includes(shortKho(r['Kho giao'] || r['kho_giao'] || '')));
     }
 
     // Text search
     if (searchVal) {
-        data = data.filter(r => shortKho(r['kho_giao']||'').toLowerCase().includes(searchVal));
+        data = data.filter(r => shortKho(r['Kho giao'] || r['kho_giao'] || '').toLowerCase().includes(searchVal));
     }
 
     // Aggregate by kho (for chart)
     const khoMap = {};
     data.forEach(r => {
-        const k = shortKho(r['kho_giao'] || '--');
+        const k = shortKho(r['Kho giao'] || r['kho_giao'] || '--');
         if (!khoMap[k]) khoMap[k] = { don: 0, kg: 0 };
         try { khoMap[k].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
         try { khoMap[k].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
@@ -2327,8 +2333,8 @@ function renderDonTaoSection() {
         return;
     }
     const sorted = [...data].sort((a,b) => {
-        const da = (a['time_view']||'').split(' - ')[0];
-        const db = (b['time_view']||'').split(' - ')[0];
+        const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
+        const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
         if (db !== da) return db.localeCompare(da);
         const va = parseInt(String(a['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
         const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
@@ -2337,10 +2343,11 @@ function renderDonTaoSection() {
     tbody.innerHTML = sorted.map((r, i) => {
         const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
         const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
+        const tStr = r['Thời gian'] || r['time_view'] || '--';
         return `<tr>
             <td>${i+1}</td>
-            <td>${shortKho(r['kho_giao']||'--')}</td>
-            <td>${r['time_view']||'--'}</td>
+            <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
+            <td>${tStr}</td>
             <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
             <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
         </tr>`;
