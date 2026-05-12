@@ -1845,10 +1845,10 @@ function assembleTelegramReport() {
     const dateStr = now.toLocaleDateString('vi-VN');
     const timeStr = now.toLocaleTimeString('vi-VN');
 
-    let msg = `ðŸ“¢ *BÃO CÃO Váº¬N HÃ€NH MIá»€N TRUNG*\nâ± _${dateStr} ${timeStr}_\n\n`;
+    let msg = `📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n⏱ _${dateStr} ${timeStr}_\n\n`;
 
-    // 1. KHO NGHIÊM TRỌNG (Láº¥y tá»« Há»‡ Thá»‘ng Cáº£nh BÃ¡o)
-    msg += `ðŸ¥ *1. KHO NGHIÊM TRỌNG (>5 NGÃ€Y):*\n`;
+    // 1. KHO NGHIÊM TRỌNG (Lấy từ Hệ Thống Cảnh Báo)
+    msg += `🚨 *1. KHO NGHIÊM TRỌNG (>5 NGÀY):*\n`;
     const warnRows = document.querySelectorAll('#tbody-warnings tr');
     let warnCount = 0;
     warnRows.forEach(tr => {
@@ -1858,9 +1858,9 @@ function assembleTelegramReport() {
         
         const kho = tds[0].innerText.trim();
         const status = tds[1].innerText.trim();
-        const days = tds[8].innerText.trim(); // Sá»‘ ngày vá» bÃ¬nh thÆ°á»ng
+        const days = tds[8].innerText.trim(); // Số ngày về bình thường
         
-        if (parseInt(days) > 5 || status.includes('NghiÃªm trá»ng')) {
+        if (parseInt(days) > 5 || status.includes('Nghiêm trọng')) {
             msg += `${warnCount + 1}. *${kho}*: ${status} (${days})\n`;
             warnCount++;
         }
@@ -1868,15 +1868,12 @@ function assembleTelegramReport() {
     if (warnCount === 0) msg += `_Không có kho nào_\n`;
     msg += `\n`;
 
-    // 2. Cáº¢NH BÃO NV NÄ‚NG SUáº¤T Tá»†
-    msg += `ðŸ‘¤ *2. Cáº¢NH BÃO NV NÄ‚NG SUáº¤T Tá»†:*
-`;
+    // 2. CẢNH BÁO NV NĂNG SUẤT TỆ
+    msg += `👤 *2. CẢNH BÁO NV NĂNG SUẤT TỆ:*\n`;
     
     function getNsWorst(days, label, minVol) {
         const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
-        if (!allDates.length) return `*${label}:*
-_Trá»‘ng_
-`;
+        if (!allDates.length) return `*${label}:*\n_Trống_\n`;
         
         const latestTs = parseVN(allDates[0]);
         let filtered = [];
@@ -1903,12 +1900,9 @@ _Trá»‘ng_
             .sort((a,b) => a.pct - b.pct)
             .slice(0, 5);
             
-        let res = `*${label}:*
-`;
-        list.forEach(d => res += `â€¢ ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)
-`);
-        if (list.length === 0) res += `_Trá»‘ng_
-`;
+        let res = `*${label}:*\n`;
+        list.forEach(d => res += `• ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)\n`);
+        if (list.length === 0) res += `_Trống_\n`;
         return res;
     }
 
@@ -1917,8 +1911,8 @@ _Trá»‘ng_
     msg += "\n" + getNsWorst(30, "Tháng gần nhất", 30);
     msg += "\n";
 
-    // 4. HIỆU SUẤT KHO (GTC) (Láº¥y tá»« GTC rankings)
-    msg += `ðŸª *4. HIỆU SUẤT KHO (GTC):*\n`;
+    // 4. HIỆU SUẤT KHO (GTC)
+    msg += `🏢 *4. HIỆU SUẤT KHO (GTC):*\n`;
     const gtcPanels = document.querySelectorAll('#gtc-top-bottom .table-card');
     gtcPanels.forEach(panel => {
         const title = panel.querySelector('h3')?.innerText.trim() || 'GTC';
@@ -1930,16 +1924,16 @@ _Trá»‘ng_
 
         tops.forEach(tr => {
             const tds = tr.querySelectorAll('td');
-            msg += ` âœ… ${tds[1].innerText}: *${tds[3].innerText}*\n`;
+            msg += ` ✅ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
         });
         bottoms.forEach(tr => {
             const tds = tr.querySelectorAll('td');
-            msg += ` âŒ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
+            msg += ` ❌ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
         });
     });
 
-    // 5. ÄÆ N B2B Äáº¾N Háº N GIAO (Láº¥y trá»±c tiáº¿p tá»« Dashboard DOM)
-    msg += `ðŸ‘‘ *5. ÄÆ N B2B Äáº¾N Háº N GIAO:*\n`;
+    // 5. ĐƠN B2B ĐẾN HẠN GIAO
+    msg += `👑 *5. ĐƠN B2B ĐẾN HẠN GIAO:*\n`;
     const b2bRows = document.querySelectorAll('#tbody-b2b tr');
     const b2bSummary = new Map();
     let b2bTotal = 0;
@@ -1952,7 +1946,7 @@ _Trá»‘ng_
         const kho = tds[1].innerText.trim();
         const loai = tds[4].innerText.toLowerCase();
         
-        // Äiá»u kiá»‡n: Loại cÃ³ chá»¯ 'giao' vÃ  Ưu tiên cÃ³ mÃ£ '1:'
+        // Điều kiện: Loại có chữ 'giao' và Ưu tiên có mã '1:'
         if (loai.includes('giao') && priority.includes('1:')) {
             b2bSummary.set(kho, (b2bSummary.get(kho) || 0) + 1);
             b2bTotal++;
@@ -1961,12 +1955,12 @@ _Trá»‘ng_
     
     if (b2bTotal > 0) {
         const sortedB2B = Array.from(b2bSummary.entries()).sort((a,b) => b[1] - a[1]);
-        sortedB2B.forEach(([k, v]) => msg += `â€¢ *${k}*: ${v} đơn\n`);
+        sortedB2B.forEach(([k, v]) => msg += `• *${k}*: ${v} đơn\n`);
     } else {
         msg += `_Không có đơn B2B đến hạn_\n`;
     }
 
-    msg += `\nðŸ”— [Má»Ÿ Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)`;
+    msg += `\n🔗 [Mở Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)`;
     return msg;
 }
 
