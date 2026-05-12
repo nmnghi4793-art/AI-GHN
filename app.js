@@ -1,4 +1,4 @@
-﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1006,8 +1006,8 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
             <td><span class="badge ${r['Loại']==='Giao'?'storing':'waiting'}">${r['Loại']||''}</span></td>
             <td>${r['Khách']||''}</td>
             <td>${r['Ngày nhập kho']||''}</td>
-            <td>${agingChip(r['ÄÃ£ lÆ°u kho (ngày)'])}</td>
-            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Äá»‹a chá»‰ giao']||''}</td>
+            <td>${agingChip(r['Đã lưu kho (ngày)'] || 0)}</td>
+            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Địa chỉ giao']||''}</td>
         </tr>
     `).join('');
 }
