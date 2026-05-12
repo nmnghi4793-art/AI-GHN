@@ -457,9 +457,6 @@ function renderReturnsPieChart() {
         }
     });
 }
-
-}
-
 // ---- BACKLOG OVERVIEW TABLE ----
 function renderBacklogOverviewTable() {
     const tbody = document.getElementById('tbody-backlog-overview');
