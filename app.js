@@ -1,4 +1,4 @@
-﻿﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -2337,19 +2337,41 @@ function renderDonTaoSection() {
         data.forEach(r => {
             const fullK = r['Kho giao'] || r['kho_giao'] || '--';
             const kKey = shortKho(fullK);
-            if (!tableMap[kKey]) tableMap[kKey] = { name: fullK, don: 0, kg: 0 };
-            try { tableMap[kKey].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
-            try { tableMap[kKey].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
+            const fullT = r['Thời gian'] || r['time_view'] || '';
+            const dateStr = fullT.split(' - ')[0];
+            const d = new Date(dateStr);
+            
+            let tKey = '';
+            let tLabel = '';
+            if (dtTimeMode === 'week') {
+                const w = String(getWeekNumber(d));
+                tKey = 'W_' + w;
+                tLabel = 'Tuần ' + w;
+            } else {
+                if (isNaN(d)) return;
+                const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                tKey = 'M_' + m;
+                tLabel = 'Tháng ' + m;
+            }
+
+            const compKey = kKey + '###' + tKey;
+            if (!tableMap[compKey]) {
+                tableMap[compKey] = { khoName: fullK, tLabel: tLabel, sortTime: tKey, don: 0, kg: 0 };
+            }
+            try { tableMap[compKey].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
+            try { tableMap[compKey].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
         });
 
-        const sortedGroup = Object.values(tableMap).sort((a,b) => b.don - a.don);
-        const tLabel = (dtTimeMode === 'week' ? 'Tuần ' : 'Tháng ') + selectedDtVals.join(', ');
+        const sortedGroup = Object.values(tableMap).sort((a,b) => {
+            if (b.sortTime !== a.sortTime) return b.sortTime.localeCompare(a.sortTime);
+            return b.don - a.don;
+        });
 
         tbody.innerHTML = sortedGroup.map((g, i) => `
             <tr>
                 <td>${i+1}</td>
-                <td>${shortKho(g.name)}</td>
-                <td style="font-weight:600;color:var(--blue)">${tLabel}</td>
+                <td>${shortKho(g.khoName)}</td>
+                <td style="font-weight:600;color:var(--blue)">${g.tLabel}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${g.don.toLocaleString('vi-VN')}</td>
                 <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
             </tr>
