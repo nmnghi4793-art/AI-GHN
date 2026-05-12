@@ -53,6 +53,28 @@ GIDS = {
 CACHE = {}
 CACHE_TTL = 300  # 5 minutes
 
+CSV_MAPPING = {
+    "Tá»‰nh": "Tỉnh", "TÃªn NCC": "Tên NCC", "Loáº¡i xe": "Loại xe",
+    "Tá»•ng xe Ä‘ang cháº¡y": "Tổng xe đang chạy", "Ca lÃ m viá»‡c": "Ca làm việc",
+    "GÃ­a thuÃª xe": "Giá thuê xe", "Biá»ƒn Sá»‘": "Biển Số",
+    "Ná»™i Dung Chi Tiáº¿t": "Nội Dung Chi Tiết", "Biá»ƒn Sá»‘ Xe": "Biển Số Xe",
+    "TÃªn Kho GXT": "Tên Kho GXT", "Diá»‡n TÃ­ch": "Diện Tích",
+    "Ä á»‹a chá»‰ kho": "Địa chỉ kho", "TÃ¬nh tráº¡ng": "Tình trạng",
+    "KL gÃ¡n": "KL gán", "Ä‘Æ¡n táº¡o N-1": "đơn tạo N-1", "Ä‘Æ¡n gtc N-1": "đơn gtc N-1",
+    "Loáº¡i": "Loại", "Ngày nháº­p kho": "Ngày nhập kho", "Ä Ã£ lÆ°u kho (ngày)": "Đã lưu kho (ngày)",
+    "Ä á»‹a chá»‰ giao": "Địa chỉ giao", "Thá» i gian": "Thời gian",
+    "Tá»•ng Ä‘Æ¡n tráº£": "Tổng đơn trả", "Tráº£ hÃ ng tá»•ng": "Trả hàng tổng",
+    "Tráº£ hÃ ng SHOPEE Bulky": "Trả hàng SHOPEE Bulky", "Tráº£ hÃ ng TTS Bulky": "Trả hàng TTS Bulky",
+    "Tráº£ hÃ ng SME": "Trả hàng SME", "Tráº£ hÃ ng B2B": "Trả hàng B2B",
+    "Tráº£ hÃ ng Ecommerce": "Trả hàng Ecommerce", "ThÃ¢m niÃªn": "Thâm niên",
+    "TÃªn vá»‹ trÃ­": "Tên vị trí", "Há»  tÃªn": "Họ tên", "Loáº¡i HÄ ": "Loại HĐ",
+    "PhÃ²ng ban": "Phòng ban", "Sá»‘ ngày trá»Ÿ vá»  ngày thÆ°á» ng": "Số ngày trở về ngày thường",
+    "Sá»‘ Ä‘Æ¡n gÃ¡n": "Số đơn gán", "Sá»‘ Ä‘Æ¡n GTC": "Số đơn GTC",
+    "Sá»‘ Ä‘Æ¡n tráº£": "Số đơn trả", "Tá»•ng Ä‘Æ¡n táº¡o": "Tổng đơn tạo",
+    "Tá»•ng khá»‘i lÆ°á»£ng (KG)": "Tổng khối lượng (KG)", "so ngay": "so ngay",
+    "??n t?o N-1": "đơn tạo N-1", "??n gtc N-1": "đơn gtc N-1", "GÃ­a": "Giá"
+}
+
 def read_csv(key: str, force: bool = False):
     gid = GIDS.get(key)
     if not gid: return [], 0
@@ -72,7 +94,16 @@ def read_csv(key: str, force: bool = False):
             reader = csv.DictReader(io.StringIO(content))
             for row in reader:
                 if any(row.values()): # skip empty rows
-                    data.append(dict(row))
+                    cleaned_row = {}
+                    for k, v in row.items():
+                        if k is None: continue
+                        cleaned_row[k] = v # Giữ lại key thô nguyên bản
+                        new_k = k
+                        for bad, good in CSV_MAPPING.items():
+                            if bad in new_k: new_k = new_k.replace(bad, good)
+                        if new_k != k:
+                            cleaned_row[new_k] = v # Bổ sung thêm bản sao với key tiếng Việt chuẩn
+                    data.append(cleaned_row)
         CACHE[key] = {'time': now, 'data': data}
         print(f"[CACHE] Fetched and cached {key} from Google Sheets. (Force: {force})")
         return data, now
