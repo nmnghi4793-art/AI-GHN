@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -2324,33 +2324,58 @@ function renderDonTaoSection() {
         });
     }
 
-    // Table — sorted by date desc then order desc
+    // Table rendering logic — aggregated for week/month, granular for day
     const tbody = document.getElementById('tbody-dontao');
     if (!tbody) return;
     if (data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">Không có dữ liệu</td></tr>';
         return;
     }
-    const sorted = [...data].sort((a,b) => {
-        const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
-        const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
-        if (db !== da) return db.localeCompare(da);
-        const va = parseInt(String(a['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
-        const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
-        return vb - va;
-    });
-    tbody.innerHTML = sorted.map((r, i) => {
-        const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-        const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
-        const tStr = r['Thời gian'] || r['time_view'] || '--';
-        return `<tr>
-            <td>${i+1}</td>
-            <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
-            <td>${tStr}</td>
-            <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
-            <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
-        </tr>`;
-    }).join('');
+
+    if (selectedDtVals.length > 0 && (dtTimeMode === 'week' || dtTimeMode === 'month')) {
+        const tableMap = {};
+        data.forEach(r => {
+            const fullK = r['Kho giao'] || r['kho_giao'] || '--';
+            const kKey = shortKho(fullK);
+            if (!tableMap[kKey]) tableMap[kKey] = { name: fullK, don: 0, kg: 0 };
+            try { tableMap[kKey].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
+            try { tableMap[kKey].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
+        });
+
+        const sortedGroup = Object.values(tableMap).sort((a,b) => b.don - a.don);
+        const tLabel = (dtTimeMode === 'week' ? 'Tuần ' : 'Tháng ') + selectedDtVals.join(', ');
+
+        tbody.innerHTML = sortedGroup.map((g, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td>${shortKho(g.name)}</td>
+                <td style="font-weight:600;color:var(--blue)">${tLabel}</td>
+                <td style="text-align:right;font-weight:600;color:#7B1FA2">${g.don.toLocaleString('vi-VN')}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
+            </tr>
+        `).join('');
+    } else {
+        const sorted = [...data].sort((a,b) => {
+            const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
+            const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
+            if (db !== da) return db.localeCompare(da);
+            const va = parseInt(String(a['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
+            const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
+            return vb - va;
+        });
+        tbody.innerHTML = sorted.map((r, i) => {
+            const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
+            const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
+            const tStr = r['Thời gian'] || r['time_view'] || '--';
+            return `<tr>
+                <td>${i+1}</td>
+                <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
+                <td>${tStr}</td>
+                <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
+            </tr>`;
+        }).join('');
+    }
 }
 
 // ---- INIT ----
