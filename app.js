@@ -1,4 +1,4 @@
-﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -537,7 +537,7 @@ function renderCriticalWarningsOverview() {
         return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus, nextStatus: nextStatus };
     });
 
-    const critical = processedData.filter(r => r.soNgayVal > 0);
+    const critical = processedData.filter(r => r.soNgayVal > 5);
     
     if (critical.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--green);font-weight:600"><i class="fa-solid fa-circle-check"></i> ToÃ n máº¡ng lÆ°á»›i bÃ¬nh thÆ°á»ng</td></tr>';

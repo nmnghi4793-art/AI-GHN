@@ -380,8 +380,8 @@
                     </div>
                 </div>
 
-                <!-- NHÂN SỰ OVERVIEW & CRITICAL WARNINGS -->
-                <div class="tables-row" style="margin-top:18px; grid-template-columns: 2fr 1fr 1fr;">
+                <!-- CRITICAL WARNINGS -->
+                <div class="tables-row" style="margin-top:18px; grid-template-columns: 1fr;">
                     <div class="table-card">
                         <div class="table-header">
                             <h3><i class="fa-solid fa-radiation" style="color:var(--red)"></i> Kho Nghiêm Trọng & Bất Ổn</h3>
@@ -404,22 +404,6 @@
                                     <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">Đang kiểm tra...</td></tr>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-users" style="color:var(--blue)"></i> Nhân Sự Theo Vị Trí</h3>
-                        </div>
-                        <div class="table-scroll" style="max-height:220px">
-                            <div id="personnel-by-pos"></div>
-                        </div>
-                    </div>
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-user-clock" style="color:var(--orange)"></i> Nhân Sự Theo Thâm Niên</h3>
-                        </div>
-                        <div class="table-scroll" style="max-height:220px">
-                            <div id="personnel-by-tenure"></div>
                         </div>
                     </div>
                 </div>
@@ -701,6 +685,27 @@
                         <option value="Administration">Administration</option>
                     </select>
                 </div>
+
+                <!-- OVERVIEW CARDS FOR PERSONNEL -->
+                <div class="tables-row" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-users" style="color:var(--blue)"></i> Nhân Sự Theo Vị Trí</h3>
+                        </div>
+                        <div class="table-scroll" style="max-height:220px">
+                            <div id="personnel-by-pos"></div>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-user-clock" style="color:var(--orange)"></i> Nhân Sự Theo Thâm Niên</h3>
+                        </div>
+                        <div class="table-scroll" style="max-height:220px">
+                            <div id="personnel-by-tenure"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-card">
                     <div class="table-header">
                         <h3><i class="fa-solid fa-users"></i> Danh Sách Nhân Sự</h3>
@@ -1049,6 +1054,6 @@
         </main>
     </div>
 
-    <script src="app.js?v=3.5"></script>
+    <script src="app.js?v=3.6"></script>
 </body>
 </html>
