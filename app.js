@@ -88,7 +88,7 @@ async function fetchAll(force = false) {
 
     try {
         const query = force ? '?force=true' : '';
-        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt] = await Promise.all([
+        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt, dontao] = await Promise.all([
             fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
             fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({data:[]})),
@@ -102,6 +102,7 @@ async function fetchAll(force = false) {
             fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/xe-su-co${query}`).then(r => r.json()).catch(e => ({data:[]})),
             fetch(`${API}/kho-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/don-tao${query}`).then(r => r.json()).catch(e => ({data:[]})),
         ]);
 
         state = { 
@@ -117,7 +118,8 @@ async function fetchAll(force = false) {
             returnsByClientData: retC.data || [],
             xeGxtData: xegxt.data || [],
             xeSuCoData: xesuco.data || [],
-            khoGxtData: khogxt.data || []
+            khoGxtData: khogxt.data || [],
+            donTaoData: dontao.data || []
         };
         filtersPopulated = false; // Reset filters on fresh data
         
@@ -184,6 +186,7 @@ function renderAll() {
         { name: 'XeGxtSection', fn: renderXeGxtSection },
         { name: 'XeSuCoSection', fn: renderXeSuCoSection },
         { name: 'KhoGxtSection', fn: renderKhoGxtSection },
+        { name: 'DonTaoSection', fn: renderDonTaoSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -238,11 +241,19 @@ function renderOverviewCards() {
     const khoGxtTotalEl = document.getElementById('val-khogxt-total');
     if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
 
+    // Đơn Tạo N-1
+    const donTaoEl = document.getElementById('val-dontao');
+    if (donTaoEl) {
+        const d = (ov.total_don_tao || 0).toLocaleString('vi-VN');
+        const kg = (ov.total_kg_tao || 0).toLocaleString('vi-VN', {maximumFractionDigits:1});
+        donTaoEl.textContent = `${d} / ${kg} KG`;
+    }
+
     // Warning System Metrics for Overview
     const ovWarnCrit = document.getElementById('ov-warn-critical-count');
     if (ovWarnCrit) ovWarnCrit.textContent = (ov.critical_warnings || 0);
     const ovWarnWarn = document.getElementById('ov-warn-warning-count');
-    if (ovWarnWarn) ovWarnWarn.textContent = (ov.unstable_warnings || 0); // Assuming backend returns unstable_warnings
+    if (ovWarnWarn) ovWarnWarn.textContent = (ov.unstable_warnings || 0);
     const ovWarnUp = document.getElementById('ov-warn-upcoming-count');
     if (ovWarnUp) ovWarnUp.textContent = (ov.upcoming_warnings || 0);
     const ovWarnDays = document.getElementById('ov-warn-avg-days');
@@ -1960,6 +1971,7 @@ const SECTION_META = {
     xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
     xesuco:    ['Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
     khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    dontao:    ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 
 function showSection(name) {
@@ -2084,6 +2096,185 @@ function checkAdminAccess() {
             telegramBtn.style.display = 'none';
         }
     }
+}
+
+// ---- ĐƠN TẠO N-1 SECTION ----
+let donTaoFiltersInit = false;
+
+function renderDonTaoSection() {
+    if (!state.donTaoData || state.donTaoData.length === 0) return;
+
+    // --- Populate date filter (one-time) ---
+    const dateFilter = document.getElementById('dontao-date-filter');
+    const periodFilter = document.getElementById('dontao-period-filter');
+    if (dateFilter && !donTaoFiltersInit) {
+        // Collect unique dates from time_view (format "YYYY-MM-DD - Thứ X")
+        const allDates = [...new Set(
+            state.donTaoData.map(r => (r['time_view'] || '').split(' - ')[0]).filter(Boolean)
+        )].sort().reverse();
+
+        dateFilter.innerHTML = '<option value="">Tất cả ngày</option>';
+        allDates.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            dateFilter.appendChild(opt);
+        });
+
+        // Populate period (week groupings YYYY-WXX)
+        const weekSet = new Set();
+        allDates.forEach(d => {
+            const dt = new Date(d);
+            if (isNaN(dt)) return;
+            const start = new Date(dt); start.setDate(dt.getDate() - dt.getDay() + 1);
+            const label = `Tuần ${start.toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'})}`;
+            weekSet.add(JSON.stringify({ label, start: start.toISOString().slice(0,10) }));
+        });
+        [...weekSet].forEach(ws => {
+            const { label, start } = JSON.parse(ws);
+            const opt = document.createElement('option');
+            opt.value = 'week:' + start;
+            opt.textContent = label;
+            periodFilter.appendChild(opt);
+        });
+
+        // Auto-select N-1 (latest date)
+        if (allDates.length > 0) dateFilter.value = allDates[0];
+
+        // Attach filter events
+        const rerender = () => renderDonTaoSection();
+        dateFilter.addEventListener('change', rerender);
+        periodFilter.addEventListener('change', rerender);
+        const searchEl = document.getElementById('dontao-kho-search');
+        if (searchEl) searchEl.addEventListener('input', rerender);
+        donTaoFiltersInit = true;
+    }
+
+    // --- Apply filters ---
+    let data = [...state.donTaoData];
+    const selDate = dateFilter ? dateFilter.value : '';
+    const selPeriod = periodFilter ? periodFilter.value : '';
+    const searchVal = (document.getElementById('dontao-kho-search') || {}).value || '';
+
+    if (selDate) {
+        data = data.filter(r => (r['time_view'] || '').startsWith(selDate));
+    } else if (selPeriod && selPeriod.startsWith('week:')) {
+        const weekStart = new Date(selPeriod.replace('week:', ''));
+        const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+        data = data.filter(r => {
+            const d = new Date((r['time_view'] || '').split(' - ')[0]);
+            return d >= weekStart && d <= weekEnd;
+        });
+    }
+
+    if (searchVal.trim()) {
+        const terms = searchVal.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        data = data.filter(r => {
+            const kho = shortKho(r['kho_giao'] || '').toLowerCase();
+            return terms.some(t => kho.includes(t));
+        });
+    }
+
+    // --- Aggregate by kho for chart (sum for selected period) ---
+    const khoMap = {};
+    data.forEach(r => {
+        const k = shortKho(r['kho_giao'] || '--');
+        if (!khoMap[k]) khoMap[k] = { don: 0, kg: 0 };
+        try { khoMap[k].don += parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0; } catch {}
+        try { khoMap[k].kg  += parseFloat(String(r['Tổng khối lượng (KG)'] || '0').replace(/\./g, '').replace(/,/g, '.')) || 0; } catch {}
+    });
+
+    const khoNames = Object.keys(khoMap).sort();
+    const donVals  = khoNames.map(k => khoMap[k].don);
+    const kgVals   = khoNames.map(k => Math.round(khoMap[k].kg));
+
+    // --- Chart ---
+    destroyChart('donTao');
+    const canvas = document.getElementById('chart-dontao');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        charts.donTao = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: khoNames,
+                datasets: [
+                    {
+                        label: 'Tổng Đơn Tạo',
+                        data: donVals,
+                        backgroundColor: 'rgba(123,31,162,0.75)',
+                        borderColor: '#7B1FA2',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        datalabels: {
+                            display: true,
+                            anchor: 'end', align: 'end',
+                            color: '#7B1FA2',
+                            font: { size: 9, weight: 'bold' },
+                            formatter: v => v.toLocaleString('vi-VN')
+                        }
+                    },
+                    {
+                        label: 'Tổng KG',
+                        data: kgVals,
+                        backgroundColor: 'rgba(2,136,209,0.75)',
+                        borderColor: '#0288D1',
+                        borderWidth: 1,
+                        yAxisID: 'y1',
+                        datalabels: {
+                            display: true,
+                            anchor: 'end', align: 'end',
+                            color: '#0288D1',
+                            font: { size: 9 },
+                            formatter: v => v.toLocaleString('vi-VN')
+                        }
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#525F7F', padding: 12, font: { size: 11 }, boxWidth: 12 } },
+                    datalabels: { display: true }
+                },
+                scales: {
+                    x: { ticks: { maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
+                    y: {
+                        type: 'linear', position: 'left', beginAtZero: true,
+                        grid: { borderDash: [2,4], color: '#E8EDF5' },
+                        ticks: { color: '#7B1FA2', font: { size: 10 } },
+                        title: { display: true, text: 'Tổng Đơn', color: '#7B1FA2', font: { size: 11 } }
+                    },
+                    y1: {
+                        type: 'linear', position: 'right', beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#0288D1', font: { size: 10 } },
+                        title: { display: true, text: 'Tổng KG', color: '#0288D1', font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // --- Table ---
+    const tbody = document.getElementById('tbody-dontao');
+    if (!tbody) return;
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">Không có dữ liệu</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.map((r, i) => {
+        const don = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+        const kg  = parseFloat(String(r['Tổng khối lượng (KG)'] || '0').replace(/\./g, '').replace(/,/g, '.')) || 0;
+        return `<tr>
+            <td>${i + 1}</td>
+            <td>${shortKho(r['kho_giao'] || '--')}</td>
+            <td>${r['time_view'] || '--'}</td>
+            <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
+            <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN', {maximumFractionDigits:3})}</td>
+        </tr>`;
+    }).join('');
 }
 
 // ---- INIT ----

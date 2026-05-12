@@ -142,6 +142,9 @@
                 <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
                     <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
                 </a>
+                <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
+                    <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -259,6 +262,15 @@
                             <h3>Tổng Kho GXT</h3>
                             <h2 id="val-khogxt-total" style="color:#01579B">--</h2>
                             <p class="stat-sub" style="color:#0288D1">Điểm nhận hàng</p>
+                        </div>
+                    </div>
+                    <!-- 10. ĐƠN TẠO N-1 -->
+                    <div class="stat-card" style="background:#F3E5F5;border:1px solid #E1BEE7">
+                        <div class="stat-icon" style="background:#E1BEE7;color:#7B1FA2"><i class="fa-solid fa-file-invoice"></i></div>
+                        <div class="stat-details">
+                            <h3>Đơn Tạo N-1</h3>
+                            <h2 id="val-dontao" style="color:#7B1FA2">-- / --</h2>
+                            <p class="stat-sub" style="color:#8E24AA">Tổng đơn / Tổng KL (KG)</p>
                         </div>
                     </div>
 
@@ -972,9 +984,58 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ===== SECTION: ĐƠN TẠO N-1 ===== -->
+            <section class="section" id="section-dontao">
+                <div class="filter-bar card">
+                    <div class="filter-group">
+                        <label>Chọn Ngày</label>
+                        <select id="dontao-date-filter" class="form-select"></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Tuần/Tháng</label>
+                        <select id="dontao-period-filter" class="form-select">
+                            <option value="">Tất cả</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" style="flex:2">
+                        <label>Tìm Kho (Nhập nhiều kho cách nhau bởi dấu phẩy)</label>
+                        <input type="text" id="dontao-kho-search" class="form-input" placeholder="VD: Liên Chiểu, Hải Châu...">
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div class="card-header">
+                        <h2>Biểu Đồ Đơn Tạo (N-1)</h2>
+                    </div>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="chart-dontao"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Chi Tiết Đơn Tạo Toàn Bộ</h2>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Kho Giao</th>
+                                    <th>Thời Gian</th>
+                                    <th>Tổng Đơn Tạo</th>
+                                    <th>Tổng Khối Lượng (KG)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-dontao"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
-    <script src="app.js?v=1.5"></script>
+    <script src="app.js?v=1.6"></script>
 </body>
 </html>

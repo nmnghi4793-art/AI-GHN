@@ -43,9 +43,9 @@ GIDS = {
     "nang_suat": "450389975",
     "warnings":  "1291851253",
     "returns_by_client": "1277610973",
-    "xe_gxt": "541379955",
     "xe_su_co": "938546985",
     "kho_gxt": "1962460963",
+    "don_tao": "869576788",
 }
 
 CACHE = {}
@@ -184,6 +184,14 @@ def get_kho_gxt(force: bool = False):
     data, last_sync = read_csv("kho_gxt", force)
     return {"data": data, "last_sync": last_sync}
 
+# ---- DATA ĐƠN TẠO N-1 ----
+@app.get("/api/don-tao")
+def get_don_tao(date: str = Query(None), force: bool = False):
+    data, last_sync = read_csv("don_tao", force)
+    if date:
+        data = [r for r in data if r.get("time_view", "").startswith(date)]
+    return {"data": data, "last_sync": last_sync}
+
 # ---- DATA CẢNH BÁO ----
 @app.get("/api/warnings")
 def get_warnings(force: bool = False):
@@ -212,6 +220,22 @@ def get_overview(force: bool = False):
     su_co_data, _          = read_csv("xe_su_co", force)
     kho_data, _            = read_csv("kho_gxt", force)
     pers_data, _           = read_csv("personnel", force)
+    don_tao_data, _        = read_csv("don_tao", force)
+
+    # Đơn Tạo N-1 latest day metrics
+    dt_dates = sorted(set(r.get("time_view", "").split(" - ")[0] for r in don_tao_data if r.get("time_view")), reverse=True)
+    dt_latest = dt_dates[0] if dt_dates else ""
+    dt_latest_rows = [r for r in don_tao_data if r.get("time_view", "").startswith(dt_latest)]
+    
+    total_don_tao = 0
+    total_kg_tao = 0.0
+    for r in dt_latest_rows:
+        try:
+            total_don_tao += int(str(r.get("Tổng đơn tạo", "0")).replace('.', '').replace(',', ''))
+        except: pass
+        try:
+            total_kg_tao += float(str(r.get("Tổng khối lượng (KG)", "0")).replace(',', '.'))
+        except: pass
 
     # Latest GTC date
     dates = sorted(set(r.get("Ngày", "") for r in gtc_data if r.get("Ngày")), reverse=True)
@@ -328,6 +352,8 @@ def get_overview(force: bool = False):
         "total_xe_gxt": total_xe,
         "total_kho_gxt": total_kho_gxt,
         "total_personnel": total_delivery_staff,
+        "total_don_tao": total_don_tao,
+        "total_kg_tao": round(total_kg_tao, 2),
         "last_sync": max(gtc_sync, warn_sync)
     }
 
