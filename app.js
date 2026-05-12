@@ -544,7 +544,7 @@ function renderCriticalWarningsOverview() {
         return;
     }
     
-    // Sáº¯p xáº¿p theo sá»‘ ngày giáº£m dáº§n
+    // Sắp xếp theo số ngày giảm dần
     const sorted = [...critical].sort((a, b) => b.soNgayVal - a.soNgayVal);
 
     tbody.innerHTML = sorted.slice(0, 10).map(r => {
@@ -881,7 +881,7 @@ function renderGtcTopBottom() {
         const bottom5 = ranking.slice(-5);
         const renderRow = (r, isTop) => `
             <tr style="background:${isTop ? 'var(--green-bg)' : 'var(--red-bg)'}">
-                <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? 'â†‘ Tốt' : 'â†“ Tệ'}</span></td>
+                <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? '↑ Tốt' : '↓ Tệ'}</span></td>
                 <td style="font-weight:600">${r.kho}</td>
                 <td style="text-align:right;color:var(--text3)">${r.gan.toLocaleString()}</td>
                 <td style="text-align:right;font-weight:800;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pct}%</td>
@@ -890,7 +890,7 @@ function renderGtcTopBottom() {
         <div class="table-card">
             <div class="table-header"><h3><i class="fa-solid ${icon}" style="color:var(--orange)"></i> ${title}</h3></div>
             <table class="data-table mini-table">
-                <thead><tr><th>Háº¡ng</th><th>Kho</th><th style="text-align:right">GÃ¡n</th><th style="text-align:right">% GTC</th></tr></thead>
+                <thead><tr><th>Hạng</th><th>Kho</th><th style="text-align:right">Gán</th><th style="text-align:right">% GTC</th></tr></thead>
                 <tbody>
                     ${top5.map(r => renderRow(r, true)).join('')}
                     ${ranking.length > 10 ? '<tr><td colspan="4" style="text-align:center;color:var(--text3);font-size:11px">...</td></tr>' : ''}
@@ -904,8 +904,8 @@ function renderGtcTopBottom() {
     el.innerHTML = `
         <div class="tables-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:18px">
             ${renderPanel('GTC Ngày (' + displayDate + ')', 'fa-calendar-day', rankDay)}
-            ${renderPanel('GTC Tuáº§n', 'fa-calendar-week', rankWeek)}
-            ${renderPanel('GTC ThÃ¡ng', 'fa-calendar', rankMonth)}
+            ${renderPanel('GTC Tuần', 'fa-calendar-week', rankWeek)}
+            ${renderPanel('GTC Tháng', 'fa-calendar', rankMonth)}
         </div>`;
 }
 
@@ -913,7 +913,7 @@ function renderGtcTopBottom() {
 function renderBacklogSection(khoFilter = '', luongFilter = '') {
     let data = [...state.backlogData];
     const getKho = r => r['kho_giao'] || r['Kho'] || '';
-    const getAging = r => parseInt(r['backlog_aging'] || r['Sá»‘ ngày tá»“n'] || 0);
+    const getAging = r => parseInt(r['backlog_aging'] || r['Số ngày tồn'] || 0);
     if (khoFilter) data = data.filter(r =>
         shortKho(getKho(r)).toLowerCase().includes(khoFilter.toLowerCase()) ||
         (r['order_code']||'').toLowerCase().includes(khoFilter.toLowerCase())
@@ -930,7 +930,7 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
             <td>${r['PIC'] || r['order_code']||''}</td>
             <td class="order-code">${r['order_code']||''}</td>
             <td>${r['client_type']||''}</td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['LÃ½ do giao tháº¥t báº¡i gần nhất']||''}</td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Lý do giao thất bại gần nhất']||''}</td>
             <td>${r['time_nhap_kho_giao']||''}</td>
             <td>${agingChip(getAging(r))}</td>
         </tr>
@@ -952,7 +952,7 @@ function renderBacklogByKhoChart() {
         type: 'bar',
         data: {
             labels: sorted.map(e => e[0]),
-            datasets: [{ label: 'Sá»‘ đơn tá»“n', data: sorted.map(e => e[1]), backgroundColor: 'rgba(245,54,92,0.7)', borderRadius: 5 }]
+            datasets: [{ label: 'Số đơn tồn', data: sorted.map(e => e[1]), backgroundColor: 'rgba(245,54,92,0.7)', borderRadius: 5 }]
         },
         options: {
             responsive: true,
