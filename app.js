@@ -1,4 +1,4 @@
-﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -927,7 +927,7 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
             <td>${r['status'] || '--'}</td>
             <td>${r['vung_giao'] || '--'}</td>
             <td>${shortKho(getKho(r))}</td>
-            <td>${r['PIC'] || r['order_code']||''}</td>
+            <td>${r['PIC'] || '--'}</td>
             <td class="order-code">${r['order_code']||''}</td>
             <td>${r['client_type']||''}</td>
             <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Lý do giao thất bại gần nhất']||''}</td>
@@ -1359,8 +1359,11 @@ function renderNangSuatSection() {
             <td style="text-align:right;font-weight:700;color:${isTop?'var(--green)':'var(--red)'}">${r.pctGtc.toFixed(1)}%</td>
         </tr>`;
 
-    document.getElementById('tbody-ns-top').innerHTML = listToSort.slice(0, 10).map((r,i) => formatRow(r, i, true)).join('');
-    document.getElementById('tbody-ns-bottom').innerHTML = [...listToSort].sort((a,b) => a.pctGtc - b.pctGtc).slice(0, 10).map((r,i) => formatRow(r, i, false)).join('');
+    const top10 = listToSort.slice(0, 10).sort((a,b) => b.totalVol - a.totalVol);
+    document.getElementById('tbody-ns-top').innerHTML = top10.map((r,i) => formatRow(r, i, true)).join('');
+    
+    const bottom10 = [...listToSort].sort((a,b) => a.pctGtc - b.pctGtc).slice(0, 10).sort((a,b) => b.totalVol - a.totalVol);
+    document.getElementById('tbody-ns-bottom').innerHTML = bottom10.map((r,i) => formatRow(r, i, false)).join('');
 
     // RENDER ALL DRIVERS TABLE
     const allTbody = document.getElementById('tbody-ns-all');
@@ -1600,7 +1603,7 @@ function renderXeGxtSection() {
                     <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loại xe'] || '--'}</span></td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tổng xe đang chạy'] || 0).toLocaleString()}</td>
                     <td style="font-size:0.85rem">${r['Ca làm việc'] || '--'}</td>
-                    <td style="text-align:right;font-weight:700;color:var(--orange)">${r['Giá thuê xe'] || '--'}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--orange)">${(r['Giá thuê xe'] || r['Gía thuê xe']) || '--'}</td>
                 </tr>
             `).join('');
         }
