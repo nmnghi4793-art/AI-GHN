@@ -987,37 +987,48 @@
 
             <!-- ===== SECTION: ĐƠN TẠO N-1 ===== -->
             <section class="section" id="section-dontao">
-                <div class="filter-bar card">
-                    <div class="filter-group">
-                        <label>Chọn Ngày</label>
-                        <select id="dontao-date-filter" class="form-select"></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Tuần/Tháng</label>
-                        <select id="dontao-period-filter" class="form-select">
-                            <option value="">Tất cả</option>
-                        </select>
-                    </div>
-                    <div class="filter-group" style="flex:2">
-                        <label>Tìm Kho (Nhập nhiều kho cách nhau bởi dấu phẩy)</label>
-                        <input type="text" id="dontao-kho-search" class="form-input" placeholder="VD: Liên Chiểu, Hải Châu...">
-                    </div>
-                </div>
 
-                <div class="card" style="margin-bottom: 20px;">
-                    <div class="card-header">
-                        <h2>Biểu Đồ Đơn Tạo (N-1)</h2>
+                <!-- Biểu đồ -->
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-chart-column" style="color:#7B1FA2"></i> Biểu Đồ Đơn Tạo N-1 Theo Kho</h3>
                     </div>
-                    <div class="chart-container" style="height: 350px;">
+                    <div style="position:relative;min-height:300px">
                         <canvas id="chart-dontao"></canvas>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Chi Tiết Đơn Tạo Toàn Bộ</h2>
+                <!-- Filter bar giống GTC -->
+                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <input type="text" id="filter-kho-dontao" placeholder="🔍 Tìm kiếm kho..." class="filter-input" style="width: 240px; height: 42px;">
+
+                    <div class="ghn-filter-container" id="multi-dt-day">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-dt-day"></div>
                     </div>
-                    <div class="table-responsive">
+
+                    <div class="ghn-filter-container" id="multi-dt-week">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-week')">Chọn Tuần...</div>
+                        <div class="ghn-filter-menu" id="menu-dt-week"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-dt-month">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-dt-month"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-dt-kho">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-kho')">Chọn Kho...</div>
+                        <div class="ghn-filter-menu" id="menu-dt-kho"></div>
+                    </div>
+                </div>
+
+                <!-- Bảng chi tiết -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-table"></i> Chi Tiết Đơn Tạo Toàn Bộ</h3>
+                    </div>
+                    <div class="table-scroll">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -1036,6 +1047,6 @@
         </main>
     </div>
 
-    <script src="app.js?v=1.6"></script>
+    <script src="app.js?v=1.7"></script>
 </body>
 </html>
