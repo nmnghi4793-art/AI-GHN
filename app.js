@@ -1,4 +1,4 @@
-﻿﻿﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1784,7 +1784,13 @@ function renderKhoGxtSection() {
         return !search || JSON.stringify(r).toLowerCase().includes(search);
     });
 
-    tbody.innerHTML = filtered.map(r => `
+    const sorted = [...filtered].sort((a, b) => {
+        const da = parseInt(a['Diện Tích']) || 0;
+        const db = parseInt(b['Diện Tích']) || 0;
+        return db - da;
+    });
+
+    tbody.innerHTML = sorted.map(r => `
         <tr>
             <td style="font-weight:600">${r['Tên'] || '--'}</td>
             <td>${r['Số điện thoại'] || '--'}</td>
