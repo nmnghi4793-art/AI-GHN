@@ -458,71 +458,96 @@ function renderReturnsPieChart() {
     });
 }
 
-// ---- HEALTH STATUS PIE ----
+// ---- HEALTH STATUS LINE CHART ----
 function renderHealthPieChart() {
-    if (!state.warningsData || state.warningsData.length === 0) return;
+    if (!state.gtcData || state.gtcData.length === 0) return;
     
-    const healthMap = {
-        'Bình thường': 0,
-        'Cảnh báo': 0,
-        'Nghiêm trọng': 0
-    };
+    const dailyHealth = {};
     
-    state.warningsData.forEach(r => {
-        const getV = (keys, defaultVal = '') => {
-            for (const k of keys) {
-                if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
-            }
-            const allKeys = Object.keys(r);
-            for (const search of keys) {
-                const found = allKeys.find(k => k.toLowerCase().includes(search.toLowerCase()));
-                if (found && r[found] !== undefined && r[found] !== null && r[found] !== '') return r[found];
-            }
-            return defaultVal;
-        };
-        const status = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
-        if (healthMap[status] !== undefined) {
-            healthMap[status]++;
+    state.gtcData.forEach(r => {
+        const dateRaw = r['Ngày'];
+        if (!dateRaw) return;
+        const dateKey = dateRaw.split(' - ')[0];
+        
+        if (!dailyHealth[dateKey]) {
+            dailyHealth[dateKey] = { 'Bình thường': 0, 'Cảnh báo': 0, 'Nghiêm trọng': 0 };
+        }
+        
+        const pctStr = (r['% GTC'] || '0').toString().replace('%', '').replace(',', '.');
+        const pct = parseFloat(pctStr) || 0;
+        
+        if (pct >= 85) {
+            dailyHealth[dateKey]['Bình thường']++;
+        } else if (pct >= 75) {
+            dailyHealth[dateKey]['Cảnh báo']++;
         } else {
-            healthMap['Bình thường']++;
+            dailyHealth[dateKey]['Nghiêm trọng']++;
         }
     });
+
+    const sortedDates = Object.keys(dailyHealth).sort().slice(-14);
+    
+    const labels = sortedDates.map(d => d.substring(5)); // MM-DD
+    const normalData = sortedDates.map(d => dailyHealth[d]['Bình thường']);
+    const warningData = sortedDates.map(d => dailyHealth[d]['Cảnh báo']);
+    const criticalData = sortedDates.map(d => dailyHealth[d]['Nghiêm trọng']);
 
     destroyChart('healthPie');
     const canvas = document.getElementById('chart-health-pie');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    
     charts.healthPie = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'line',
         data: {
-            labels: Object.keys(healthMap),
-            datasets: [{
-                data: Object.values(healthMap),
-                backgroundColor: [C_GREEN, C_YELLOW, C_RED],
-                borderWidth: 2,
-                borderColor: '#fff',
-                datalabels: {
-                    color: '#fff',
-                    font: { weight: 'bold', size: 10 },
-                    formatter: (value, ctx) => {
-                        let sum = 0;
-                        let dataArr = ctx.chart.data.datasets[0].data;
-                        dataArr.forEach(data => { sum += data; });
-                        return sum > 0 && value > 0 ? (value * 100 / sum).toFixed(1) + '%' : '';
-                    }
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Bình thường',
+                    data: normalData,
+                    borderColor: C_GREEN,
+                    backgroundColor: C_GREEN,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                },
+                {
+                    label: 'Cảnh báo',
+                    data: warningData,
+                    borderColor: C_YELLOW,
+                    backgroundColor: C_YELLOW,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
+                },
+                {
+                    label: 'Nghiêm trọng',
+                    data: criticalData,
+                    borderColor: C_RED,
+                    backgroundColor: C_RED,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    datalabels: { display: false }
                 }
-            }]
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '65%',
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     position: 'bottom',
                     labels: { color: '#525F7F', padding: 10, font: { size: 11 }, boxWidth: 10 }
                 },
-                datalabels: { display: true }
+                datalabels: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#E8EDF5' }, ticks: { stepSize: 2 } },
+                x: { grid: { display: false } }
             }
         }
     });
