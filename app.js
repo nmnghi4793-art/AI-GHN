@@ -1,4 +1,4 @@
-﻿const API = window.location.origin + '/api';
+const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -2099,7 +2099,7 @@ function checkAdminAccess() {
 }
 
 
-// ---- ÄÆ N Táº O N-1 SECTION ----
+// ---- ĐƠN TẠO N-1 SECTION ----
 let dtTimeMode = 'day';
 let selectedDtVals = [];
 let selectedDtKhos = [];
@@ -2142,10 +2142,10 @@ function updateDtLabel(mode) {
     const label  = document.querySelector(`#multi-dt-${mode} .ghn-filter-selected`);
     if (!label) return;
     if (checks.length === 0) {
-        const map = { day: 'Chá»n NgÃ y...', week: 'Chá»n Tuáº§n...', month: 'Chá»n ThÃ¡ng...', kho: 'Chá»n Kho...' };
+        const map = { day: 'Chọn Ngày...', week: 'Chọn Tuần...', month: 'Chọn Tháng...', kho: 'Chọn Kho...' };
         label.innerText = map[mode] || '...';
     } else {
-        label.innerText = `${checks.length} má»¥c Ä‘Ã£ chá»n`;
+        label.innerText = `${checks.length} mục đã chọn`;
     }
     const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
     items.sort((a,b) => { const ca=a.querySelector('input').checked, cb=b.querySelector('input').checked; return ca===cb?0:ca?-1:1; });
@@ -2158,7 +2158,7 @@ function renderDtMultiItems(mode, values) {
     menu.innerHTML = values.map(v => `
         <div class="ghn-filter-item">
             <input type="checkbox" id="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}" value="${v}" onchange="updateDtTimeMode('${mode}')">
-            <label for="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}">${mode==='day'?v:mode==='week'?'Tuáº§n '+v:mode==='month'?'ThÃ¡ng '+v:v}</label>
+            <label for="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}">${mode==='day'?v:mode==='week'?'Tuần '+v:mode==='month'?'Tháng '+v:v}</label>
         </div>
     `).join('');
 }
@@ -2251,8 +2251,8 @@ function renderDonTaoSection() {
     data.forEach(r => {
         const k = shortKho(r['kho_giao'] || '--');
         if (!khoMap[k]) khoMap[k] = { don: 0, kg: 0 };
-        try { khoMap[k].don += parseInt(String(r['Tá»•ng Ä‘Æ¡n táº¡o']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
-        try { khoMap[k].kg  += parseFloat(String(r['Tá»•ng khá»‘i lÆ°á»£ng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
+        try { khoMap[k].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
+        try { khoMap[k].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
     });
 
     // Sort descending by number of orders (largest left)
@@ -2272,13 +2272,13 @@ function renderDonTaoSection() {
                 labels: khoNames,
                 datasets: [
                     {
-                        label: 'Tá»•ng ÄÆ¡n Táº¡o', data: donVals,
+                        label: 'Tổng Đơn Tạo', data: donVals,
                         backgroundColor: 'rgba(123,31,162,0.75)', borderColor: '#7B1FA2', borderWidth: 1,
                         yAxisID: 'y',
                         datalabels: { display: true, anchor: 'end', align: 'end', color: '#7B1FA2', font: { size: 9, weight: 'bold' }, formatter: v => v.toLocaleString('vi-VN') }
                     },
                     {
-                        label: 'Tá»•ng KG', data: kgVals,
+                        label: 'Tổng KG', data: kgVals,
                         backgroundColor: 'rgba(2,136,209,0.75)', borderColor: '#0288D1', borderWidth: 1,
                         yAxisID: 'y1',
                         datalabels: { display: true, anchor: 'end', align: 'end', color: '#0288D1', font: { size: 9 }, formatter: v => v.toLocaleString('vi-VN') }
@@ -2294,31 +2294,31 @@ function renderDonTaoSection() {
                 },
                 scales: {
                     x: { ticks: { maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
-                    y:  { type:'linear', position:'left',  beginAtZero:true, grid:{borderDash:[2,4],color:'#E8EDF5'}, ticks:{color:'#7B1FA2',font:{size:10}}, title:{display:true,text:'Tá»•ng ÄÆ¡n',color:'#7B1FA2',font:{size:11}} },
-                    y1: { type:'linear', position:'right', beginAtZero:true, grid:{drawOnChartArea:false},            ticks:{color:'#0288D1',font:{size:10}}, title:{display:true,text:'Tá»•ng KG',  color:'#0288D1',font:{size:11}} }
+                    y:  { type:'linear', position:'left',  beginAtZero:true, grid:{borderDash:[2,4],color:'#E8EDF5'}, ticks:{color:'#7B1FA2',font:{size:10}}, title:{display:true,text:'Tổng Đơn',color:'#7B1FA2',font:{size:11}} },
+                    y1: { type:'linear', position:'right', beginAtZero:true, grid:{drawOnChartArea:false},            ticks:{color:'#0288D1',font:{size:10}}, title:{display:true,text:'Tổng KG',  color:'#0288D1',font:{size:11}} }
                 }
             }
         });
     }
 
-    // Table â€” sorted by date desc then order desc
+    // Table — sorted by date desc then order desc
     const tbody = document.getElementById('tbody-dontao');
     if (!tbody) return;
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999">Không có dữ liệu</td></tr>';
         return;
     }
     const sorted = [...data].sort((a,b) => {
         const da = (a['time_view']||'').split(' - ')[0];
         const db = (b['time_view']||'').split(' - ')[0];
         if (db !== da) return db.localeCompare(da);
-        const va = parseInt(String(a['Tá»•ng Ä‘Æ¡n táº¡o']||'0').replace(/[.,]/g,'')) || 0;
-        const vb = parseInt(String(b['Tá»•ng Ä‘Æ¡n táº¡o']||'0').replace(/[.,]/g,'')) || 0;
+        const va = parseInt(String(a['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
+        const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
         return vb - va;
     });
     tbody.innerHTML = sorted.map((r, i) => {
-        const don = parseInt(String(r['Tá»•ng Ä‘Æ¡n táº¡o']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-        const kg  = parseFloat(String(r['Tá»•ng khá»‘i lÆ°á»£ng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
+        const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
+        const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
         return `<tr>
             <td>${i+1}</td>
             <td>${shortKho(r['kho_giao']||'--')}</td>
@@ -2335,3 +2335,4 @@ document.addEventListener('DOMContentLoaded', () => {
     startSyncTimer();
     checkAdminAccess();
 });
+
