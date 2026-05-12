@@ -1,4 +1,4 @@
-﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1045,7 +1045,7 @@ function renderReturnsByClient(filter = '') {
 
     tbody.innerHTML = data.slice(0, 10).map(r => `
         <tr>
-            <td style="font-weight:600;color:var(--text3);font-size:11px">${r['Thá»i gian'] || '--'}</td>
+            <td style="font-weight:600;color:var(--text3);font-size:11px">${r['Thời gian'] || '--'}</td>
             <td style="text-align:center;font-weight:700;color:var(--orange)">${r['Tổng đơn trả'] || 0}</td>
             <td style="text-align:right;font-weight:700;color:var(--red)">${r['Trả hàng tổng'] || '0%'}</td>
             <td style="text-align:right">${r['Trả hàng SHOPEE Bulky'] || '0%'}</td>
@@ -1064,12 +1064,12 @@ function renderReturnsFDChart() {
 
     // Get last 20 days
     const sortedData = [...data].sort((a,b) => {
-        const da = (a['Thá»i gian']||'').split(' - ')[0];
-        const db = (b['Thá»i gian']||'').split(' - ')[0];
+        const da = (a['Thời gian']||'').split(' - ')[0];
+        const db = (b['Thời gian']||'').split(' - ')[0];
         return da.localeCompare(db); // Oldest to newest
     }).slice(-20);
 
-    const labels = sortedData.map(r => (r['Thá»i gian']||'').split(' - ')[0]);
+    const labels = sortedData.map(r => (r['Thời gian']||'').split(' - ')[0]);
     const values = sortedData.map(r => parsePct(r['Trả hàng tổng']));
 
     destroyChart('fdTrend');
