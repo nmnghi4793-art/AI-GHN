@@ -300,7 +300,12 @@ def get_overview(force: bool = False):
             pass
 
     # Total Xe GXT
-    total_xe = sum(int(r.get("Tổng xe đang chạy", 0) or 0) for r in xe_data)
+    total_xe = 0
+    for r in xe_data:
+        # Hỗ trợ nhận diện cả tiêu đề cột chuẩn và tiêu đề cột bị lỗi font trong file CSV
+        val = r.get("Tổng xe đang chạy") or r.get("Tá»•ng xe Ä‘ang cháº¡y") or r.get("Tổng xe") or 0
+        try: total_xe += int(val or 0)
+        except: pass
 
     # Total Kho GXT
     total_kho_gxt = len(kho_data)

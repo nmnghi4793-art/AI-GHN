@@ -728,7 +728,7 @@ function renderGtcSection(searchFilter = '') {
             const parseVal = (v) => parseFloat((v || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
             const parseCount = (v) => parseInt((v || '0').toString().replace(/\./g, '')) || 0;
 
-            aggMap[groupKey].kl += parseVal(r['KL gÃ¡n']);
+            aggMap[groupKey].kl += parseVal(r['KL gán']);
             aggMap[groupKey].gan += parseCount(r['Số đơn gán']);
             aggMap[groupKey].gtc += parseCount(r['Số đơn GTC']);
         });
@@ -748,7 +748,7 @@ function renderGtcSection(searchFilter = '') {
             stt: idx + 1,
             kho: shortKho(r['Kho']),
             ngay: r['Ngày'],
-            kl: r['KL gÃ¡n'] || '0',
+            kl: r['KL gán'] || '0',
             gan: r['Số đơn gán'] || '0',
             gtc: r['Số đơn GTC'] || '0',
             pct: r['% GTC'] || '0%'
@@ -881,7 +881,7 @@ function renderGtcTopBottom() {
         const bottom5 = ranking.slice(-5);
         const renderRow = (r, isTop) => `
             <tr style="background:${isTop ? 'var(--green-bg)' : 'var(--red-bg)'}">
-                <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? 'â†‘ Tá»‘t' : 'â†“ Tá»‡'}</span></td>
+                <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? 'â†‘ Tốt' : 'â†“ Tệ'}</span></td>
                 <td style="font-weight:600">${r.kho}</td>
                 <td style="text-align:right;color:var(--text3)">${r.gan.toLocaleString()}</td>
                 <td style="text-align:right;font-weight:800;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pct}%</td>
@@ -921,7 +921,7 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
     if (luongFilter) data = data.filter(r => (r['client_type']||'').toLowerCase().includes(luongFilter.toLowerCase()));
     data.sort((a,b) => getAging(b) - getAging(a));
 
-    document.getElementById('backlog-count-label').textContent = data.length + ' Ä‘Æ¡n';
+    document.getElementById('backlog-count-label').textContent = data.length + ' đơn';
     document.getElementById('tbody-backlog').innerHTML = data.map(r => `
         <tr>
             <td>${r['status'] || '--'}</td>
@@ -930,7 +930,7 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
             <td>${r['PIC'] || r['order_code']||''}</td>
             <td class="order-code">${r['order_code']||''}</td>
             <td>${r['client_type']||''}</td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['LÃ½ do giao tháº¥t báº¡i gáº§n nháº¥t']||''}</td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['LÃ½ do giao tháº¥t báº¡i gần nhất']||''}</td>
             <td>${r['time_nhap_kho_giao']||''}</td>
             <td>${agingChip(getAging(r))}</td>
         </tr>
@@ -952,7 +952,7 @@ function renderBacklogByKhoChart() {
         type: 'bar',
         data: {
             labels: sorted.map(e => e[0]),
-            datasets: [{ label: 'Sá»‘ Ä‘Æ¡n tá»“n', data: sorted.map(e => e[1]), backgroundColor: 'rgba(245,54,92,0.7)', borderRadius: 5 }]
+            datasets: [{ label: 'Sá»‘ đơn tá»“n', data: sorted.map(e => e[1]), backgroundColor: 'rgba(245,54,92,0.7)', borderRadius: 5 }]
         },
         options: {
             responsive: true,
@@ -973,7 +973,7 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     
     // POPULATE FILTERS
     const clients = [...new Set(state.b2bData.map(r => r['Khách']).filter(Boolean))].sort();
-    const types = [...new Set(state.b2bData.map(r => r['Loáº¡i']).filter(Boolean))].sort();
+    const types = [...new Set(state.b2bData.map(r => r['Loại']).filter(Boolean))].sort();
     
     const clientSelect = document.getElementById('filter-b2b-client');
     const typeSelect = document.getElementById('filter-b2b-type');
@@ -991,21 +991,21 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     );
     if (prioFilter) data = data.filter(r => (r['Mức độ ưu tiên']||'') === prioFilter);
     if (clientFilter) data = data.filter(r => (r['Khách']||'') === clientFilter);
-    if (typeFilter) data = data.filter(r => (r['Loáº¡i']||'') === typeFilter);
+    if (typeFilter) data = data.filter(r => (r['Loại']||'') === typeFilter);
 
-    const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày má»‘t'];
+    const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày mốt'];
     data.sort((a,b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']));
 
-    document.getElementById('b2b-count-label').textContent = data.length + ' Ä‘Æ¡n';
+    document.getElementById('b2b-count-label').textContent = data.length + ' đơn';
     document.getElementById('tbody-b2b').innerHTML = data.map(r => `
         <tr>
             <td>${priorityBadge(r['Mức độ ưu tiên'])}</td>
             <td>${shortKho(r['Kho hiện tại'])}</td>
             <td>${r['PIC']||''}</td>
             <td class="order-code">${r['Order code']||''}</td>
-            <td><span class="badge ${r['Loáº¡i']==='Giao'?'storing':'waiting'}">${r['Loáº¡i']||''}</span></td>
+            <td><span class="badge ${r['Loại']==='Giao'?'storing':'waiting'}">${r['Loại']||''}</span></td>
             <td>${r['Khách']||''}</td>
-            <td>${r['Ngày nháº­p kho']||''}</td>
+            <td>${r['Ngày nhập kho']||''}</td>
             <td>${agingChip(r['ÄÃ£ lÆ°u kho (ngày)'])}</td>
             <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Äá»‹a chá»‰ giao']||''}</td>
         </tr>
@@ -1039,20 +1039,20 @@ function renderReturnsByClient(filter = '') {
     if (!tbody) return;
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Không tìm thấy dữ liệu</td></tr>';
         return;
     }
 
     tbody.innerHTML = data.slice(0, 10).map(r => `
         <tr>
             <td style="font-weight:600;color:var(--text3);font-size:11px">${r['Thá»i gian'] || '--'}</td>
-            <td style="text-align:center;font-weight:700;color:var(--orange)">${r['Tá»•ng Ä‘Æ¡n tráº£'] || 0}</td>
-            <td style="text-align:right;font-weight:700;color:var(--red)">${r['Tráº£ hÃ ng tá»•ng'] || '0%'}</td>
-            <td style="text-align:right">${r['Tráº£ hÃ ng SHOPEE Bulky'] || '0%'}</td>
-            <td style="text-align:right">${r['Tráº£ hÃ ng TTS Bulky'] || '0%'}</td>
-            <td style="text-align:right">${r['Tráº£ hÃ ng SME'] || '0%'}</td>
-            <td style="text-align:right">${r['Tráº£ hÃ ng B2B'] || '0%'}</td>
-            <td style="text-align:right">${r['Tráº£ hÃ ng Ecommerce'] || '0%'}</td>
+            <td style="text-align:center;font-weight:700;color:var(--orange)">${r['Tổng đơn trả'] || 0}</td>
+            <td style="text-align:right;font-weight:700;color:var(--red)">${r['Trả hàng tổng'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng SHOPEE Bulky'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng TTS Bulky'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng SME'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng B2B'] || '0%'}</td>
+            <td style="text-align:right">${r['Trả hàng Ecommerce'] || '0%'}</td>
         </tr>
     `).join('');
 }
@@ -1070,7 +1070,7 @@ function renderReturnsFDChart() {
     }).slice(-20);
 
     const labels = sortedData.map(r => (r['Thá»i gian']||'').split(' - ')[0]);
-    const values = sortedData.map(r => parsePct(r['Tráº£ hÃ ng tá»•ng']));
+    const values = sortedData.map(r => parsePct(r['Trả hàng tổng']));
 
     destroyChart('fdTrend');
     const ctx = document.getElementById('chart-fd-trend').getContext('2d');
@@ -1134,17 +1134,17 @@ function renderPersonnelOverview() {
     // Count by thÃ¢m niÃªn group
     const tenureMap = {};
     data.forEach(r => {
-        // Extract short label from e.g. "G01: DÆ°á»›i 1 thÃ¡ng" -> "<1 thÃ¡ng"
-        let tn = r['ThÃ¢m niÃªn'] || 'Khác';
+        // Extract short label from e.g. "G01: Dưới 1 tháng" -> "<1 thÃ¡ng"
+        let tn = r['Thâm niên'] || 'Khác';
         const m = tn.match(/G(\d+): (.+)/);
         tn = m ? m[2].trim() : tn;
         tenureMap[tn] = (tenureMap[tn] || 0) + 1;
     });
     // Sort by G-group order
     const tenureOrder = [
-        'DÆ°á»›i 1 thÃ¡ng','TrÃªn 1 - 3 thÃ¡ng','TrÃªn 3 - 6 thÃ¡ng',
-        'TrÃªn 6 thÃ¡ng - 1 nÄƒm','TrÃªn 1 - 1,5 nÄƒm','TrÃªn 1,5 -2 nÄƒm',
-        'TrÃªn 2 - 3 nÄƒm','TrÃªn 3 - 4 nÄƒm','TrÃªn 4 - 5 nÄƒm','TrÃªn 5 nÄƒm'
+        'Dưới 1 tháng','Trên 1 - 3 tháng','Trên 3 - 6 tháng',
+        'Trên 6 tháng - 1 năm','Trên 1 - 1,5 năm','Trên 1,5 -2 năm',
+        'Trên 2 - 3 năm','Trên 3 - 4 năm','Trên 4 - 5 năm','Trên 5 năm'
     ];
     const tenureSorted = tenureOrder.filter(k => tenureMap[k]).map(k => [k, tenureMap[k]]);
 
@@ -1152,7 +1152,7 @@ function renderPersonnelOverview() {
     const posEl = document.getElementById('personnel-by-pos');
     if (posEl) {
         posEl.innerHTML = `<table class="data-table mini-table">
-            <thead><tr><th>Vá»‹ trÃ­</th><th style="text-align:right">Sá»‘ NV</th></tr></thead>
+            <thead><tr><th>Vị trí</th><th style="text-align:right">Số NV</th></tr></thead>
             <tbody>
                 ${posSorted.map(([pos, cnt]) => `
                     <tr>
@@ -1161,7 +1161,7 @@ function renderPersonnelOverview() {
                     </tr>
                 `).join('')}
                 <tr style="border-top:2px solid var(--border)">
-                    <td style="font-weight:700">Tá»•ng cá»™ng</td>
+                    <td style="font-weight:700">Tổng cộng</td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${data.length}</td>
                 </tr>
             </tbody>
@@ -1172,7 +1172,7 @@ function renderPersonnelOverview() {
     const tnEl = document.getElementById('personnel-by-tenure');
     if (tnEl) {
         tnEl.innerHTML = `<table class="data-table mini-table">
-            <thead><tr><th>ThÃ¢m niÃªn</th><th style="text-align:right">Sá»‘ NV</th></tr></thead>
+            <thead><tr><th>Thâm niên</th><th style="text-align:right">Số NV</th></tr></thead>
             <tbody>
                 ${tenureSorted.map(([tn, cnt]) => `
                     <tr>
@@ -1200,10 +1200,10 @@ function renderPersonnelSection(filter = '', posFilter = '') {
             <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID']||''}</td>
             <td style="font-weight:600">${r['Há» tÃªn']||''}</td>
             <td>${r['Tên vị trí']||''}</td>
-            <td><span class="badge ${r['Loáº¡i HÄ']==='NhÃ¢n viÃªn chÃ­nh thá»©c'?'storing':'p3'}">${r['Loáº¡i HÄ']||''}</span></td>
-            <td>${r['ThÃ¢m niÃªn']||''}</td>
+            <td><span class="badge ${r['Loại HÄ']==='Nhân viên chính thức'?'storing':'p3'}">${r['Loại HÄ']||''}</span></td>
+            <td>${r['Thâm niên']||''}</td>
             <td>${shortKho(r['Kho']) || ''}</td>
-            <td>${r['PhÃ²ng ban']||''}</td>
+            <td>${r['Phòng ban']||''}</td>
         </tr>
     `).join('');
 }
@@ -1240,7 +1240,7 @@ function renderProductivityWarnings() {
             const d = empMap.get(name);
             const vol = parseInt(r['volume'] || 0);
             d.totalVol += vol;
-            d.totalSuccess += (parsePct(r['Tá»‰ lá»‡ GTC']) / 100) * vol;
+            d.totalSuccess += (parsePct(r['Tỉ lệ GTC']) / 100) * vol;
             d.sumRate += parseFloat((r['avg_delivery_volume_per_hour'] || '0').toString().replace(',', '.'));
             d.count += 1;
         }
@@ -1259,7 +1259,7 @@ function renderProductivityWarnings() {
     list.sort((a, b) => a.pctGtc - b.pctGtc);
 
     if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thá»a mÃ£n Ä‘iá»u kiá»‡n (Tá»•ng Ä‘Æ¡n > 30 trong ${daysLimit} ngày)</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thá»a mÃ£n Ä‘iá»u kiá»‡n (Tá»•ng đơn > 30 trong ${daysLimit} ngày)</td></tr>`;
         return;
     }
 
@@ -1268,7 +1268,7 @@ function renderProductivityWarnings() {
             <td><span class="badge ${idx < 3 ? 'p1' : 'waiting'}">#${idx + 1}</span></td>
             <td style="font-weight:600">${r.name}</td>
             <td>${r.province}</td>
-            <td style="text-align:right;font-weight:700">${r.totalVol.toLocaleString()} Ä‘Æ¡n</td>
+            <td style="text-align:right;font-weight:700">${r.totalVol.toLocaleString()} đơn</td>
             <td style="text-align:right;font-weight:700;color:var(--red)">${r.pctGtc.toFixed(2)}%</td>
         </tr>
     `).join('');
@@ -1334,7 +1334,7 @@ function renderNangSuatSection() {
             driverMap[idName] = { name: idName, province: r['to_province_name'] || '', totalVol: 0, totalSuccess: 0, sumRate: 0, daysCount: 0 };
         }
         driverMap[idName].totalVol += parseInt(r['volume']||0);
-        driverMap[idName].totalSuccess += (parsePct(r['Tá»‰ lá»‡ GTC'])/100) * parseInt(r['volume']||0);
+        driverMap[idName].totalSuccess += (parsePct(r['Tỉ lệ GTC'])/100) * parseInt(r['volume']||0);
         driverMap[idName].sumRate += parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.'));
         driverMap[idName].daysCount += 1;
     });
@@ -1365,14 +1365,14 @@ function renderNangSuatSection() {
     // RENDER ALL DRIVERS TABLE
     const allTbody = document.getElementById('tbody-ns-all');
     if (allTbody) {
-        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tá»‰ lá»‡ GTC']), rB = parsePct(b['Tá»‰ lá»‡ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
+        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
             <tr>
                 <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
                 <td style="font-weight:600">${r['driver'] || '--'}</td>
                 <td>${r['to_province_name'] || '--'}</td>
                 <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
                 <td style="text-align:right;font-weight:600">${parseInt(r['volume']||0).toLocaleString()}</td>
-                <td style="text-align:right;font-weight:700;color:${parsePct(r['Tá»‰ lá»‡ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tá»‰ lá»‡ GTC'] || '0%'}</td>
+                <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
                 <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
                 <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
             </tr>
@@ -1473,14 +1473,14 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             const backlogKTC = parseInt(r['backlog ktc'] || 0);
             const totalBL = backlogLM + backlogKTC;
             
-            const donTao = r['Ä‘Æ¡n táº¡o N-1'] || r['??n t?o N-1'] || 0;
-            const donGtc = r['Ä‘Æ¡n gtc N-1'] || r['??n gtc N-1'] || 0;
+            const donTao = r['đơn táº¡o N-1'] || r['??n t?o N-1'] || 0;
+            const donGtc = r['đơn gtc N-1'] || r['??n gtc N-1'] || 0;
 
             // Truy xuáº¥t tá»« Map Ä‘Ã£ nhÃ³m sáºµn
             const warehouseName = shortKho(r['kho gxt'] || r['Kho'] || '');
             const warehouseGtcData = gtcMap.get(warehouseName) || [];
             
-            // Sáº¯p xáº¿p ngày giáº£m dáº§n vÃ  láº¥y 7 báº£n ghi gáº§n nháº¥t
+            // Sáº¯p xáº¿p ngày giáº£m dáº§n vÃ  láº¥y 7 báº£n ghi gần nhất
             const latestGtc = warehouseGtcData.sort((a, b) => {
                 const dateA = a['Ngày'] || '';
                 const dateB = b['Ngày'] || '';
@@ -1541,9 +1541,9 @@ function renderXeGxtSection() {
     // Filter the raw data first
     const filteredRaw = state.xeGxtData.filter(r => {
         const matchKho  = !f_kho  || (r['Kho']||'').toLowerCase().includes(f_kho);
-        const matchTinh = !f_tinh || (r['Tá»‰nh']||'').toLowerCase() === f_tinh;
-        const matchNcc  = !f_ncc  || (r['TÃªn NCC']||'').toLowerCase() === f_ncc;
-        const matchLoai = !f_loai || (r['Loáº¡i xe']||'').toLowerCase() === f_loai;
+        const matchTinh = !f_tinh || (r['Tỉnh']||'').toLowerCase() === f_tinh;
+        const matchNcc  = !f_ncc  || (r['Tên NCC']||'').toLowerCase() === f_ncc;
+        const matchLoai = !f_loai || (r['Loại xe']||'').toLowerCase() === f_loai;
         return matchKho && matchTinh && matchNcc && matchLoai;
     });
 
@@ -1551,9 +1551,9 @@ function renderXeGxtSection() {
     const summary = {};
     filteredRaw.forEach(r => {
         const kho = r['Kho'] || 'N/A';
-        const tinh = r['Tá»‰nh'] || 'N/A';
+        const tinh = r['Tỉnh'] || 'N/A';
         const key = `${tinh}|${kho}`;
-        const count = parseInt(r['Tá»•ng xe Ä‘ang cháº¡y'] || 0);
+        const count = parseInt(r['Tổng xe đang chạy'] || 0);
 
         if (!summary[key]) {
             summary[key] = { tinh, kho, total: 0 };
@@ -1564,7 +1564,7 @@ function renderXeGxtSection() {
     let list = Object.values(summary).sort((a,b) => b.total - a.total);
 
     if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không tìm thấy kết quả</td></tr>';
         document.getElementById('tfoot-xegxt').innerHTML = '';
     } else {
         const grandTotal = list.reduce((sum, item) => sum + item.total, 0);
@@ -1579,7 +1579,7 @@ function renderXeGxtSection() {
 
         document.getElementById('tfoot-xegxt').innerHTML = `
             <tr>
-                <td colspan="3" style="text-align:right; padding:12px">Tá»”NG Cá»˜NG TOÃ€N Máº NG LÆ¯á»šI:</td>
+                <td colspan="3" style="text-align:right; padding:12px">TỔNG CỘNG TOÀN MẠNG LƯỚI:</td>
                 <td style="text-align:right; color:var(--orange); font-size:1.1rem; padding:12px">${grandTotal.toLocaleString()} xe</td>
             </tr>
         `;
@@ -1589,18 +1589,18 @@ function renderXeGxtSection() {
     const tbodyDetail = document.getElementById('tbody-xegxt-detail');
     if (tbodyDetail) {
         if (filteredRaw.length === 0) {
-            tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có dữ liệu chi tiáº¿t</td></tr>';
+            tbodyDetail.innerHTML = '<tr><td colspan="8" style="text-align:center">Không có dữ liệu chi tiết</td></tr>';
         } else {
             tbodyDetail.innerHTML = filteredRaw.map((r, index) => `
                 <tr>
                     <td style="color:var(--text3)">${index + 1}</td>
-                    <td>${r['Tá»‰nh'] || '--'}</td>
+                    <td>${r['Tỉnh'] || '--'}</td>
                     <td style="font-weight:600">${r['Kho'] || '--'}</td>
-                    <td>${r['TÃªn NCC'] || '--'}</td>
-                    <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loáº¡i xe'] || '--'}</span></td>
-                    <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tá»•ng xe Ä‘ang cháº¡y'] || 0).toLocaleString()}</td>
-                    <td style="font-size:0.85rem">${r['Ca lÃ m viá»‡c'] || '--'}</td>
-                    <td style="text-align:right;font-weight:700;color:var(--orange)">${r['GÃ­a thuÃª xe'] || '--'}</td>
+                    <td>${r['Tên NCC'] || '--'}</td>
+                    <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loại xe'] || '--'}</span></td>
+                    <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tổng xe đang chạy'] || 0).toLocaleString()}</td>
+                    <td style="font-size:0.85rem">${r['Ca làm việc'] || '--'}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--orange)">${r['Giá thuê xe'] || '--'}</td>
                 </tr>
             `).join('');
         }
@@ -1616,9 +1616,9 @@ function populateXeGxtFilters() {
     const loaiSet = new Set();
 
     state.xeGxtData.forEach(r => {
-        if (r['Tá»‰nh']) tinhSet.add(r['Tá»‰nh']);
-        if (r['TÃªn NCC']) nccSet.add(r['TÃªn NCC']);
-        if (r['Loáº¡i xe']) loaiSet.add(r['Loáº¡i xe']);
+        if (r['Tỉnh']) tinhSet.add(r['Tỉnh']);
+        if (r['Tên NCC']) nccSet.add(r['Tên NCC']);
+        if (r['Loại xe']) loaiSet.add(r['Loại xe']);
     });
 
     const populateSelect = (id, items) => {
@@ -1736,7 +1736,7 @@ function renderXeSuCoSection() {
         const matchSearch = !f_search || 
             (r['Kho']||'').toLowerCase().includes(f_search) || 
             (r['NCC']||'').toLowerCase().includes(f_search) || 
-            (r['Biá»ƒn Sá»‘']||'').toLowerCase().includes(f_search) || 
+            (r['Biển Số']||'').toLowerCase().includes(f_search) || 
             (r['ID']||'').toLowerCase().includes(f_search);
         
         const matchDay   = f_days.length === 0 || f_days.includes(r['Ngày']);
@@ -1748,17 +1748,17 @@ function renderXeSuCoSection() {
     });
 
     // Render Raw (Show all columns from sheet)
-    // Tá»‰nh, ID, Kho, Ngày, Lỗi, Ná»™i Dung Chi Tiáº¿t, Biá»ƒn Sá»‘ Xe, NCC
+    // Tỉnh, ID, Kho, Ngày, Lỗi, Nội Dung Chi Tiết, Biển Số Xe, NCC
     tbodyRaw.innerHTML = filtered.map((r, i) => `
         <tr>
             <td style="color:var(--text3)">${i+1}</td>
-            <td>${r['Tá»‰nh'] || ''}</td>
+            <td>${r['Tỉnh'] || ''}</td>
             <td>${r['ID'] || ''}</td>
             <td style="font-weight:600">${r['Kho'] || ''}</td>
             <td>${r['Ngày'] || ''}</td>
             <td style="color:var(--red)">${r['Lỗi'] || ''}</td>
-            <td style="font-size:0.85rem; max-width:300px; white-space:normal">${r['Ná»™i Dung Chi Tiáº¿t'] || ''}</td>
-            <td style="font-weight:600">${r['Biá»ƒn Sá»‘ Xe'] || ''}</td>
+            <td style="font-size:0.85rem; max-width:300px; white-space:normal">${r['Nội Dung Chi Tiết'] || ''}</td>
+            <td style="font-weight:600">${r['Biển Số Xe'] || ''}</td>
             <td>${r['NCC'] || ''}</td>
         </tr>
     `).join('');
@@ -1777,11 +1777,11 @@ function renderKhoGxtSection() {
     tbody.innerHTML = filtered.map(r => `
         <tr>
             <td style="color:var(--text3)">${r['ID Kho'] || ''}</td>
-            <td style="font-weight:700; color:var(--blue)">${r['TÃªn Kho GXT'] || ''}</td>
-            <td>${r['Tá»‰nh'] || ''}</td>
-            <td>${r['Diá»‡n TÃ­ch'] || ''}</td>
+            <td style="font-weight:700; color:var(--blue)">${r['Tên Kho GXT'] || ''}</td>
+            <td>${r['Tỉnh'] || ''}</td>
+            <td>${r['Diện Tích'] || ''}</td>
             <td style="font-size:0.85rem">${r['Äá»‹a chá»‰ kho'] || ''}</td>
-            <td><span class="badge" style="background:${r['TÃ¬nh tráº¡ng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['TÃ¬nh tráº¡ng'] === 'Active' ? '#2E7D32' : '#C62828'}">${r['TÃ¬nh tráº¡ng'] || ''}</span></td>
+            <td><span class="badge" style="background:${r['Tình trạng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['Tình trạng'] === 'Active' ? '#2E7D32' : '#C62828'}">${r['Tình trạng'] || ''}</span></td>
         </tr>
     `).join('');
 }
@@ -1800,8 +1800,8 @@ function assembleTelegramReport() {
 
     let msg = `ðŸ“¢ *BÃO CÃO Váº¬N HÃ€NH MIá»€N TRUNG*\nâ± _${dateStr} ${timeStr}_\n\n`;
 
-    // 1. KHO NGHIÃŠM TRá»ŒNG (Láº¥y tá»« Há»‡ Thá»‘ng Cáº£nh BÃ¡o)
-    msg += `ðŸ¥ *1. KHO NGHIÃŠM TRá»ŒNG (>5 NGÃ€Y):*\n`;
+    // 1. KHO NGHIÊM TRỌNG (Láº¥y tá»« Há»‡ Thá»‘ng Cáº£nh BÃ¡o)
+    msg += `ðŸ¥ *1. KHO NGHIÊM TRỌNG (>5 NGÃ€Y):*\n`;
     const warnRows = document.querySelectorAll('#tbody-warnings tr');
     let warnCount = 0;
     warnRows.forEach(tr => {
@@ -1818,7 +1818,7 @@ function assembleTelegramReport() {
             warnCount++;
         }
     });
-    if (warnCount === 0) msg += `_KhÃ´ng cÃ³ kho nÃ o_\n`;
+    if (warnCount === 0) msg += `_Không có kho nào_\n`;
     msg += `\n`;
 
     // 2. Cáº¢NH BÃO NV NÄ‚NG SUáº¤T Tá»†
@@ -1847,7 +1847,7 @@ _Trá»‘ng_
             if (!map[id]) map[id] = { name: id, prov: r['to_province_name'], vol: 0, succ: 0 };
             const v = parseInt(r['volume']||0);
             map[id].vol += v;
-            map[id].succ += (parsePct(r['Tá»‰ lá»‡ GTC'])/100) * v;
+            map[id].succ += (parsePct(r['Tỉ lệ GTC'])/100) * v;
         });
         
         const list = Object.values(map)
@@ -1858,28 +1858,28 @@ _Trá»‘ng_
             
         let res = `*${label}:*
 `;
-        list.forEach(d => res += `â€¢ ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} Ä‘Æ¡n)
+        list.forEach(d => res += `â€¢ ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)
 `);
         if (list.length === 0) res += `_Trá»‘ng_
 `;
         return res;
     }
 
-    msg += getNsWorst(1, "Ngày gáº§n nháº¥t", 30);
-    msg += "\n" + getNsWorst(7, "Tuần gáº§n nháº¥t", 30);
-    msg += "\n" + getNsWorst(30, "Tháng gáº§n nháº¥t", 30);
+    msg += getNsWorst(1, "Ngày gần nhất", 30);
+    msg += "\n" + getNsWorst(7, "Tuần gần nhất", 30);
+    msg += "\n" + getNsWorst(30, "Tháng gần nhất", 30);
     msg += "\n";
 
-    // 4. HIá»†U SUáº¤T KHO (GTC) (Láº¥y tá»« GTC rankings)
-    msg += `ðŸª *4. HIá»†U SUáº¤T KHO (GTC):*\n`;
+    // 4. HIỆU SUẤT KHO (GTC) (Láº¥y tá»« GTC rankings)
+    msg += `ðŸª *4. HIỆU SUẤT KHO (GTC):*\n`;
     const gtcPanels = document.querySelectorAll('#gtc-top-bottom .table-card');
     gtcPanels.forEach(panel => {
         const title = panel.querySelector('h3')?.innerText.trim() || 'GTC';
         msg += `*${title}:*\n`;
         const rows = Array.from(panel.querySelectorAll('tbody tr'));
         
-        const tops = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tá»‘t')).slice(0, 3);
-        const bottoms = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tá»‡')).slice(-3).reverse();
+        const tops = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tốt')).slice(0, 3);
+        const bottoms = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tệ')).slice(-3).reverse();
 
         tops.forEach(tr => {
             const tds = tr.querySelectorAll('td');
@@ -1905,7 +1905,7 @@ _Trá»‘ng_
         const kho = tds[1].innerText.trim();
         const loai = tds[4].innerText.toLowerCase();
         
-        // Äiá»u kiá»‡n: Loáº¡i cÃ³ chá»¯ 'giao' vÃ  Æ¯u tiÃªn cÃ³ mÃ£ '1:'
+        // Äiá»u kiá»‡n: Loại cÃ³ chá»¯ 'giao' vÃ  Ưu tiên cÃ³ mÃ£ '1:'
         if (loai.includes('giao') && priority.includes('1:')) {
             b2bSummary.set(kho, (b2bSummary.get(kho) || 0) + 1);
             b2bTotal++;
@@ -1914,12 +1914,12 @@ _Trá»‘ng_
     
     if (b2bTotal > 0) {
         const sortedB2B = Array.from(b2bSummary.entries()).sort((a,b) => b[1] - a[1]);
-        sortedB2B.forEach(([k, v]) => msg += `â€¢ *${k}*: ${v} Ä‘Æ¡n\n`);
+        sortedB2B.forEach(([k, v]) => msg += `â€¢ *${k}*: ${v} đơn\n`);
     } else {
-        msg += `_KhÃ´ng cÃ³ Ä‘Æ¡n B2B Ä‘áº¿n háº¡n_\n`;
+        msg += `_Không có đơn B2B đến hạn_\n`;
     }
 
-    msg += `\nðŸ”— [Má»Ÿ Dashboard Chi Tiáº¿t](https://ai-ghn-gxt.up.railway.app/)`;
+    msg += `\nðŸ”— [Má»Ÿ Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)`;
     return msg;
 }
 
@@ -1944,12 +1944,12 @@ async function sendTelegramReport() {
         const result = await resp.json();
         
         if (result.status === 'success') {
-            alert('âœ… BÃ¡o cÃ¡o chi tiáº¿t Ä‘Ã£ Ä‘Æ°á»£c gá»­i!');
+            alert('âœ… Báo cáo chi tiết đã được gửi!');
         } else {
             alert('âŒ Lỗi: ' + result.message);
         }
     } catch (e) {
-        alert('âŒ KhÃ´ng thá»ƒ káº¿t ná»‘i vá»›i server.');
+        alert('âŒ Không thể kết nối vá»›i server.');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -1961,17 +1961,17 @@ document.getElementById('telegram-btn')?.addEventListener('click', sendTelegramR
 // ---- NAVIGATION ----
 const SECTION_META = {
     overview:  ['Báo Cáo Tổng Quan', 'GiÃ¡m sÃ¡t GTC, Ontime, Backlog vÃ  B2B toÃ n máº¡ng Miá»n Trung'],
-    gtc:       ['GTC & NÄƒng Suáº¥t', 'Tá»· lá»‡ giao thÃ nh cÃ´ng vÃ  nÄƒng suáº¥t theo tá»«ng kho'],
-    backlog:   ['Danh SÃ¡ch Backlog > 7 Ngày', 'CÃ¡c Ä‘Æ¡n hÃ ng tá»“n Ä‘á»ng lÃ¢u hÆ¡n 7 ngày cáº§n xá»­ lÃ½ kháº©n'],
-    b2b:       ['ÄÆ¡n HÃ ng B2B & SLA', 'Theo dÃµi Ä‘Æ¡n B2B theo má»©c Ä‘á»™ Æ°u tiÃªn xá»­ lÃ½'],
+    gtc:       ['GTC & Năng Suất', 'Tá»· lá»‡ giao thÃ nh cÃ´ng vÃ  nÄƒng suáº¥t theo tá»«ng kho'],
+    backlog:   ['Danh SÃ¡ch Backlog > 7 Ngày', 'CÃ¡c đơn hÃ ng tá»“n Ä‘á»ng lÃ¢u hÆ¡n 7 ngày cáº§n xá»­ lÃ½ kháº©n'],
+    b2b:       ['ÄÆ¡n HÃ ng B2B & SLA', 'Theo dÃµi đơn B2B theo má»©c Ä‘á»™ Æ°u tiÃªn xá»­ lÃ½'],
     returns:   ['BÃ¡o CÃ¡o Tráº£ HÃ ng & FD', 'Tá»· lá»‡ phÃ¢n phá»‘i vÃ  tráº£ hÃ ng theo kho'],
     personnel: ['Danh SÃ¡ch NhÃ¢n Sá»±', 'ThÃ´ng tin nhÃ¢n viÃªn giao nháº­n vÃ  xá»­ lÃ½'],
-    nangsuat:  ['NÄƒng Suáº¥t NhÃ¢n ViÃªn', 'Báº£ng xáº¿p háº¡ng nÄƒng suáº¥t giao hÃ ng cá»§a nhÃ¢n viÃªn'],
+    nangsuat:  ['Năng Suất Nhân Viên', 'Báº£ng xáº¿p háº¡ng nÄƒng suáº¥t giao hÃ ng cá»§a nhÃ¢n viÃªn'],
     warnings:  ['Há»‡ Thá»‘ng Cáº£nh BÃ¡o Váº­n HÃ nh', 'Theo dÃµi sá»©c khá»e máº¡ng lÆ°á»›i vÃ  dá»± bÃ¡o giáº£i tá»a hÃ ng'],
     xegxt:     ['Quáº£n LÃ½ Xe GXT', 'Theo dÃµi sá»‘ lÆ°á»£ng xe Ä‘ang váº­n hÃ nh táº¡i cÃ¡c kho Miá»n Trung'],
     xesuco:    ['Xe Sá»± Cá»‘', 'Theo dÃµi vÃ  thá»‘ng kÃª cÃ¡c sá»± cá»‘ xe GXT theo nhÃ  cung cáº¥p'],
     khogxt:    ['Danh SÃ¡ch Kho GXT', 'ThÃ´ng tin chi tiáº¿t cÃ¡c kho GXT trong máº¡ng lÆ°á»›i'],
-    dontao:    ['ÄÆ¡n Táº¡o N-1', 'Thá»‘ng kÃª Ä‘Æ¡n hÃ ng táº¡o trong ngày N-1 theo tá»«ng kho'],
+    dontao:    ['ÄÆ¡n Táº¡o N-1', 'Thá»‘ng kÃª đơn hÃ ng táº¡o trong ngày N-1 theo tá»«ng kho'],
 };
 
 function showSection(name) {
