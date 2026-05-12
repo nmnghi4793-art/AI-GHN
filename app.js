@@ -166,6 +166,7 @@ function renderAll() {
         { name: 'OverviewCards', fn: renderOverviewCards },
         { name: 'GtcTrendChart', fn: renderGtcTrendChart },
         { name: 'ReturnsPieChart', fn: renderReturnsPieChart },
+        { name: 'HealthPieChart', fn: renderHealthPieChart },
         { name: 'BacklogOverviewTable', fn: renderBacklogOverviewTable },
         { name: 'B2bOverviewTable', fn: renderB2bOverviewTable },
         { name: 'CriticalWarningsOverview', fn: renderCriticalWarningsOverview },
@@ -450,6 +451,76 @@ function renderReturnsPieChart() {
                         font: { size: 11 },
                         boxWidth: 10,
                     }
+                },
+                datalabels: { display: true }
+            }
+        }
+    });
+}
+
+// ---- HEALTH STATUS PIE ----
+function renderHealthPieChart() {
+    if (!state.warningsData || state.warningsData.length === 0) return;
+    
+    const healthMap = {
+        'Bình thường': 0,
+        'Cảnh báo': 0,
+        'Nghiêm trọng': 0
+    };
+    
+    state.warningsData.forEach(r => {
+        const getV = (keys, defaultVal = '') => {
+            for (const k of keys) {
+                if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
+            }
+            const allKeys = Object.keys(r);
+            for (const search of keys) {
+                const found = allKeys.find(k => k.toLowerCase().includes(search.toLowerCase()));
+                if (found && r[found] !== undefined && r[found] !== null && r[found] !== '') return r[found];
+            }
+            return defaultVal;
+        };
+        const status = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
+        if (healthMap[status] !== undefined) {
+            healthMap[status]++;
+        } else {
+            healthMap['Bình thường']++;
+        }
+    });
+
+    destroyChart('healthPie');
+    const canvas = document.getElementById('chart-health-pie');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    charts.healthPie = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(healthMap),
+            datasets: [{
+                data: Object.values(healthMap),
+                backgroundColor: [C_GREEN, C_YELLOW, C_RED],
+                borderWidth: 2,
+                borderColor: '#fff',
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (value, ctx) => {
+                        let sum = 0;
+                        let dataArr = ctx.chart.data.datasets[0].data;
+                        dataArr.forEach(data => { sum += data; });
+                        return sum > 0 && value > 0 ? (value * 100 / sum).toFixed(1) + '%' : '';
+                    }
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#525F7F', padding: 10, font: { size: 11 }, boxWidth: 10 }
                 },
                 datalabels: { display: true }
             }

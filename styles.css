@@ -1,50 +1,48 @@
-/* ===== GHN BRAND COLORS & DESIGN SYSTEM ===== */
+/* ===== DRAGON BALL THEME SYSTEM ===== */
 :root {
-    /* GHN Brand Colors */
-    --orange: #FF5200;
-    --orange-light: #FF6B1A;
-    --orange-dark: #E64A00;
+    /* Dragon Ball Core Colors */
+    --orange: #FF5200; /* Goku Gi */
+    --orange-light: #FF8533;
+    --orange-dark: #CC4200;
     --orange-bg: #FFF3EE;
     --orange-border: #FFD0BC;
 
-    --blue: #0076BE;
+    --blue: #0076BE; /* Goku Undershirt */
     --blue-light: #1A88CF;
     --blue-bg: #EBF5FB;
     --blue-border: #BDDFF4;
 
-    /* Background */
-    --bg: #F4F6F9;
-    --bg-white: #FFFFFF;
-    --bg-sidebar: #FFFFFF;
+    --ssj-gold: #FFD700; /* Super Saiyan Gold */
+    --ssj-glow: 0 0 15px rgba(255, 215, 0, 0.4);
+
+    /* Background - Dragon Ball Sky/Universe Style */
+    --bg: #fdf2f2; 
+    --bg-universe: linear-gradient(135deg, #FFF8E1 0%, #E3F2FD 100%);
+    --bg-white: rgba(255, 255, 255, 0.95);
+    --bg-sidebar: #1E293B; /* Dark Blue */
     --bg-card: #FFFFFF;
 
     /* Text */
-    --text: #1A1F36;
-    --text2: #525F7F;
-    --text3: #8898AA;
-    --text-light: #AABBCC;
+    --text: #0F172A;
+    --text2: #334155;
+    --text3: #64748B;
+    --text-light: #94A3B8;
 
     /* Status Colors */
-    --green: #0CA678;
-    --green-bg: #E6F9F1;
-    --green-border: #A8E6CE;
-
-    --red: #F5365C;
-    --red-bg: #FEECF0;
-    --red-border: #FBADBE;
-
-    --yellow: #FB6340;
-    --yellow-bg: #FFF5F2;
-
-    --purple: #5E72E4;
-    --purple-bg: #EEF0FC;
+    --green: #059669;
+    --green-bg: #ECFDF5;
+    --red: #DC2626;
+    --red-bg: #FEF2F2;
+    --yellow: #D97706;
+    --yellow-bg: #FFFBEB;
 
     /* Layout */
     --sidebar-w: 240px;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --shadow: 0 2px 12px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 20px rgba(0,0,0,0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --ssj-card-shadow: 0 0 20px rgba(255, 215, 0, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
     --font: 'Outfit', sans-serif;
 }
@@ -52,29 +50,36 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body {
-    font-family: var(--font);
-    background: var(--bg);
+    background: var(--bg-universe);
+    background-attachment: fixed;
     color: var(--text);
+    font-family: var(--font);
     min-height: 100vh;
     overflow-x: hidden;
     font-size: 14px;
 }
 
 /* ===== LAYOUT ===== */
-.app-container { display:flex; height:100vh; overflow:hidden; }
+.app-container { 
+    display: flex;
+    min-height: 100vh;
+    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.4) 0%, transparent 40%);
+}
 
 /* ===== SIDEBAR ===== */
 .sidebar {
     width: var(--sidebar-w);
     background: var(--bg-sidebar);
-    border-right: 1px solid #E8EDF5;
+    color: #fff;
+    padding: 24px 16px;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
-    transition: width 0.3s ease;
-    overflow: hidden;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-    z-index: 100;
+    position: fixed;
+    height: 100vh;
+    transition: all 0.3s;
+    z-index: 1000;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+    border-right: 2px solid var(--orange-dark);
 }
 
 .logo {
@@ -82,28 +87,28 @@ body {
     align-items: center;
     gap: 10px;
     padding: 20px 16px;
-    border-bottom: 1px solid #F0F3F8;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
     flex-shrink: 0;
 }
 
 .logo-icon-wrap {
     width: 40px; height: 40px;
     border-radius: 10px;
-    background: var(--orange);
+    background: white;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; color: white;
+    font-size: 18px; color: var(--orange);
     flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(255,82,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-.logo-brand { font-size: 17px; font-weight: 800; color: var(--orange); line-height: 1.2; }
-.logo-region { font-size: 11px; color: var(--text3); font-weight: 500; }
+.logo-brand { font-size: 17px; font-weight: 800; color: white; line-height: 1.2; }
+.logo-region { font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500; }
 
 nav {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 12px 10px;
+    padding: 12px 0px;
     flex: 1;
     overflow-y: auto;
 }
@@ -114,7 +119,7 @@ nav {
     gap: 10px;
     padding: 9px 12px;
     border-radius: var(--radius-sm);
-    color: var(--text2);
+    color: rgba(255,255,255,0.9);
     text-decoration: none;
     font-size: 13.5px;
     font-weight: 500;
@@ -131,9 +136,9 @@ nav {
     font-size: 14px;
 }
 
-.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item:hover { background: rgba(0,0,0,0.1); color: white; }
 .nav-item.active {
-    background: var(--orange-bg);
+    background: white;
     color: var(--orange);
     font-weight: 600;
 }
@@ -141,24 +146,22 @@ nav {
 
 .nav-badge {
     margin-left: auto;
-    background: var(--green-bg);
-    color: var(--green);
+    background: rgba(255,255,255,0.2);
+    color: white;
     font-size: 11px; font-weight: 700;
     padding: 1px 7px;
     border-radius: 20px;
     flex-shrink: 0;
-    border: 1px solid var(--green-border);
 }
 
 .nav-badge.danger {
-    background: var(--red-bg);
-    color: var(--red);
-    border-color: var(--red-border);
+    background: rgba(220, 38, 38, 0.8);
+    color: white;
 }
 
 .sidebar-footer {
-    border-top: 1px solid #F0F3F8;
-    padding: 12px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding: 12px 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -169,7 +172,7 @@ nav {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--text3);
+    color: rgba(255,255,255,0.7);
     font-size: 11.5px;
     padding: 0 4px;
     white-space: nowrap;
@@ -182,25 +185,26 @@ nav {
     gap: 10px;
     padding: 8px;
     border-radius: var(--radius-sm);
-    background: var(--bg);
+    background: rgba(0,0,0,0.1);
     cursor: pointer;
 }
 
 .avatar {
     width: 34px; height: 34px;
     border-radius: var(--radius-sm);
-    background: linear-gradient(135deg, var(--orange), var(--orange-light));
+    background: white;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; color: white;
+    font-size: 12px; font-weight: 700; color: var(--orange);
     flex-shrink: 0;
 }
 
-.user-name { display:block; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.user-role { display:block; font-size: 11px; color: var(--text3); white-space: nowrap; }
+.user-name { display:block; font-size: 13px; font-weight: 600; white-space: nowrap; color: white; }
+.user-role { display:block; font-size: 11px; color: rgba(255,255,255,0.7); white-space: nowrap; }
 
 /* ===== MAIN ===== */
 .main-content {
     flex: 1;
+    margin-left: var(--sidebar-w);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -326,26 +330,23 @@ nav {
 }
 
 .stat-card {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: var(--bg-card);
+    padding: 20px;
     border-radius: var(--radius);
-    border: 1px solid rgba(232, 237, 245, 0.6);
-    padding: 18px;
+    box-shadow: var(--shadow);
     display: flex;
-    align-items: center;
-    gap: 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: default;
-    overflow: hidden;
+    flex-direction: column;
+    gap: 12px;
     position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    border: 1px solid rgba(255, 215, 0, 0.1);
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    border-color: var(--orange-border);
+    transform: translateY(-5px);
+    box-shadow: var(--ssj-card-shadow);
+    border-color: var(--ssj-gold);
 }
 
 .stat-card::before {
@@ -353,13 +354,12 @@ nav {
     position: absolute;
     top: 0; left: 0;
     width: 4px; height: 100%;
-    border-radius: var(--radius) 0 0 var(--radius);
+    background: var(--blue);
 }
-
-.stat-card.green-card::before { background: var(--green); }
-.stat-card.blue-card::before { background: var(--blue); }
 .stat-card.orange-card::before { background: var(--orange); }
+.stat-card.green-card::before { background: var(--green); }
 .stat-card.red-card::before { background: var(--red); }
+.stat-card.gold-card { border: 2px solid var(--ssj-gold); }
 .stat-card.purple-card::before { background: var(--purple); }
 
 .stat-icon {
@@ -394,7 +394,7 @@ nav {
 /* ===== CHART CARDS ===== */
 .charts-row {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: 14px;
     margin-bottom: 20px;
 }
