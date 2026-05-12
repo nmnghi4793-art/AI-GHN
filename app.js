@@ -1,4 +1,4 @@
-﻿﻿const API = window.location.origin + '/api';
+﻿﻿﻿const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
@@ -1196,24 +1196,25 @@ function renderPersonnelSection(filter = '', posFilter = '') {
     let data = state.personnelData;
     if (filter) {
         const f = filter.toLowerCase();
-        data = data.filter(r => (r['Há» tÃªn']||'').toLowerCase().includes(f) || shortKho(r['Kho']).toLowerCase().includes(f));
+        data = data.filter(r => (r['Họ tên'] || '').toLowerCase().includes(f) || shortKho(r['Kho làm việc'] || r['Kho']).toLowerCase().includes(f));
     }
-    if (posFilter) data = data.filter(r => (r['Tên vị trí']||'').includes(posFilter));
-    document.getElementById('personnel-count-label').textContent = data.length + ' ngÆ°á»i';
-    document.getElementById('tbody-personnel').innerHTML = data.map((r, i) => `
+    if (posFilter) data = data.filter(r => (r['Vị trí công việc'] || r['Tên vị trí'] || '').includes(posFilter));
+    document.getElementById('personnel-count-label').textContent = data.length + ' người';
+    document.getElementById('tbody-personnel').innerHTML = data.map((r, i) => {
+        const loaiHD = r['Loại hợp đồng'] || r['Loại HĐ'] || '';
+        return `
         <tr>
             <td>${i + 1}</td>
             <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID']||''}</td>
-            <td style="font-weight:600">${r['Há» tÃªn']||''}</td>
-            <td>${r['Tên vị trí']||''}</td>
-            <td><span class="badge ${r['Loại HÄ']==='Nhân viên chính thức'?'storing':'p3'}">${r['Loại HÄ']||''}</span></td>
+            <td style="font-weight:600">${r['Họ tên']||''}</td>
+            <td>${r['Vị trí công việc'] || r['Tên vị trí'] || ''}</td>
+            <td><span class="badge ${loaiHD.includes('Xác định') || loaiHD.includes('chính thức') ? 'storing' : 'p3'}">${loaiHD}</span></td>
             <td>${r['Thâm niên']||''}</td>
-            <td>${shortKho(r['Kho']) || ''}</td>
+            <td>${shortKho(r['Kho làm việc'] || r['Kho']) || ''}</td>
             <td>${r['Phòng ban']||''}</td>
         </tr>
-    `).join('');
+    `}).join('');
 }
-
 // ---- NÄ‚NG SUáº¤T NV SECTION ----
 let currentNsPeriod = 'day';
 
