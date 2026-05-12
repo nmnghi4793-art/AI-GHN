@@ -2334,6 +2334,9 @@ function renderDonTaoSection() {
 
     if (selectedDtVals.length > 0 && (dtTimeMode === 'week' || dtTimeMode === 'month')) {
         const tableMap = {};
+        let totalDonAll = 0;
+        let totalKgAll = 0;
+
         data.forEach(r => {
             const fullK = r['Kho giao'] || r['kho_giao'] || '--';
             const kKey = shortKho(fullK);
@@ -2358,8 +2361,15 @@ function renderDonTaoSection() {
             if (!tableMap[compKey]) {
                 tableMap[compKey] = { khoName: fullK, tLabel: tLabel, sortTime: tKey, don: 0, kg: 0 };
             }
-            try { tableMap[compKey].don += parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0; } catch {}
-            try { tableMap[compKey].kg  += parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0; } catch {}
+            
+            const donVal = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
+            const kgVal  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
+
+            tableMap[compKey].don += donVal;
+            tableMap[compKey].kg  += kgVal;
+            
+            totalDonAll += donVal;
+            totalKgAll  += kgVal;
         });
 
         const sortedGroup = Object.values(tableMap).sort((a,b) => {
@@ -2367,16 +2377,29 @@ function renderDonTaoSection() {
             return b.don - a.don;
         });
 
-        tbody.innerHTML = sortedGroup.map((g, i) => `
+        const summaryRow = `
+            <tr style="background:#FFF9DB; border-bottom:2px solid #F59F00;">
+                <td style="font-weight:700;color:#D9480F">-</td>
+                <td style="font-weight:800;color:#D9480F">TỔNG CỘNG</td>
+                <td style="font-weight:700;color:#D9480F">Các mốc đã chọn</td>
+                <td style="text-align:right;font-weight:800;color:#7B1FA2;font-size:13px">${totalDonAll.toLocaleString('vi-VN')}</td>
+                <td style="text-align:right;font-weight:800;color:#0288D1;font-size:13px">${totalKgAll.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+            </tr>
+        `;
+
+        tbody.innerHTML = summaryRow + sortedGroup.map((g, i) => `
             <tr>
                 <td>${i+1}</td>
                 <td>${shortKho(g.khoName)}</td>
                 <td style="font-weight:600;color:var(--blue)">${g.tLabel}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${g.don.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
             </tr>
         `).join('');
     } else {
+        let totalDonAll = 0;
+        let totalKgAll = 0;
+
         const sorted = [...data].sort((a,b) => {
             const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
             const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
@@ -2385,18 +2408,35 @@ function renderDonTaoSection() {
             const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
             return vb - va;
         });
-        tbody.innerHTML = sorted.map((r, i) => {
+
+        const rowsHtml = sorted.map((r, i) => {
             const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-            const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/\./g,'').replace(/,/g,'.')) || 0;
+            const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
             const tStr = r['Thời gian'] || r['time_view'] || '--';
+            
+            totalDonAll += don;
+            totalKgAll  += kg;
+
             return `<tr>
                 <td>${i+1}</td>
                 <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
                 <td>${tStr}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{maximumFractionDigits:3})}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
             </tr>`;
         }).join('');
+
+        const summaryRow = `
+            <tr style="background:#FFF9DB; border-bottom:2px solid #F59F00;">
+                <td style="font-weight:700;color:#D9480F">-</td>
+                <td style="font-weight:800;color:#D9480F">TỔNG CỘNG</td>
+                <td style="font-weight:700;color:#D9480F">Các mốc đã chọn</td>
+                <td style="text-align:right;font-weight:800;color:#7B1FA2;font-size:13px">${totalDonAll.toLocaleString('vi-VN')}</td>
+                <td style="text-align:right;font-weight:800;color:#0288D1;font-size:13px">${totalKgAll.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+            </tr>
+        `;
+
+        tbody.innerHTML = summaryRow + rowsHtml;
     }
 }
 
