@@ -2376,16 +2376,6 @@ function populateDtSelects() {
     if (!dtFiltersInit) {
         const searchEl = document.getElementById('filter-kho-dontao');
         if (searchEl) searchEl.addEventListener('input', () => renderDonTaoSection());
-
-        // Extend toggleMultiselect to handle dt- menus
-        const _origToggle = window.toggleMultiselect;
-        window.toggleMultiselect = function(mode) {
-            const allMenus = document.querySelectorAll('.ghn-filter-menu');
-            const targetId = mode.startsWith('dt-') ? 'menu-' + mode : 'menu-gtc-' + mode;
-            allMenus.forEach(m => {
-                m.id === targetId ? m.classList.toggle('show') : m.classList.remove('show');
-            });
-        };
         dtFiltersInit = true;
     }
 }
