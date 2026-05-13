@@ -502,6 +502,48 @@
                         ⚠️ Đã cảnh báo (sheet) → +30đ
                     </span>
                 </div>
+
+                <!-- ===== BẢNG DỰ BÁO QUÁ TẢI KHO ===== -->
+                <div class="table-card" style="margin-top:28px;">
+                    <div class="table-header">
+                        <div>
+                            <h3><i class="fa-solid fa-boxes-stacked" style="color:var(--orange)"></i> Dự Báo Quá Tải & Số Ngày Trở Lại Bình Thường</h3>
+                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                                Tính từ: Backlog KTC + Backlog LM + Đơn tạo N-1 &nbsp;|&nbsp; Năng lực = Đơn tạo × GTC% &nbsp;|&nbsp; Số ngày = Tổng áp lực ÷ Công suất giải phóng
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <div style="display:flex;gap:6px;">
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🔴 Quá tải</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">🟠 Nguy cơ</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFFDE7;color:#F08C00;padding:4px 10px;border-radius:20px;font-weight:600">🟡 Theo dõi</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">🟢 Ổn định</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-scroll" style="max-height:none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:center">Trạng thái</th>
+                                    <th style="text-align:right">Đơn tạo N-1</th>
+                                    <th style="text-align:right">Backlog LM</th>
+                                    <th style="text-align:right">Backlog KTC</th>
+                                    <th style="text-align:right">Tổng áp lực</th>
+                                    <th style="text-align:right">NL TB (đơn/ngày)</th>
+                                    <th style="text-align:right">NL Tốt nhất</th>
+                                    <th style="text-align:right">Công suất giải phóng</th>
+                                    <th style="text-align:right">📅 Dự kiến (TB)</th>
+                                    <th style="text-align:right">📅 Dự kiến (Tốt nhất)</th>
+                                    <th>Đề xuất hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-overload"></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </section>
 
             <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->

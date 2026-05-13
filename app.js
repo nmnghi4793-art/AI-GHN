@@ -2899,6 +2899,222 @@ function renderForecastSection() {
         if (riskEl) riskEl.addEventListener('change', renderForecastSection);
         window._forecastFiltersInit = true;
     }
+
+    // Render bảng quá tải
+    renderOverloadTable();
+}
+
+// ---- OVERLOAD FORECAST / DỰ BÁO QUÁ TẢI KHO ----
+function buildOverloadData() {
+    const now = Date.now();
+    const cutoff7d = now - 7 * 86400000;
+
+    // --- Bước 1: Lấy đơn tạo N-1 theo kho (ngày mới nhất trong donTaoData) ---
+    const donTaoByKho = {};
+    if (state.donTaoData && state.donTaoData.length) {
+        const allDonDates = [...new Set(state.donTaoData.map(r => {
+            return (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+        }).filter(Boolean))].sort().reverse();
+        const latestDonDate = allDonDates[0];
+
+        state.donTaoData.forEach(r => {
+            const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+            if (dStr !== latestDonDate) return;
+            const kho = shortKho(r['Kho giao'] || r['kho_giao'] || '');
+            if (!kho || kho === '--') return;
+            const don = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+            donTaoByKho[kho] = (donTaoByKho[kho] || 0) + don;
+        });
+    }
+
+    // --- Bước 2: GTC stats theo kho 7 ngày ---
+    const gtcByKho = {};
+    const allGtcDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+    const latestGtcDate = allGtcDates[0] || '';
+
+    state.gtcData.forEach(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts || ts < cutoff7d) return;
+        const kho = shortKho(r['Kho']);
+        if (!kho || kho === '--') return;
+        if (!gtcByKho[kho]) gtcByKho[kho] = { days: [] };
+        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0) });
+    });
+
+    Object.keys(gtcByKho).forEach(kho => {
+        const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
+        const pcts = days.map(d => d.pct).filter(p => p > 0);
+        const ganAll = days.map(d => d.gan).filter(g => g > 0);
+        const avg7d = pcts.length ? pcts.reduce((a,b) => a+b,0) / pcts.length : 0;
+        const max7d = pcts.length ? Math.max(...pcts) : 0;
+        const latestRow = state.gtcData.find(r => shortKho(r['Kho']) === kho && r['Ngày'] === latestGtcDate);
+        const gtcN1 = latestRow ? parsePct(latestRow['% GTC']) : (pcts[0] || 0);
+        // Tính đơn gán TB từ GTC data nếu không có donTaoData
+        const avgGan = ganAll.length ? Math.round(ganAll.reduce((a,b)=>a+b,0)/ganAll.length) : 0;
+        gtcByKho[kho] = { avg7d, max7d, gtcN1, avgGan };
+    });
+
+    // --- Bước 3: Backlog theo kho từ warningsData ---
+    const backlogByKho = {};
+    state.warningsData.forEach(r => {
+        const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
+        if (!kho || kho === '--') return;
+        const lm  = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
+        const ktc = parseInt(r['backlog ktc'] || 0);
+        backlogByKho[kho] = { lm, ktc };
+    });
+
+    // --- Bước 4: Gộp tất cả kho ---
+    const khoSet = new Set([
+        ...Object.keys(gtcByKho),
+        ...Object.keys(donTaoByKho),
+        ...Object.keys(backlogByKho)
+    ]);
+
+    const results = [];
+    khoSet.forEach(kho => {
+        const gtc = gtcByKho[kho] || { avg7d: 0, max7d: 0, gtcN1: 0, avgGan: 0 };
+        const bl  = backlogByKho[kho] || { lm: 0, ktc: 0 };
+
+        // Đơn tạo N-1: ưu tiên donTaoData, fallback sang avgGan từ GTC
+        const donTaoN1 = donTaoByKho[kho] || gtc.avgGan || 0;
+
+        // Tổng áp lực = Backlog LM + Backlog KTC + Đơn tạo N-1 (áp lực hôm nay)
+        const tongApLuc = bl.lm + bl.ktc + donTaoN1;
+
+        if (!tongApLuc && !gtc.avg7d) return; // bỏ kho không có đủ dữ liệu
+
+        // Năng lực xử lý = đơn tạo × GTC%
+        const nangLucTB  = donTaoN1 > 0 ? Math.round(donTaoN1 * gtc.avg7d / 100) : 0;
+        const nangLucMax = donTaoN1 > 0 ? Math.round(donTaoN1 * gtc.max7d / 100) : 0;
+
+        // Công suất giải phóng backlog mỗi ngày
+        // = Năng lực giao thành công - Lượng đơn mới thất bại tích vào backlog
+        // = (GTC% × donTao) - ((1-GTC%) × donTao) = donTao × (2×GTC% - 1)
+        // Chỉ có ý nghĩa nếu GTC > 50%, nếu không backlog đang tích lũy
+        const csGiaiPhongTB  = donTaoN1 > 0 ? Math.round(donTaoN1 * (2 * gtc.avg7d / 100 - 1)) : 0;
+        const csGiaiPhongMax = donTaoN1 > 0 ? Math.round(donTaoN1 * (2 * gtc.max7d / 100 - 1)) : 0;
+
+        // Số ngày dự kiến để backlog (LM + KTC) về 0
+        const existingBacklog = bl.lm + bl.ktc;
+        let soNgayTB  = 0;
+        let soNgayMax = 0;
+
+        if (existingBacklog <= 0) {
+            soNgayTB  = 0;
+            soNgayMax = 0;
+        } else if (csGiaiPhongTB <= 0) {
+            soNgayTB  = 999; // Backlog đang tích lũy, không thể giải phóng
+        } else {
+            soNgayTB  = Math.ceil(existingBacklog / csGiaiPhongTB);
+        }
+
+        if (existingBacklog <= 0) {
+            soNgayMax = 0;
+        } else if (csGiaiPhongMax <= 0) {
+            soNgayMax = 999;
+        } else {
+            soNgayMax = Math.ceil(existingBacklog / csGiaiPhongMax);
+        }
+
+        // --- Phân loại trạng thái quá tải ---
+        let overloadStatus = 'stable';
+        let statusLabel = '🟢 Ổn định';
+        let statusColor = 'var(--green)';
+        let statusBg    = '#E8F5E9';
+        let action = 'Duy trì vận hành, giám sát định kỳ.';
+
+        const blTotalRatio = donTaoN1 > 0 ? existingBacklog / donTaoN1 : 0;
+
+        if (soNgayTB > 14 || (csGiaiPhongTB <= 0 && existingBacklog > 200) || (gtc.gtcN1 < 80 && bl.lm > 300)) {
+            overloadStatus = 'overloaded';
+            statusLabel = '🔴 Quá tải';
+            statusColor = 'var(--red)';
+            statusBg    = '#FFEBEE';
+            action = 'BÁO CÁO KHẨN: Tăng ca giao hàng, bổ sung nhân sự khẩn cấp, liên hệ điều phối khu vực, xem xét bàn giao tuyến tạm thời sang kho phụ.';
+        } else if (soNgayTB > 7 || blTotalRatio > 2 || (gtc.gtcN1 < 85 && bl.lm > 150)) {
+            overloadStatus = 'risk';
+            statusLabel = '🟠 Nguy cơ';
+            statusColor = 'var(--orange)';
+            statusBg    = '#FFF3E0';
+            action = 'Ưu tiên xử lý backlog cũ, rà soát tuyến thất bại, tăng cường theo dõi NV GTC thấp, lên kế hoạch tăng cường trong 2-3 ngày tới.';
+        } else if (soNgayTB > 3 || blTotalRatio > 1 || gtc.gtcN1 < 88) {
+            overloadStatus = 'watch';
+            statusLabel = '🟡 Theo dõi';
+            statusColor = '#F08C00';
+            statusBg    = '#FFFDE7';
+            action = 'Theo dõi hàng ngày, đảm bảo NV đủ tuyến, chuẩn bị phương án hỗ trợ nếu GTC tiếp tục giảm.';
+        }
+
+        results.push({
+            kho, overloadStatus, statusLabel, statusColor, statusBg,
+            donTaoN1, blLm: bl.lm, blKtc: bl.ktc, tongApLuc,
+            nangLucTB, nangLucMax,
+            csGiaiPhongTB, csGiaiPhongMax,
+            soNgayTB, soNgayMax,
+            gtcN1: gtc.gtcN1, gtcAvg7d: gtc.avg7d, gtcMax7d: gtc.max7d,
+            action
+        });
+    });
+
+    // Sắp xếp: quá tải → nguy cơ → theo dõi → ổn định, rồi theo soNgayTB giảm dần
+    const order = { overloaded: 0, risk: 1, watch: 2, stable: 3 };
+    results.sort((a, b) => {
+        if (order[a.overloadStatus] !== order[b.overloadStatus])
+            return order[a.overloadStatus] - order[b.overloadStatus];
+        return b.soNgayTB - a.soNgayTB;
+    });
+    return results;
+}
+
+function renderOverloadTable() {
+    const tbody = document.getElementById('tbody-overload');
+    if (!tbody) return;
+
+    const data = buildOverloadData();
+    if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px;color:var(--text3)">Chưa đủ dữ liệu để phân tích quá tải</td></tr>';
+        return;
+    }
+
+    // Lọc theo khoFilter đã có
+    const khoFilter = ((document.getElementById('filter-forecast-kho') || {}).value || '').toLowerCase();
+    const filtered = khoFilter ? data.filter(r => r.kho.toLowerCase().includes(khoFilter)) : data;
+
+    const fmtNgay = (n) => {
+        if (n <= 0) return `<span style="color:var(--green);font-weight:700">Hôm nay</span>`;
+        if (n >= 999) return `<span style="color:var(--red);font-weight:700">Tích lũy ↑</span>`;
+        const color = n > 14 ? 'var(--red)' : n > 7 ? 'var(--orange)' : n > 3 ? '#F08C00' : 'var(--green)';
+        return `<span style="font-weight:700;color:${color}">${n} ngày</span>`;
+    };
+
+    const fmtCs = (n) => {
+        if (n <= 0) return `<span style="color:var(--red);font-size:11px">Âm (tích lũy)</span>`;
+        return `<span style="color:var(--green)">${n.toLocaleString()}</span>`;
+    };
+
+    tbody.innerHTML = filtered.map(r => {
+        const apLucColor = r.tongApLuc > r.nangLucTB * 3 ? 'var(--red)' : r.tongApLuc > r.nangLucTB * 1.5 ? 'var(--orange)' : 'inherit';
+        const donTaoColor = r.donTaoN1 > 0 ? 'var(--purple)' : 'var(--text3)';
+        const nlTBColor = r.nangLucTB < r.donTaoN1 * 0.85 ? 'var(--orange)' : 'var(--text2)';
+
+        return `<tr style="background:${r.statusBg}15;border-left:3px solid ${r.statusColor}">
+            <td style="font-weight:700;white-space:nowrap">${r.kho}</td>
+            <td style="text-align:center;white-space:nowrap">
+                <span style="font-size:12px;font-weight:700;color:${r.statusColor};padding:3px 8px;border-radius:12px;background:${r.statusBg}">${r.statusLabel}</span>
+            </td>
+            <td style="text-align:right;font-weight:600;color:${donTaoColor}">${r.donTaoN1 > 0 ? r.donTaoN1.toLocaleString() : '--'}</td>
+            <td style="text-align:right;font-weight:${r.blLm>500?'700':'400'};color:${r.blLm>1000?'var(--red)':r.blLm>500?'var(--orange)':'inherit'}">${r.blLm.toLocaleString()}</td>
+            <td style="text-align:right;font-weight:${r.blKtc>200?'700':'400'};color:${r.blKtc>500?'var(--red)':r.blKtc>200?'var(--orange)':'inherit'}">${r.blKtc.toLocaleString()}</td>
+            <td style="text-align:right;font-weight:700;color:${apLucColor}">${r.tongApLuc.toLocaleString()}</td>
+            <td style="text-align:right;color:${nlTBColor}">${r.nangLucTB > 0 ? r.nangLucTB.toLocaleString() : '--'}</td>
+            <td style="text-align:right;color:var(--blue)">${r.nangLucMax > 0 ? r.nangLucMax.toLocaleString() : '--'}</td>
+            <td style="text-align:right">${fmtCs(r.csGiaiPhongTB)}</td>
+            <td style="text-align:right">${fmtNgay(r.soNgayTB)}</td>
+            <td style="text-align:right">${fmtNgay(r.soNgayMax)}</td>
+            <td style="font-size:11px;color:var(--text2);min-width:220px">${r.action}</td>
+        </tr>`;
+    }).join('');
 }
 
 // ---- INIT ----
