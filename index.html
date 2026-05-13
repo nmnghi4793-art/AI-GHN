@@ -799,6 +799,31 @@
                     </div>
                 </div>
 
+                <!-- Filter bar thông minh cho Chi Tiết Năng Suất -->
+                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <input type="text" id="filter-ns-driver" placeholder="🔍 Tìm kiếm nhân viên..." class="filter-input" style="width: 240px; height: 42px;">
+
+                    <div class="ghn-filter-container" id="multi-ns-prov">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-prov')">Chọn Khu vực...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-prov"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-ns-day">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-day"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-ns-week">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-week')">Chọn Tuần...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-week"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-ns-month">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-month"></div>
+                    </div>
+                </div>
+
                 <!-- ALL DRIVERS TABLE -->
                 <div class="table-card" style="margin-top: 20px;">
                     <div class="table-header">

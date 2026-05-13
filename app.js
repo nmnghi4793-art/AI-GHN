@@ -59,7 +59,7 @@ function parseVN(s) {
     if (!s) return 0;
     if (typeof s !== 'string') s = s.toString();
     
-    // Format: "2026-05-05 - Thứ 3" hoáº·c "2026-05-05"
+    // Format: "2026-05-05 - Thứ 3" hoặc "2026-05-05"
     let m0 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m0) return new Date(parseInt(m0[1]), parseInt(m0[2]) - 1, parseInt(m0[3])).getTime();
 
@@ -67,7 +67,7 @@ function parseVN(s) {
     let m = s.match(/(\d+) thg (\d+), (\d+)/);
     if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])).getTime();
     
-    // Format: "DD/MM/YYYY" hoáº·c "D/M/YYYY"
+    // Format: "DD/MM/YYYY" hoặc "D/M/YYYY"
     let m2 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (m2) return new Date(parseInt(m2[3]), parseInt(m2[2]) - 1, parseInt(m2[1])).getTime();
 
@@ -83,7 +83,7 @@ async function fetchAll(force = false) {
     const btn = document.getElementById('refresh-btn');
     if (force) {
         btn.classList.add('loading');
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Äang táº£i...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
     }
 
     try {
@@ -241,7 +241,7 @@ function renderOverviewCards() {
     const khoGxtTotalEl = document.getElementById('val-khogxt-total');
     if (khoGxtTotalEl) khoGxtTotalEl.textContent = (ov.total_kho_gxt || 0).toLocaleString();
 
-    // ÄÆ¡n Táº¡o N-1
+    // Đơn Tạo N-1
     const donTaoEl = document.getElementById('val-dontao');
     if (donTaoEl) {
         const d = (ov.total_don_tao || 0).toLocaleString('vi-VN');
@@ -517,7 +517,7 @@ function renderCriticalWarningsOverview() {
     const tbody = document.getElementById('tbody-critical-overview');
     if (!tbody) return;
     
-    // Lá»c vÃ  chuáº©n bá»‹ dá»¯ liá»‡u
+    // Lọc và chuẩn bị dữ liệu
     const processedData = state.warningsData.map(r => {
         const getV = (keys, defaultVal = 0) => {
             for (const k of keys) {
@@ -531,16 +531,16 @@ function renderCriticalWarningsOverview() {
             return defaultVal;
         };
 
-        const soNgay = parseFloat(getV(['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày'], 0));
-        const sheetStatus = getV(['Tình hình hiện tại'], 'BÃ¬nh thÆ°á»ng');
-        const nextStatus = r['Tình hình sắp tới'] || 'BÃ¬nh thÆ°á»ng';
+        const soNgay = parseFloat(getV(['Số ngày trở về ngày thường', 'Total ngày'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại'], 'Bình thường');
+        const nextStatus = r['Tình hình sắp tới'] || 'Bình thường';
         return { ...r, soNgayVal: soNgay, sheetStatus: sheetStatus, nextStatus: nextStatus };
     });
 
     const critical = processedData.filter(r => r.soNgayVal > 5);
     
     if (critical.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--green);font-weight:600"><i class="fa-solid fa-circle-check"></i> ToÃ n máº¡ng lÆ°á»›i bÃ¬nh thÆ°á»ng</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--green);font-weight:600"><i class="fa-solid fa-circle-check"></i> Toàn mạng lưới bình thường</td></tr>';
         return;
     }
     
@@ -557,7 +557,7 @@ function renderCriticalWarningsOverview() {
 
         let nextBadgeClass = 'storing';
         if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
-        if (nextStatus === 'NghiÃªm trá»ng') nextBadgeClass = 'p1';
+        if (nextStatus === 'Nghiêm trọng') nextBadgeClass = 'p1';
 
         return `
             <tr>
@@ -578,11 +578,14 @@ let selectedGtcVals = [];
 let selectedGtcKhos = [];
 
 window.toggleMultiselect = function(mode) {
-    const menus = ['menu-gtc-month', 'menu-gtc-week', 'menu-gtc-day', 'menu-gtc-kho'];
-    menus.forEach(m => {
-        const el = document.getElementById(m);
-        if (m === 'menu-gtc-' + mode) el.classList.toggle('show');
-        else el.classList.remove('show');
+    const allMenus = document.querySelectorAll('.ghn-filter-menu');
+    let targetId = 'menu-gtc-' + mode;
+    if (mode.startsWith('dt-') || mode.startsWith('ns-')) {
+        targetId = 'menu-' + mode;
+    }
+    allMenus.forEach(m => {
+        if (m.id === targetId) m.classList.toggle('show');
+        else m.classList.remove('show');
     });
 };
 
@@ -628,12 +631,12 @@ function updateMultiselectLabel(mode) {
     const label = document.querySelector(`#multi-gtc-${mode} .ghn-filter-selected`);
     
     if (checks.length === 0) {
-        if (mode === 'kho') label.innerText = 'Chá»n Kho...';
-        else if (mode === 'day') label.innerText = 'Chá»n Ngày...';
-        else if (mode === 'week') label.innerText = 'Chá»n Tuáº§n...';
-        else label.innerText = 'Chá»n ThÃ¡ng...';
+        if (mode === 'kho') label.innerText = 'Chọn Kho...';
+        else if (mode === 'day') label.innerText = 'Chọn Ngày...';
+        else if (mode === 'week') label.innerText = 'Chọn Tuần...';
+        else label.innerText = 'Chọn Tháng...';
     } else {
-        label.innerText = `${checks.length} má»¥c Ä‘Ã£ chá»n`;
+        label.innerText = `${checks.length} mục đã chọn`;
     }
     
     const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
@@ -1118,7 +1121,7 @@ function renderReturnsFDChart() {
         data: {
             labels,
             datasets: [{
-                label: '% Tráº£ hÃ ng',
+                label: '% Trả hàng',
                 data: values,
                 borderColor: C_RED,
                 backgroundColor: grad,
@@ -1153,7 +1156,7 @@ function renderReturnsFDChart() {
     });
 }
 
-// ---- PERSONNEL OVERVIEW (in Tá»•ng Quan) ----
+// ---- PERSONNEL OVERVIEW (in Tổng Quan) ----
 function renderPersonnelOverview() {
     const data = state.personnelData;
     if (!data || !data.length) return;
@@ -1166,10 +1169,10 @@ function renderPersonnelOverview() {
     });
     const posSorted = Object.entries(posMap).sort((a,b) => b[1]-a[1]);
 
-    // Count by thÃ¢m niÃªn group
+    // Count by thâm niên group
     const tenureMap = {};
     data.forEach(r => {
-        // Extract short label from e.g. "G01: Dưới 1 tháng" -> "<1 thÃ¡ng"
+        // Extract short label from e.g. "G01: Dưới 1 tháng" -> "<1 tháng"
         let tn = r['Thâm niên'] || 'Khác';
         const m = tn.match(/G(\d+): (.+)/);
         tn = m ? m[2].trim() : tn;
@@ -1244,7 +1247,7 @@ function renderPersonnelSection(filter = '', posFilter = '') {
         </tr>
     `}).join('');
 }
-// ---- NÄ‚NG SUáº¤T NV SECTION ----
+// ---- NĂNG SUẤT NV SECTION ----
 let currentNsPeriod = 'day';
 
 let currentProdDays = 7;
@@ -1295,7 +1298,7 @@ function renderProductivityWarnings() {
     list.sort((a, b) => a.pctGtc - b.pctGtc);
 
     if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thá»a mÃ£n Ä‘iá»u kiá»‡n (Tá»•ng đơn > 30 trong ${daysLimit} ngày)</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#8898AA">Không có dữ liệu thỏa mãn điều kiện (Tổng đơn > 30 trong ${daysLimit} ngày)</td></tr>`;
         return;
     }
 
@@ -1310,7 +1313,109 @@ function renderProductivityWarnings() {
     `).join('');
 }
 
-// ---- NÄ‚NG SUáº¤T NV SECTION ----
+let nsTimeMode = 'day';
+let selectedNsVals = [];
+let selectedNsProvs = [];
+let nsFiltersInit = false;
+
+function renderNsMultiItems(mode, values) {
+    const menu = document.getElementById('menu-ns-' + mode);
+    if (!menu) return;
+    menu.innerHTML = values.map(v => `
+        <div class="ghn-filter-item">
+            <input type="checkbox" id="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}" value="${v}" onchange="updateNsTimeMode('${mode}')">
+            <label for="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}">${mode==='day'?v:mode==='week'?'Tuần '+v:mode==='month'?'Tháng '+v:v}</label>
+        </div>
+    `).join('');
+}
+
+function updateNsLabel(mode) {
+    const menu = document.getElementById('menu-ns-' + mode);
+    if (!menu) return;
+    const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
+    const label  = document.querySelector(`#multi-ns-${mode} .ghn-filter-selected`);
+    if (!label) return;
+    if (checks.length === 0) {
+        const map = { day: 'Chọn Ngày...', week: 'Chọn Tuần...', month: 'Chọn Tháng...', prov: 'Chọn Khu vực...' };
+        label.innerText = map[mode] || '...';
+    } else {
+        label.innerText = `${checks.length} mục đã chọn`;
+    }
+    const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
+    items.sort((a,b) => { const ca=a.querySelector('input').checked, cb=b.querySelector('input').checked; return ca===cb?0:ca?-1:1; });
+    items.forEach(item => menu.appendChild(item));
+}
+
+function clearNsOtherModes(modes) {
+    modes.forEach(m => {
+        const menu = document.getElementById('menu-ns-' + m);
+        if (menu) {
+            menu.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+            updateNsLabel(m);
+        }
+    });
+}
+
+window.updateNsTimeMode = function(mode) {
+    const menu = document.getElementById('menu-ns-' + mode);
+    if (!menu) return;
+    const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
+    const vals = Array.from(checks).map(c => c.value);
+
+    if (mode === 'prov') {
+        selectedNsProvs = vals;
+    } else {
+        nsTimeMode = mode;
+        selectedNsVals = vals;
+        if (mode === 'day')   clearNsOtherModes(['week', 'month']);
+        else if (mode === 'week')  clearNsOtherModes(['day', 'month']);
+        else if (mode === 'month') clearNsOtherModes(['day', 'week']);
+    }
+    updateNsLabel(mode);
+    renderNangSuatSection();
+};
+
+function populateNsSelects() {
+    const dayMenu = document.getElementById('menu-ns-day');
+    if (!dayMenu || dayMenu.children.length > 0) return;
+
+    const allData = state.nangSuatData || [];
+    const days = [...new Set(allData.map(r => r['Ngày']).filter(Boolean))].sort().reverse();
+    renderNsMultiItems('day', days);
+
+    const weeks = [...new Set(allData.map(r => {
+        const ts = parseVN(r['Ngày']);
+        return ts ? String(getWeekNumber(new Date(ts))) : null;
+    }).filter(Boolean))].sort().reverse();
+    renderNsMultiItems('week', weeks);
+
+    const months = [...new Set(allData.map(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts) return null;
+        const d = new Date(ts);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    }).filter(Boolean))].sort().reverse();
+    renderNsMultiItems('month', months);
+
+    const provs = [...new Set(allData.map(r => r['to_province_name']).filter(Boolean))].sort();
+    renderNsMultiItems('prov', provs);
+
+    if (days.length > 0) {
+        const safeId = days[0].replace(/[^a-z0-9]/gi,'-');
+        const firstChk = document.getElementById('chk-ns-day-' + safeId);
+        if (firstChk) firstChk.checked = true;
+        selectedNsVals = [days[0]];
+        updateNsLabel('day');
+    }
+
+    if (!nsFiltersInit) {
+        const searchEl = document.getElementById('filter-ns-driver');
+        if (searchEl) searchEl.addEventListener('input', () => renderNangSuatSection());
+        nsFiltersInit = true;
+    }
+}
+
+// ---- NĂNG SUẤT NV SECTION ----
 function switchNsPeriod(period) {
     currentNsPeriod = period;
     document.querySelectorAll('#section-productivity .filter-tabs .btn').forEach(btn => btn.classList.remove('active'));
@@ -1404,7 +1509,34 @@ function renderNangSuatSection() {
     // RENDER ALL DRIVERS TABLE
     const allTbody = document.getElementById('tbody-ns-all');
     if (allTbody) {
-        allTbody.innerHTML = filteredData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
+        populateNsSelects();
+        let allTableData = [...state.nangSuatData];
+        const searchVal = ((document.getElementById('filter-ns-driver') || {}).value || '').toLowerCase();
+
+        if (selectedNsVals.length > 0) {
+            allTableData = allTableData.filter(r => {
+                const ts = parseVN(r['Ngày']);
+                if (!ts) return false;
+                const d = new Date(ts);
+                if (nsTimeMode === 'day')   return selectedNsVals.includes(r['Ngày']);
+                if (nsTimeMode === 'week')  return selectedNsVals.includes(String(getWeekNumber(d)));
+                if (nsTimeMode === 'month') {
+                    const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                    return selectedNsVals.includes(m);
+                }
+                return true;
+            });
+        }
+
+        if (selectedNsProvs.length > 0) {
+            allTableData = allTableData.filter(r => selectedNsProvs.includes(r['to_province_name']));
+        }
+
+        if (searchVal) {
+            allTableData = allTableData.filter(r => (r['driver'] || '').toLowerCase().includes(searchVal));
+        }
+
+        allTbody.innerHTML = allTableData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
             <tr>
                 <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
                 <td style="font-weight:600">${r['driver'] || '--'}</td>
@@ -1426,9 +1558,9 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
 
     const ngayKey = 'Total ngày';
 
-    // Xá»­ lÃ½ dá»¯ liá»‡u
+    // Xử lý dữ liệu
     const processedData = state.warningsData.map(r => {
-        // Helper Ä‘á»ƒ láº¥y giÃ¡ trá»‹ linh hoáº¡t
+        // Helper để lấy giá trị linh hoạt
         const getV = (keys, defaultVal = '') => {
             for (const k of keys) {
                 if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
@@ -1441,8 +1573,8 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             return defaultVal;
         };
 
-        const soNgay = parseFloat(getV(['Sá»‘ ngày trá»Ÿ vá» ngày thÆ°á»ng', 'Total ngày', 'so ngay'], 0));
-        const sheetStatus = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'BÃ¬nh thÆ°á»ng');
+        const soNgay = parseFloat(getV(['Số ngày trở về ngày thường', 'Total ngày', 'so ngay'], 0));
+        const sheetStatus = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
         
         return { 
             ...r, 
@@ -1452,9 +1584,9 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     });
 
     // KPI Cards:
-    // 1. Kho NghiÃªm trá»ng: tÃ­nh theo sá»‘ ngày > 6
+    // 1. Kho Nghiêm trọng: tính theo số ngày > 6
     const criticalList = processedData.filter(r => r.soNgayVal > 6);
-    // 2. Kho Bất ổn: Ä‘áº¿m theo cá»™t trạng thái hiện tại cá»§a sheet
+    // 2. Kho Bất ổn: đếm theo cột trạng thái hiện tại của sheet
     const warningList  = processedData.filter(r => r.sheetStatus === 'Bất ổn');
 
     const critEl = document.getElementById('warn-critical-count');
@@ -1465,7 +1597,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
 
     const upcoming = processedData.filter(r => {
         const next = (r['Tình hình sắp tới'] || '').toLowerCase();
-        return next.includes('cảnh báo') || next.includes('nghiÃªm trá»ng');
+        return next.includes('cảnh báo') || next.includes('nghiêm trọng');
     });
     const upcomingEl = document.getElementById('warn-upcoming-count');
     if (upcomingEl) upcomingEl.textContent = upcoming.length;
@@ -1478,18 +1610,18 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     // Sync to Overview
     syncOverviewWarningCards();
 
-    // Lá»c dá»¯ liá»‡u theo filter ngÆ°á»i dÃ¹ng
+    // Lọc dữ liệu theo filter người dùng
     let filtered = processedData;
     if (khoFilter) filtered = filtered.filter(r => shortKho(r['kho gxt'] || r['Kho'] || '').toLowerCase().includes(khoFilter.toLowerCase()));
     if (statusFilter) filtered = filtered.filter(r => r.sheetStatus === statusFilter);
 
-    // Sáº¯p xáº¿p giáº£m dáº§n theo sá»‘ ngày
+    // Sắp xếp giảm dần theo số ngày
     filtered.sort((a, b) => b.soNgayVal - a.soNgayVal);
 
     // Render Table
     const tbody = document.getElementById('tbody-warnings');
     if (tbody) {
-        // Tá»‘i Æ°u hÃ³a: NhÃ³m dá»¯ liá»‡u GTC theo kho trÆ°á»›c khi render
+        // Tối ưu hóa: Nhóm dữ liệu GTC theo kho trước khi render
         const gtcMap = new Map();
         state.gtcData.forEach(g => {
             const name = shortKho(g['Kho']);
@@ -1501,25 +1633,25 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             const status = r.sheetStatus;
             let badgeClass = 'storing';
             if (status === 'Bất ổn') badgeClass = 'waiting';
-            if (status === 'NghiÃªm trá»ng') badgeClass = 'p1';
+            if (status === 'Nghiêm trọng') badgeClass = 'p1';
 
-            const nextStatus = r['Tình hình sắp tới'] || 'BÃ¬nh thÆ°á»ng';
+            const nextStatus = r['Tình hình sắp tới'] || 'Bình thường';
             let nextBadgeClass = 'storing';
             if (nextStatus === 'Cảnh báo') nextBadgeClass = 'waiting';
-            if (nextStatus === 'NghiÃªm trá»ng') nextBadgeClass = 'p1';
+            if (nextStatus === 'Nghiêm trọng') nextBadgeClass = 'p1';
 
             const backlogLM = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
             const backlogKTC = parseInt(r['backlog ktc'] || 0);
             const totalBL = backlogLM + backlogKTC;
             
-            const donTao = r['đơn táº¡o N-1'] || r['??n t?o N-1'] || 0;
+            const donTao = r['đơn tạo N-1'] || r['??n t?o N-1'] || 0;
             const donGtc = r['đơn gtc N-1'] || r['??n gtc N-1'] || 0;
 
-            // Truy xuáº¥t tá»« Map Ä‘Ã£ nhÃ³m sáºµn
+            // Truy xuất từ Map đã nhóm sẵn
             const warehouseName = shortKho(r['kho gxt'] || r['Kho'] || '');
             const warehouseGtcData = gtcMap.get(warehouseName) || [];
             
-            // Sáº¯p xáº¿p ngày giáº£m dáº§n vÃ  láº¥y 7 báº£n ghi gần nhất
+            // Sắp xếp ngày giảm dần và lấy 7 bản ghi gần nhất
             const latestGtc = warehouseGtcData.sort((a, b) => {
                 const dateA = a['Ngày'] || '';
                 const dateB = b['Ngày'] || '';
@@ -1664,7 +1796,7 @@ function populateXeGxtFilters() {
         const el = document.getElementById(id);
         if (!el) return;
         const currentVal = el.value;
-        el.innerHTML = `<option value="">-- Táº¥t cáº£ ${id.split('-').pop()} --</option>` + 
+        el.innerHTML = `<option value="">-- Tất cả ${id.split('-').pop()} --</option>` + 
             Array.from(items).sort().map(i => `<option value="${i}">${i}</option>`).join('');
         el.value = currentVal;
     };
@@ -1676,7 +1808,7 @@ function populateXeGxtFilters() {
     filtersPopulated = true;
 }
 
-// ---- SECTION: XE Sá»° Cá» ----
+// ---- SECTION: XE SỰ CỐ ----
 function getWeek(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -1710,7 +1842,7 @@ function renderXeSuCoSection() {
         dayCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
             renderXeSuCoSection();
             const checked = Array.from(document.querySelectorAll('.filter-xesuco-day:checked'));
-            document.getElementById('label-xesuco-day').textContent = checked.length ? `ÄÃ£ chá»n (${checked.length})` : 'Chá»n Ngày...';
+            document.getElementById('label-xesuco-day').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Ngày...';
         }));
     }
 
@@ -1731,7 +1863,7 @@ function renderXeSuCoSection() {
         weekCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
             renderXeSuCoSection();
             const checked = Array.from(document.querySelectorAll('.filter-xesuco-week:checked'));
-            document.getElementById('label-xesuco-week').textContent = checked.length ? `ÄÃ£ chá»n (${checked.length})` : 'Chá»n Tuáº§n...';
+            document.getElementById('label-xesuco-week').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Tuần...';
         }));
     }
 
@@ -1755,7 +1887,7 @@ function renderXeSuCoSection() {
         monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
             renderXeSuCoSection();
             const checked = Array.from(document.querySelectorAll('.filter-xesuco-month:checked'));
-            document.getElementById('label-xesuco-month').textContent = checked.length ? `ÄÃ£ chá»n (${checked.length})` : 'Chá»n ThÃ¡ng...';
+            document.getElementById('label-xesuco-month').textContent = checked.length ? `Đã chọn (${checked.length})` : 'Chọn Tháng...';
         }));
     }
 
@@ -1969,13 +2101,13 @@ async function sendTelegramReport() {
     if (!btn) return;
     
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Äang chuáº©n bá»‹...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang chuẩn bị...';
     btn.disabled = true;
 
     try {
         const message = assembleTelegramReport();
         const adminKey = localStorage.getItem('ghn_admin_key') || '';
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Äang gá»­i...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...';
 
         const resp = await fetch('/api/telegram/report', { 
             method: 'POST',
@@ -1985,12 +2117,12 @@ async function sendTelegramReport() {
         const result = await resp.json();
         
         if (result.status === 'success') {
-            alert('âœ… Báo cáo chi tiết đã được gửi!');
+            alert('✅ Báo cáo chi tiết đã được gửi!');
         } else {
-            alert('âŒ Lỗi: ' + result.message);
+            alert('❌ Lỗi: ' + result.message);
         }
     } catch (e) {
-        alert('âŒ Không thể kết nối vá»›i server.');
+        alert('❌ Không thể kết nối với server.');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
