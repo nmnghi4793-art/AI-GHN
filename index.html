@@ -142,6 +142,10 @@
                 <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
                     <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
                 </a>
+                <a href="#" class="nav-item" data-section="forecast" id="nav-forecast">
+                    <i class="fa-solid fa-crystal-ball"></i><span>Dự Báo Rủi Ro Kho</span>
+                    <span class="nav-badge danger" id="nav-forecast-count" style="display:none">!</span>
+                </a>
                 <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
                     <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
                 </a>
@@ -408,7 +412,98 @@
                     </div>
                 </div>
             </section>
-            
+
+            <!-- ===== SECTION: DỰ BÁO RỦI RO KHO ===== -->
+            <section class="section" id="section-forecast">
+                <div class="section-filters" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+                    <input type="text" id="filter-forecast-kho" placeholder="🔍 Tìm kho..." class="filter-input" style="width:200px; height:42px;">
+                    <select id="filter-forecast-risk" class="filter-select" style="height:42px;">
+                        <option value="">Tất cả mức độ rủi ro</option>
+                        <option value="critical">🔴 Nghiêm trọng</option>
+                        <option value="warning">🟠 Cảnh báo</option>
+                        <option value="watch">🟡 Theo dõi</option>
+                        <option value="good">🟢 Ổn định</option>
+                    </select>
+                </div>
+
+                <!-- KPI Tổng hợp -->
+                <div class="overview-cards" style="margin-bottom:20px">
+                    <div class="stat-card red-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-circle-radiation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Rủi Ro Cao</h3>
+                            <h2 id="fc-critical-count" class="text-danger">--</h2>
+                            <p class="stat-sub">Cần can thiệp ngay</p>
+                        </div>
+                    </div>
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Cảnh Báo</h3>
+                            <h2 id="fc-warning-count" class="text-warning">--</h2>
+                            <p class="stat-sub">Theo dõi chặt chẽ</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-eye"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Cần Theo Dõi</h3>
+                            <h2 id="fc-watch-count" style="color:#F08C00">--</h2>
+                            <p class="stat-sub">Có dấu hiệu xuống cấp</p>
+                        </div>
+                    </div>
+                    <div class="stat-card green-card">
+                        <div class="stat-icon green"><i class="fa-solid fa-shield-check"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Ổn Định</h3>
+                            <h2 id="fc-good-count" class="text-green">--</h2>
+                            <p class="stat-sub">Vận hành bình thường</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bảng dự báo chi tiết -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--purple)"></i> Dự Báo Rủi Ro Vận Hành Từng Kho — Vài Ngày Tới</h3>
+                        <div style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên phân tích: GTC N-1, Xu hướng GTC 7 ngày, Backlog, Năng suất nhân viên</div>
+                    </div>
+                    <div class="table-scroll" style="max-height:none">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:center">Rủi ro</th>
+                                    <th style="text-align:center">Điểm</th>
+                                    <th style="text-align:right">GTC N-1</th>
+                                    <th style="text-align:right">GTC TB 7N</th>
+                                    <th style="text-align:right">GTC Max 7N</th>
+                                    <th style="text-align:right">Xu hướng GTC</th>
+                                    <th style="text-align:right">Backlog LM</th>
+                                    <th style="text-align:right">Backlog KTC</th>
+                                    <th>Cảnh báo chính</th>
+                                    <th>Khuyến nghị</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-forecast"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ghi chú phương pháp -->
+                <div style="margin-top:16px; padding:14px 18px; background:linear-gradient(135deg,#f8fafc,#eef2ff); border-radius:12px; border:1px solid #c7d2fe; font-size:12px; color:var(--text2);">
+                    <strong style="color:var(--purple)"><i class="fa-solid fa-circle-info"></i> Phương pháp tính điểm rủi ro:</strong>
+                    <span style="margin-left:8px">
+                        🔴 GTC &lt; 82% → +40đ &nbsp;|&nbsp;
+                        🟠 GTC 82-87% → +20đ &nbsp;|&nbsp;
+                        📉 Xu hướng GTC giảm &gt;3% → +25đ &nbsp;|&nbsp;
+                        📦 Backlog LM &gt;500 → +20đ &nbsp;|&nbsp;
+                        📦 Backlog KTC &gt;200 → +15đ &nbsp;|&nbsp;
+                        ⚠️ Đã cảnh báo (sheet) → +30đ
+                    </span>
+                </div>
+            </section>
+
             <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->
             <section class="section" id="section-warnings">
                 <div class="section-filters">

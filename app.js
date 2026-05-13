@@ -187,6 +187,7 @@ function renderAll() {
         { name: 'XeSuCoSection', fn: renderXeSuCoSection },
         { name: 'KhoGxtSection', fn: renderKhoGxtSection },
         { name: 'DonTaoSection', fn: renderDonTaoSection },
+        { name: 'ForecastSection', fn: renderForecastSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -2628,6 +2629,275 @@ function renderDonTaoSection() {
                 <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
             </tr>`;
         }).join('');
+    }
+}
+
+// ---- FORECAST / DỰ BÁO RỦI RO THEO KHO ----
+function buildForecastData() {
+    const now = Date.now();
+    const cutoff7d = now - 7 * 86400000;
+
+    // --- Bước 1: Lấy danh sách tất cả kho từ GTC data ---
+    const khoSet = new Set();
+    state.gtcData.forEach(r => { const k = shortKho(r['Kho']); if (k && k !== '--') khoSet.add(k); });
+
+    // --- Bước 2: Tính GTC theo kho 7 ngày gần nhất ---
+    const gtcByKho = {}; // { khoName: { days: [{date, pct}], latest: pct, avg7d: pct, max7d: pct } }
+    state.gtcData.forEach(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts || ts < cutoff7d) return;
+        const kho = shortKho(r['Kho']);
+        if (!kho) return;
+        if (!gtcByKho[kho]) gtcByKho[kho] = { days: [] };
+        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0), gtc: parseInt(r['Số đơn GTC']||0) });
+    });
+
+    // Tìm ngày mới nhất toàn mạng
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+    const latestDate = allDates[0] || '';
+
+    Object.keys(gtcByKho).forEach(kho => {
+        const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
+        const latest = days[0];
+        const pcts = days.map(d => d.pct).filter(p => p > 0);
+        const avg7d = pcts.length ? (pcts.reduce((a,b) => a+b, 0) / pcts.length) : 0;
+        const max7d = pcts.length ? Math.max(...pcts) : 0;
+        // Xu hướng: so sánh GTC ngày mới nhất vs TB 7 ngày
+        const trend = latest ? (latest.pct - avg7d) : 0;
+        // Tính lại GTC N-1 từ raw data
+        const latestRow = state.gtcData.find(r => shortKho(r['Kho']) === kho && r['Ngày'] === latestDate);
+        const gtcN1 = latestRow ? parsePct(latestRow['% GTC']) : (latest ? latest.pct : 0);
+
+        gtcByKho[kho].latest = gtcN1;
+        gtcByKho[kho].avg7d = avg7d;
+        gtcByKho[kho].max7d = max7d;
+        gtcByKho[kho].trend = trend;
+    });
+
+    // --- Bước 3: Tính backlog theo kho ---
+    const backlogByKho = {}; // { kho: { lm, ktc } }
+    state.warningsData.forEach(r => {
+        const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
+        if (!kho || kho === '--') return;
+        const lm = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
+        const ktc = parseInt(r['backlog ktc'] || 0);
+        backlogByKho[kho] = { lm, ktc };
+    });
+
+    // --- Bước 4: Trạng thái cảnh báo hiện tại ---
+    const warnStatusByKho = {};
+    state.warningsData.forEach(r => {
+        const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
+        if (!kho || kho === '--') return;
+        const soNgay = parseFloat(r['Số ngày trở về ngày thường'] || r['Total ngày'] || 0);
+        const status = r['Tình hình hiện tại'] || 'Bình thường';
+        warnStatusByKho[kho] = { soNgay, status };
+    });
+
+    // --- Bước 5: Năng suất trung bình 7 ngày theo kho ---
+    const nsAvgByKho = {};
+    state.nangSuatData.forEach(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts || ts < cutoff7d) return;
+        const prov = r['to_province_name'] || '';
+        if (!prov) return;
+        if (!nsAvgByKho[prov]) nsAvgByKho[prov] = { sumPct: 0, count: 0, sumVol: 0 };
+        const vol = parseInt(r['volume']||0);
+        const pct = parsePct(r['Tỉ lệ GTC']);
+        nsAvgByKho[prov].sumPct += pct;
+        nsAvgByKho[prov].count += 1;
+        nsAvgByKho[prov].sumVol += vol;
+    });
+
+    // --- Bước 6: Tổng hợp & tính điểm rủi ro ---
+    const results = [];
+    khoSet.forEach(kho => {
+        const gtc = gtcByKho[kho] || { latest: 0, avg7d: 0, max7d: 0, trend: 0 };
+        const bl = backlogByKho[kho] || { lm: 0, ktc: 0 };
+        const ws = warnStatusByKho[kho] || { soNgay: 0, status: 'Bình thường' };
+
+        let score = 0;
+        const alerts = [];
+        const recommendations = [];
+
+        // --- Tính điểm từ GTC N-1 ---
+        if (gtc.latest < 82 && gtc.latest > 0) {
+            score += 40;
+            alerts.push(`GTC N-1 thấp (${gtc.latest.toFixed(1)}%)`);
+            recommendations.push('Tăng cường giám sát tuyến giao, kiểm tra lý do thất bại');
+        } else if (gtc.latest < 87 && gtc.latest > 0) {
+            score += 20;
+            alerts.push(`GTC N-1 chưa đạt (${gtc.latest.toFixed(1)}%)`);
+            recommendations.push('Rà soát NV có GTC thấp, hỗ trợ kỹ thuật giao nhận');
+        }
+
+        // --- Xu hướng GTC giảm ---
+        if (gtc.trend < -3) {
+            score += 25;
+            alerts.push(`GTC đang giảm ${Math.abs(gtc.trend).toFixed(1)}% so với TB tuần`);
+            recommendations.push('Điều tra nguyên nhân sụt giảm GTC trong 2-3 ngày gần đây');
+        } else if (gtc.trend < -1) {
+            score += 10;
+            alerts.push(`GTC có xu hướng giảm nhẹ`);
+        }
+
+        // --- Backlog Last Mile ---
+        if (bl.lm > 1000) {
+            score += 30;
+            alerts.push(`Backlog LM nghiêm trọng (${bl.lm.toLocaleString()})`);
+            recommendations.push('Tăng ca giao, bổ sung NV hỗ trợ kho, liên hệ điều phối khu vực');
+        } else if (bl.lm > 500) {
+            score += 20;
+            alerts.push(`Backlog LM cao (${bl.lm.toLocaleString()})`);
+            recommendations.push('Ưu tiên xử lý đơn tồn lâu, phân phối lại tuyến giao');
+        } else if (bl.lm > 200) {
+            score += 8;
+            alerts.push(`Backlog LM ở mức trung bình`);
+        }
+
+        // --- Backlog KTC ---
+        if (bl.ktc > 500) {
+            score += 25;
+            alerts.push(`Backlog KTC rất cao (${bl.ktc.toLocaleString()})`);
+            recommendations.push('Kết hợp kho phụ, đẩy nhanh xử lý KTC tồn đọng');
+        } else if (bl.ktc > 200) {
+            score += 15;
+            alerts.push(`Backlog KTC cao (${bl.ktc.toLocaleString()})`);
+            recommendations.push('Kiểm tra năng lực xử lý KTC, điều chỉnh lịch giao nhận');
+        }
+
+        // --- Cảnh báo từ sheet ---
+        if (ws.status === 'Nghiêm trọng' || ws.soNgay > 6) {
+            score += 30;
+            alerts.push(`Đang ở trạng thái: ${ws.status} (${ws.soNgay}n)`);
+            recommendations.push('Báo cáo quản lý khu vực, lập kế hoạch phục hồi gấp');
+        } else if (ws.status === 'Bất ổn' || ws.status === 'Cảnh báo') {
+            score += 15;
+            alerts.push(`Trạng thái hiện tại: ${ws.status}`);
+            recommendations.push('Theo dõi chặt chẽ hàng ngày, chuẩn bị phương án dự phòng');
+        }
+
+        // --- GTC TB 7 ngày quá thấp dù N-1 ổn ---
+        if (gtc.avg7d > 0 && gtc.avg7d < 85) {
+            score += 10;
+            if (!alerts.some(a => a.includes('GTC'))) alerts.push(`GTC TB 7N thấp (${gtc.avg7d.toFixed(1)}%)`);
+        }
+
+        // --- Phân loại rủi ro ---
+        let riskLevel = 'good';
+        let riskLabel = '🟢 Ổn định';
+        let riskColor = 'var(--green)';
+        let riskBg = '#E8F5E9';
+
+        if (score >= 55) {
+            riskLevel = 'critical';
+            riskLabel = '🔴 Nghiêm trọng';
+            riskColor = 'var(--red)';
+            riskBg = '#FFEBEE';
+        } else if (score >= 30) {
+            riskLevel = 'warning';
+            riskLabel = '🟠 Cảnh báo';
+            riskColor = 'var(--orange)';
+            riskBg = '#FFF3E0';
+        } else if (score >= 15) {
+            riskLevel = 'watch';
+            riskLabel = '🟡 Theo dõi';
+            riskColor = '#F08C00';
+            riskBg = '#FFFDE7';
+        }
+
+        if (recommendations.length === 0) recommendations.push('Duy trì vận hành, tiếp tục giám sát định kỳ');
+
+        results.push({
+            kho, score, riskLevel, riskLabel, riskColor, riskBg,
+            gtcN1: gtc.latest,
+            gtcAvg7d: gtc.avg7d,
+            gtcMax7d: gtc.max7d,
+            gtcTrend: gtc.trend,
+            blLm: bl.lm,
+            blKtc: bl.ktc,
+            alertsText: alerts.join(' | ') || '—',
+            recText: recommendations[0] || '—'
+        });
+    });
+
+    // Sắp xếp: rủi ro cao nhất trước
+    results.sort((a, b) => b.score - a.score);
+    return results;
+}
+
+function renderForecastSection() {
+    const tbody = document.getElementById('tbody-forecast');
+    if (!tbody) return;
+    if (!state.gtcData || !state.gtcData.length) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu phân tích...</td></tr>';
+        return;
+    }
+
+    const data = buildForecastData();
+
+    // Cập nhật KPI cards
+    const counts = { critical: 0, warning: 0, watch: 0, good: 0 };
+    data.forEach(r => counts[r.riskLevel]++);
+    ['critical','warning','watch','good'].forEach(lvl => {
+        const el = document.getElementById(`fc-${lvl}-count`);
+        if (el) el.textContent = counts[lvl];
+    });
+
+    // Cập nhật badge nav
+    const badge = document.getElementById('nav-forecast-count');
+    if (badge) {
+        const urgent = counts.critical + counts.warning;
+        badge.textContent = urgent;
+        badge.style.display = urgent > 0 ? 'inline-block' : 'none';
+    }
+
+    // Lọc theo filter
+    const khoFilter = ((document.getElementById('filter-forecast-kho') || {}).value || '').toLowerCase();
+    const riskFilter = ((document.getElementById('filter-forecast-risk') || {}).value || '');
+
+    let filtered = data;
+    if (khoFilter) filtered = filtered.filter(r => r.kho.toLowerCase().includes(khoFilter));
+    if (riskFilter) filtered = filtered.filter(r => r.riskLevel === riskFilter);
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text3)">Không có dữ liệu phù hợp</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(r => {
+        const trendArrow = r.gtcTrend > 1 ? `<span style="color:var(--green)">↑ ${r.gtcTrend.toFixed(1)}%</span>`
+                        : r.gtcTrend < -1 ? `<span style="color:var(--red)">↓ ${Math.abs(r.gtcTrend).toFixed(1)}%</span>`
+                        : `<span style="color:var(--text3)">→ Ổn</span>`;
+
+        const gtcN1Color = r.gtcN1 < 82 ? 'var(--red)' : r.gtcN1 < 87 ? 'var(--orange)' : 'var(--green)';
+        const blLmColor = r.blLm > 1000 ? 'var(--red)' : r.blLm > 500 ? 'var(--orange)' : 'inherit';
+        const blKtcColor = r.blKtc > 500 ? 'var(--red)' : r.blKtc > 200 ? 'var(--orange)' : 'inherit';
+
+        return `<tr style="background:${r.riskBg}20">
+            <td style="font-weight:700">${r.kho}</td>
+            <td style="text-align:center">
+                <span style="font-size:13px;font-weight:700;color:${r.riskColor}">${r.riskLabel}</span>
+            </td>
+            <td style="text-align:center;font-weight:800;font-size:15px;color:${r.riskColor}">${r.score}</td>
+            <td style="text-align:right;font-weight:700;color:${gtcN1Color}">${r.gtcN1 > 0 ? r.gtcN1.toFixed(1)+'%' : '--'}</td>
+            <td style="text-align:right;color:var(--text2)">${r.gtcAvg7d > 0 ? r.gtcAvg7d.toFixed(1)+'%' : '--'}</td>
+            <td style="text-align:right;color:var(--blue)">${r.gtcMax7d > 0 ? r.gtcMax7d.toFixed(1)+'%' : '--'}</td>
+            <td style="text-align:center">${trendArrow}</td>
+            <td style="text-align:right;font-weight:${r.blLm>500?'700':'400'};color:${blLmColor}">${r.blLm > 0 ? r.blLm.toLocaleString() : '0'}</td>
+            <td style="text-align:right;font-weight:${r.blKtc>200?'700':'400'};color:${blKtcColor}">${r.blKtc > 0 ? r.blKtc.toLocaleString() : '0'}</td>
+            <td style="font-size:11px;color:${r.riskLevel==='good'?'var(--text3)':'var(--text2)'};max-width:200px">${r.alertsText}</td>
+            <td style="font-size:11px;color:var(--text2);max-width:220px;font-style:italic">${r.recText}</td>
+        </tr>`;
+    }).join('');
+
+    // Gắn events cho filter (chỉ lần đầu)
+    if (!window._forecastFiltersInit) {
+        const khoEl = document.getElementById('filter-forecast-kho');
+        const riskEl = document.getElementById('filter-forecast-risk');
+        if (khoEl) khoEl.addEventListener('input', renderForecastSection);
+        if (riskEl) riskEl.addEventListener('change', renderForecastSection);
+        window._forecastFiltersInit = true;
     }
 }
 
