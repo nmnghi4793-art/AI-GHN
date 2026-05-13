@@ -1513,12 +1513,11 @@ function renderNangSuatSection() {
         let allTableData = [...state.nangSuatData];
         const searchVal = ((document.getElementById('filter-ns-driver') || {}).value || '').toLowerCase();
 
-        if (selectedNsVals.length > 0) {
-            allTableData = allTableData.filter(r => {
+        if (selectedNsVals.length > 0 && (nsTimeMode === 'week' || nsTimeMode === 'month')) {
+            let filtered = allTableData.filter(r => {
                 const ts = parseVN(r['Ngày']);
                 if (!ts) return false;
                 const d = new Date(ts);
-                if (nsTimeMode === 'day')   return selectedNsVals.includes(r['Ngày']);
                 if (nsTimeMode === 'week')  return selectedNsVals.includes(String(getWeekNumber(d)));
                 if (nsTimeMode === 'month') {
                     const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
@@ -1526,28 +1525,98 @@ function renderNangSuatSection() {
                 }
                 return true;
             });
-        }
 
-        if (selectedNsProvs.length > 0) {
-            allTableData = allTableData.filter(r => selectedNsProvs.includes(r['to_province_name']));
-        }
+            if (selectedNsProvs.length > 0) {
+                filtered = filtered.filter(r => selectedNsProvs.includes(r['to_province_name']));
+            }
+            if (searchVal) {
+                filtered = filtered.filter(r => (r['driver'] || '').toLowerCase().includes(searchVal));
+            }
 
-        if (searchVal) {
-            allTableData = allTableData.filter(r => (r['driver'] || '').toLowerCase().includes(searchVal));
-        }
+            const groupMap = {};
+            filtered.forEach(r => {
+                const driver = r['driver'] || '--';
+                const prov   = r['to_province_name'] || '--';
+                const ts     = parseVN(r['Ngày']);
+                if (!ts) return;
+                const d = new Date(ts);
 
-        allTbody.innerHTML = allTableData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
-            <tr>
-                <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
-                <td style="font-weight:600">${r['driver'] || '--'}</td>
-                <td>${r['to_province_name'] || '--'}</td>
-                <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
-                <td style="text-align:right;font-weight:600">${parseInt(r['volume']||0).toLocaleString()}</td>
-                <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
-                <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
-                <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
-            </tr>
-        `).join('');
+                let tKey = '';
+                let tLabel = '';
+                if (nsTimeMode === 'week') {
+                    const w = String(getWeekNumber(d));
+                    tKey = 'W_' + w;
+                    tLabel = 'Tuần ' + (w.includes('-W') ? w.split('-W')[1] : w);
+                } else {
+                    const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                    tKey = 'M_' + m;
+                    tLabel = 'Tháng ' + m;
+                }
+
+                const compKey = driver + '###' + prov + '###' + tKey;
+                if (!groupMap[compKey]) {
+                    groupMap[compKey] = {
+                        driver: driver,
+                        province: prov,
+                        tLabel: tLabel,
+                        totalVol: 0,
+                        totalSuccess: 0,
+                        sumRate: 0,
+                        daysCount: 0
+                    };
+                }
+                const vol = parseInt(r['volume']||0);
+                groupMap[compKey].totalVol += vol;
+                groupMap[compKey].totalSuccess += (parsePct(r['Tỉ lệ GTC'])/100) * vol;
+                groupMap[compKey].sumRate += parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.'));
+                groupMap[compKey].daysCount += 1;
+            });
+
+            const aggregatedList = Object.values(groupMap).map(g => {
+                const pctGtc = g.totalVol > 0 ? (g.totalSuccess / g.totalVol * 100) : 0;
+                const avgRate = g.daysCount > 0 ? (g.sumRate / g.daysCount) : 0;
+                return { ...g, pctGtc, avgRate };
+            });
+
+            aggregatedList.sort((a,b) => b.pctGtc - a.pctGtc || b.totalVol - a.totalVol);
+
+            allTbody.innerHTML = aggregatedList.map(g => `
+                <tr>
+                    <td style="font-size:11px;font-weight:700;color:var(--blue)">${g.tLabel}</td>
+                    <td style="font-weight:600">${g.driver}</td>
+                    <td>${g.province}</td>
+                    <td style="text-align:right">${g.avgRate.toFixed(1)}</td>
+                    <td style="text-align:right;font-weight:600">${g.totalVol.toLocaleString()}</td>
+                    <td style="text-align:right;font-weight:700;color:${g.pctGtc >= 90 ? 'var(--green)' : 'var(--red)'}">${g.pctGtc.toFixed(1)}%</td>
+                    <td style="font-size:11px;color:var(--text3);text-align:center">Tổng hợp</td>
+                    <td style="font-size:11px;color:var(--text3);text-align:center">Tổng hợp</td>
+                </tr>
+            `).join('');
+
+        } else {
+            if (selectedNsVals.length > 0) {
+                allTableData = allTableData.filter(r => selectedNsVals.includes(r['Ngày']));
+            }
+            if (selectedNsProvs.length > 0) {
+                allTableData = allTableData.filter(r => selectedNsProvs.includes(r['to_province_name']));
+            }
+            if (searchVal) {
+                allTableData = allTableData.filter(r => (r['driver'] || '').toLowerCase().includes(searchVal));
+            }
+
+            allTbody.innerHTML = allTableData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
+                <tr>
+                    <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
+                    <td style="font-weight:600">${r['driver'] || '--'}</td>
+                    <td>${r['to_province_name'] || '--'}</td>
+                    <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
+                    <td style="text-align:right;font-weight:600">${parseInt(r['volume']||0).toLocaleString()}</td>
+                    <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
+                    <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
+                    <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
+                </tr>
+            `).join('');
+        }
     }
 }
 
