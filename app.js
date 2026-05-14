@@ -3122,23 +3122,29 @@ function buildOverloadData() {
         // Đơn tạo N-1: ưu tiên donTaoData, fallback sang avgGan từ GTC
         const donTaoN1 = donTaoByKho[kho] || gtc.avgGan || 0;
 
-        // Tổng áp lực = Backlog LM + Backlog KTC + Đơn tạo N-1 (áp lực hôm nay)
+        // Tổng áp lực = Backlog LM + Backlog KTC + Đơn tạo N-1
         const tongApLuc = bl.lm + bl.ktc + donTaoN1;
 
-        if (!tongApLuc && !gtc.avg7d) return; // bỏ kho không có đủ dữ liệu
+        if (!tongApLuc && !gtc.avg7d) return;
 
-        // Năng lực xử lý = đơn tạo × GTC%
-        const nangLucTB  = donTaoN1 > 0 ? Math.round(donTaoN1 * gtc.avg7d / 100) : 0;
-        const nangLucMax = donTaoN1 > 0 ? Math.round(donTaoN1 * gtc.max7d / 100) : 0;
+        // ---- NĂNG LỰC XỬ LÝ ----
+        // TB = đơn gán TB (avgGan) × GTC% TB — số đơn giao được trong 1 ngày bình thường
+        // Tốt nhất = đơn gán TB × GTC% max 7N — ngày làm tốt nhất
+        const avgGan = gtc.avgGan || donTaoN1;
+        const nangLucTB  = avgGan > 0 ? Math.round(avgGan * gtc.avg7d / 100) : 0;
+        const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
-        // Công suất giải phóng backlog mỗi ngày
-        // = Năng lực giao thành công - Lượng đơn mới thất bại tích vào backlog
-        // = (GTC% × donTao) - ((1-GTC%) × donTao) = donTao × (2×GTC% - 1)
-        // Chỉ có ý nghĩa nếu GTC > 50%, nếu không backlog đang tích lũy
-        const csGiaiPhongTB  = donTaoN1 > 0 ? Math.round(donTaoN1 * (2 * gtc.avg7d / 100 - 1)) : 0;
-        const csGiaiPhongMax = donTaoN1 > 0 ? Math.round(donTaoN1 * (2 * gtc.max7d / 100 - 1)) : 0;
+        // ---- CÔNG SUẤT GIẢI PHÓNG ----
+        // Định nghĩa: nếu kho chạy tăng cường gấp 1.5x so với ngày thường
+        // → năng lực tăng cường = avgGan × 1.5 × GTC%
+        // → phần dư để xử lý backlog = năng lực tăng cường − đơn tạo mới (donTaoN1)
+        // = avgGan×1.5×GTC% − donTaoN1
+        const nangLucTangCuongTB  = avgGan > 0 ? Math.round(avgGan * 1.5 * gtc.avg7d  / 100) : 0;
+        const nangLucTangCuongMax = avgGan > 0 ? Math.round(avgGan * 1.5 * gtc.max7d / 100) : 0;
+        const csGiaiPhongTB  = Math.max(0, nangLucTangCuongTB  - donTaoN1);
+        const csGiaiPhongMax = Math.max(0, nangLucTangCuongMax - donTaoN1);
 
-        // Số ngày dự kiến để backlog (LM + KTC) về 0
+        // ---- SỐ NGÀY DỰ KIẾN ----
         const existingBacklog = bl.lm + bl.ktc;
         let soNgayTB  = 0;
         let soNgayMax = 0;
@@ -3147,7 +3153,7 @@ function buildOverloadData() {
             soNgayTB  = 0;
             soNgayMax = 0;
         } else if (csGiaiPhongTB <= 0) {
-            soNgayTB  = 999; // Backlog đang tích lũy, không thể giải phóng
+            soNgayTB  = 999;
         } else {
             soNgayTB  = Math.ceil(existingBacklog / csGiaiPhongTB);
         }
@@ -3160,33 +3166,52 @@ function buildOverloadData() {
             soNgayMax = Math.ceil(existingBacklog / csGiaiPhongMax);
         }
 
-        // --- Phân loại trạng thái quá tải ---
+        // ---- PHÂN LOẠI TRẠNG THÁI ----
         let overloadStatus = 'stable';
         let statusLabel = '🟢 Ổn định';
         let statusColor = 'var(--green)';
         let statusBg    = '#E8F5E9';
-        let action = 'Duy trì vận hành, giám sát định kỳ.';
+        let action      = 'Duy trì vận hành, giám sát định kỳ.';
 
         const blTotalRatio = donTaoN1 > 0 ? existingBacklog / donTaoN1 : 0;
+
+        // --- Tính xe cần thêm để đạt 1.5x ---
+        // Giả sử 1 xe xử lý thêm ~50 đơn/ngày khi tăng cường
+        const donCanTangCuong = Math.max(0, donTaoN1 * 1.5 - (nangLucTB || donTaoN1));
+        const soXeCanThem = Math.ceil(donCanTangCuong / 50);
 
         if (soNgayTB > 14 || (csGiaiPhongTB <= 0 && existingBacklog > 200) || (gtc.gtcN1 < 80 && bl.lm > 300)) {
             overloadStatus = 'overloaded';
             statusLabel = '🔴 Quá tải';
             statusColor = 'var(--red)';
             statusBg    = '#FFEBEE';
-            action = 'BÁO CÁO KHẨN: Tăng ca giao hàng, bổ sung nhân sự khẩn cấp, liên hệ điều phối khu vực, xem xét bàn giao tuyến tạm thời sang kho phụ.';
+            if (soXeCanThem >= 3) {
+                action = `🚛 BÁO CÁO KHẨN: Cần thêm ~${soXeCanThem} xe tăng cường gấp để xử lý ${existingBacklog.toLocaleString()} đơn backlog. Tăng ca giao hàng, liên hệ điều phối khu vực, cân nhắc bàn giao tuyến tạm sang kho phụ.`;
+            } else {
+                action = `⚡ BÁO CÁO KHẨN: Yêu cầu toàn bộ NV tăng năng suất tối thiểu 30% so với ngày thường. Rà soát tuyến thất bại, đẩy ưu tiên xử lý ${existingBacklog.toLocaleString()} đơn tồn.`;
+            }
         } else if (soNgayTB > 7 || blTotalRatio > 2 || (gtc.gtcN1 < 85 && bl.lm > 150)) {
             overloadStatus = 'risk';
             statusLabel = '🟠 Nguy cơ';
             statusColor = 'var(--orange)';
             statusBg    = '#FFF3E0';
-            action = 'Ưu tiên xử lý backlog cũ, rà soát tuyến thất bại, tăng cường theo dõi NV GTC thấp, lên kế hoạch tăng cường trong 2-3 ngày tới.';
+            if (soXeCanThem >= 2) {
+                action = `🚛 Cần thêm ~${soXeCanThem} xe chạy tăng cường trong ${soNgayTB} ngày để giải phóng ${existingBacklog.toLocaleString()} đơn backlog. Ưu tiên xử lý đơn tồn cũ trước, rà soát NV GTC thấp.`;
+            } else {
+                action = `📈 Yêu cầu NV tăng năng suất 20% so với ngày thường trong ${soNgayTB} ngày. Ưu tiên xử lý ${existingBacklog.toLocaleString()} đơn backlog, theo dõi sát GTC hàng ngày.`;
+            }
         } else if (soNgayTB > 3 || blTotalRatio > 1 || gtc.gtcN1 < 88) {
             overloadStatus = 'watch';
             statusLabel = '🟡 Theo dõi';
             statusColor = '#F08C00';
             statusBg    = '#FFFDE7';
-            action = 'Theo dõi hàng ngày, đảm bảo NV đủ tuyến, chuẩn bị phương án hỗ trợ nếu GTC tiếp tục giảm.';
+            if (existingBacklog > 100) {
+                action = `📦 Theo dõi sát ${soNgayTB} ngày tới. Đảm bảo NV đủ tuyến, cân nhắc thêm 1 xe hỗ trợ nếu GTC tiếp tục giảm. Còn ${existingBacklog.toLocaleString()} đơn cần xử lý.`;
+            } else {
+                action = `✅ Tình hình kiểm soát được. Duy trì giám sát hàng ngày, nhắc NV duy trì GTC ổn định.`;
+            }
+        } else {
+            action = `✅ Kho vận hành bình thường. Tiếp tục theo dõi định kỳ.`;
         }
 
         results.push({
