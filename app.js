@@ -2214,6 +2214,7 @@ const SECTION_META = {
     xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
     xesuco:    ['Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
     khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    forecast:  ['Dự Báo Rủi Ro Kho', 'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
     dontao:    ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 
