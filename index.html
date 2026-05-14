@@ -544,6 +544,39 @@
                     </div>
                 </div>
 
+                <!-- ===== BẢNG CẢNH BÁO HÀNG TẠO vs GTC MAX ===== -->
+                <div class="table-card" style="margin-top:28px;">
+                    <div class="table-header">
+                        <div>
+                            <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--red)"></i> Cảnh Báo Hàng Tạo N-1 vs Năng Lực GTC Max</h3>
+                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                                So sánh <strong>Đơn Tạo N-1</strong> với <strong>Số đơn GTC cao nhất 1 ngày trong 7 ngày gần nhất</strong> của từng kho.
+                                Nếu hàng tạo &gt; 1.5× GTC max → nguy cơ tồn hàng cao, cần chuẩn bị xe tăng cường.
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🚛 &gt;1.5x — Tăng xe ngay</span>
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">⚠️ &gt;1.2x — Theo dõi sát</span>
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅ Trong ngưỡng</span>
+                        </div>
+                    </div>
+                    <div class="table-scroll" style="max-height:none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:right">Đơn Tạo N-1</th>
+                                    <th style="text-align:right">GTC Max/Ngày (7N)</th>
+                                    <th style="text-align:center">Tỉ lệ</th>
+                                    <th style="text-align:center">Mức độ</th>
+                                    <th>Cảnh báo & Đề xuất</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-dontao-vs-gtc"></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </section>
 
             <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->

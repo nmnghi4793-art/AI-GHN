@@ -2873,6 +2873,10 @@ function renderForecastSection() {
     }
 
     const data = buildForecastData();
+    // DEBUG: kiểm tra maxGtcDon và donTaoN1
+    console.log('[FORECAST DEBUG] Sample data:', data.slice(0,3).map(r => ({
+        kho: r.kho, score: r.score, donTaoN1: r.donTaoN1, maxGtcDon: r.maxGtcDon, alerts: r.alertsText
+    })));
 
     // Cập nhật KPI cards
     const counts = { critical: 0, warning: 0, watch: 0, good: 0 };
@@ -2940,6 +2944,107 @@ function renderForecastSection() {
 
     // Render bảng quá tải
     renderOverloadTable();
+
+    // Render bảng cảnh báo hàng tạo vs GTC max
+    renderDonTaoVsGtcTable();
+}
+
+// ---- BẢNG CẢNH BÁO HÀNG TẠO N-1 vs GTC MAX ----
+function renderDonTaoVsGtcTable() {
+    const tbody = document.getElementById('tbody-dontao-vs-gtc');
+    if (!tbody) return;
+
+    const now = Date.now();
+    const cutoff7d = now - 7 * 86400000;
+
+    // --- Lấy đơn tạo N-1 theo kho (ngày mới nhất) ---
+    const donTaoByKho = {};
+    let latestDonDate = '';
+    if (state.donTaoData && state.donTaoData.length) {
+        const allDonDates = [...new Set(state.donTaoData.map(r =>
+            (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]
+        ).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        latestDonDate = allDonDates[0] || '';
+        state.donTaoData.forEach(r => {
+            const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+            if (dStr !== latestDonDate) return;
+            const kho = shortKho(r['Kho giao'] || r['kho_giao'] || '');
+            if (!kho || kho === '--') return;
+            const don = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+            donTaoByKho[kho] = (donTaoByKho[kho] || 0) + don;
+        });
+    }
+
+    // --- Lấy GTC max số đơn/ngày theo kho trong 7 ngày ---
+    const gtcMaxByKho = {};
+    state.gtcData.forEach(r => {
+        const ts = parseVN(r['Ngày']);
+        if (!ts || ts < cutoff7d) return;
+        const kho = shortKho(r['Kho']);
+        if (!kho || kho === '--') return;
+        const gtcDon = parseInt(r['Số đơn GTC'] || 0);
+        if (gtcDon > 0) {
+            gtcMaxByKho[kho] = Math.max(gtcMaxByKho[kho] || 0, gtcDon);
+        }
+    });
+
+    // --- Gộp kho từ 2 nguồn ---
+    const allKhos = new Set([...Object.keys(donTaoByKho), ...Object.keys(gtcMaxByKho)]);
+    const rows = [];
+    allKhos.forEach(kho => {
+        const donTao = donTaoByKho[kho] || 0;
+        const gtcMax = gtcMaxByKho[kho] || 0;
+        if (!donTao && !gtcMax) return;
+        const ratio = gtcMax > 0 ? donTao / gtcMax : 0;
+        rows.push({ kho, donTao, gtcMax, ratio });
+    });
+
+    // Sắp xếp: tỉ lệ cao nhất trước (nguy hiểm nhất lên trên)
+    rows.sort((a, b) => b.ratio - a.ratio);
+
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Chưa có dữ liệu</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map((r, i) => {
+        let levelLabel, levelBg, levelColor, message;
+        if (r.gtcMax === 0) {
+            levelLabel = '—';
+            levelBg = '#f5f5f5';
+            levelColor = 'var(--text3)';
+            message = 'Chưa đủ dữ liệu GTC 7 ngày';
+        } else if (r.ratio > 1.5) {
+            levelLabel = '🚛 Cần tăng xe ngay';
+            levelBg = '#FFEBEE';
+            levelColor = 'var(--red)';
+            message = `⚠️ Hàng tạo cao gấp <strong>${r.ratio.toFixed(1)}x</strong> đơn GTC max ngày (${r.gtcMax.toLocaleString()}đ). Nguy cơ tồn hàng cao — Kế hoạch chuẩn bị thêm xe tăng cường cho mấy ngày đến!`;
+        } else if (r.ratio > 1.2) {
+            levelLabel = '⚠️ Theo dõi sát';
+            levelBg = '#FFF3E0';
+            levelColor = 'var(--orange)';
+            message = `Hàng tạo cao gấp <strong>${r.ratio.toFixed(1)}x</strong> GTC max ngày (${r.gtcMax.toLocaleString()}đ). Cần theo dõi sát, cân nhắc bổ sung xe nếu tiếp tục tăng.`;
+        } else {
+            levelLabel = '✅ Trong ngưỡng';
+            levelBg = '#F1F8F4';
+            levelColor = 'var(--green)';
+            message = `Hàng tạo nằm trong khả năng xử lý của kho (${r.ratio.toFixed(2)}x).`;
+        }
+
+        const ratioColor = r.ratio > 1.5 ? 'var(--red)' : r.ratio > 1.2 ? 'var(--orange)' : 'var(--green)';
+        const donColor   = r.ratio > 1.5 ? 'var(--red)' : r.ratio > 1.2 ? 'var(--orange)' : 'inherit';
+
+        return `<tr style="background:${levelBg}20">
+            <td style="font-weight:700">${r.kho}</td>
+            <td style="text-align:right;font-weight:700;font-size:15px;color:${donColor}">${r.donTao > 0 ? r.donTao.toLocaleString() : '<span style="color:var(--text3)">--</span>'}</td>
+            <td style="text-align:right;color:var(--blue);font-weight:600">${r.gtcMax > 0 ? r.gtcMax.toLocaleString() : '<span style="color:var(--text3)">--</span>'}</td>
+            <td style="text-align:center;font-weight:800;font-size:15px;color:${ratioColor}">${r.gtcMax > 0 ? r.ratio.toFixed(2) + 'x' : '--'}</td>
+            <td style="text-align:center">
+                <span style="font-size:12px;font-weight:700;color:${levelColor};white-space:nowrap">${levelLabel}</span>
+            </td>
+            <td style="font-size:12px;color:var(--text2)">${message}</td>
+        </tr>`;
+    }).join('');
 }
 
 // ---- OVERLOAD FORECAST / DỰ BÁO QUÁ TẢI KHO ----
