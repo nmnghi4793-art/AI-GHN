@@ -3025,7 +3025,7 @@ function renderDonTaoVsGtcTable() {
             levelColor = 'var(--orange)';
             message = `Hàng tạo cao gấp <strong>${r.ratio.toFixed(1)}x</strong> GTC max ngày (${r.gtcMax.toLocaleString()}đ). Cần theo dõi sát, cân nhắc bổ sung xe nếu tiếp tục tăng.`;
         } else {
-            levelLabel = '✅ Trong ngưỡng';
+            levelLabel = '✅ An toàn';
             levelBg = '#F1F8F4';
             levelColor = 'var(--green)';
             message = `Hàng tạo nằm trong khả năng xử lý của kho (${r.ratio.toFixed(2)}x).`;
