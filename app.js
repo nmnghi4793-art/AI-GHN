@@ -2643,7 +2643,7 @@ function buildForecastData() {
     state.gtcData.forEach(r => { const k = shortKho(r['Kho']); if (k && k !== '--') khoSet.add(k); });
 
     // --- Bước 2: Tính GTC theo kho 7 ngày gần nhất ---
-    const gtcByKho = {}; // { khoName: { days: [{date, pct}], latest: pct, avg7d: pct, max7d: pct } }
+    const gtcByKho = {}; // { khoName: { days: [{date, pct, gan, gtc}], latest: pct, avg7d: pct, max7d: pct, maxGtcDon: số } }
     state.gtcData.forEach(r => {
         const ts = parseVN(r['Ngày']);
         if (!ts || ts < cutoff7d) return;
@@ -2657,6 +2657,23 @@ function buildForecastData() {
     const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
     const latestDate = allDates[0] || '';
 
+    // Lấy đơn tạo N-1 theo kho (ngày mới nhất trong donTaoData) — dùng cho cảnh báo tồn hàng
+    const donTaoN1ByKho = {};
+    if (state.donTaoData && state.donTaoData.length) {
+        const allDonDates = [...new Set(state.donTaoData.map(r =>
+            (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]
+        ).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+        const latestDonDate = allDonDates[0];
+        state.donTaoData.forEach(r => {
+            const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
+            if (dStr !== latestDonDate) return;
+            const kho = shortKho(r['Kho giao'] || r['kho_giao'] || '');
+            if (!kho || kho === '--') return;
+            const don = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+            donTaoN1ByKho[kho] = (donTaoN1ByKho[kho] || 0) + don;
+        });
+    }
+
     Object.keys(gtcByKho).forEach(kho => {
         const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
         const latest = days[0];
@@ -2668,11 +2685,16 @@ function buildForecastData() {
         // Tính lại GTC N-1 từ raw data
         const latestRow = state.gtcData.find(r => shortKho(r['Kho']) === kho && r['Ngày'] === latestDate);
         const gtcN1 = latestRow ? parsePct(latestRow['% GTC']) : (latest ? latest.pct : 0);
+        // Số đơn GTC thực tế cao nhất trong 1 ngày (max GTC đơn/ngày tuần này)
+        const gtcDons = days.map(d => d.gtc).filter(g => g > 0);
+        const maxGtcDon = gtcDons.length ? Math.max(...gtcDons) : 0;
 
-        gtcByKho[kho].latest = gtcN1;
-        gtcByKho[kho].avg7d = avg7d;
-        gtcByKho[kho].max7d = max7d;
-        gtcByKho[kho].trend = trend;
+        gtcByKho[kho].latest    = gtcN1;
+        gtcByKho[kho].avg7d     = avg7d;
+        gtcByKho[kho].max7d     = max7d;
+        gtcByKho[kho].trend     = trend;
+        gtcByKho[kho].maxGtcDon = maxGtcDon;
+        gtcByKho[kho].donTaoN1  = donTaoN1ByKho[kho] || 0;
     });
 
     // --- Bước 3: Tính backlog theo kho ---
@@ -2782,6 +2804,21 @@ function buildForecastData() {
         if (gtc.avg7d > 0 && gtc.avg7d < 85) {
             score += 10;
             if (!alerts.some(a => a.includes('GTC'))) alerts.push(`GTC TB 7N thấp (${gtc.avg7d.toFixed(1)}%)`);
+        }
+
+        // --- Đơn Tạo N-1 vượt quá GTC Max 1 ngày × 1.5 → nguy cơ tồn hàng ---
+        const maxGtcDon  = gtc.maxGtcDon  || 0;
+        const donTaoN1kho = gtc.donTaoN1 || 0;
+        if (maxGtcDon > 0 && donTaoN1kho > 0 && donTaoN1kho > maxGtcDon * 1.5) {
+            const ratio = (donTaoN1kho / maxGtcDon).toFixed(1);
+            score += 35;
+            alerts.push(`⚠️ Hàng tạo cao gấp ${ratio}x đơn GTC. Nguy cơ tồn hàng cao`);
+            recommendations.unshift(`🚛 Hàng tạo (${donTaoN1kho.toLocaleString()}) cao gấp ${ratio}x GTC max ngày (${maxGtcDon.toLocaleString()}). Kế hoạch chuẩn bị thêm xe tăng cường cho mấy ngày đến!`);
+        } else if (maxGtcDon > 0 && donTaoN1kho > 0 && donTaoN1kho > maxGtcDon * 1.2) {
+            const ratio = (donTaoN1kho / maxGtcDon).toFixed(1);
+            score += 15;
+            alerts.push(`⚠️ Hàng tạo cao gấp ${ratio}x đơn GTC. Theo dõi sát nguy cơ tồn`);
+            recommendations.unshift(`📦 Hàng tạo (${donTaoN1kho.toLocaleString()}) cao gấp ${ratio}x GTC max ngày (${maxGtcDon.toLocaleString()}). Cần theo dõi sát, cân nhắc bổ sung xe nếu tiếp tục tăng.`);
         }
 
         // --- Phân loại rủi ro ---
