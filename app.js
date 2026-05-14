@@ -653,13 +653,13 @@ function populateGtcTimeSelects() {
     const dayMenu = document.getElementById('menu-gtc-day');
     if (!dayMenu || dayMenu.children.length > 0) return;
 
-    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort().reverse();
+    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     renderMultiselectItems('day', days);
 
     const weeks = [...new Set(state.gtcData.map(r => {
         const ts = parseVN(r['Ngày']);
         return ts ? getWeekNumber(new Date(ts)) : null;
-    }).filter(Boolean))].sort().reverse();
+    }).filter(Boolean))].sort((a,b) => b - a);
     renderMultiselectItems('week', weeks);
 
     const months = [...new Set(state.gtcData.map(r => {
@@ -1381,13 +1381,13 @@ function populateNsSelects() {
     if (!dayMenu || dayMenu.children.length > 0) return;
 
     const allData = state.nangSuatData || [];
-    const days = [...new Set(allData.map(r => r['Ngày']).filter(Boolean))].sort().reverse();
+    const days = [...new Set(allData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     renderNsMultiItems('day', days);
 
     const weeks = [...new Set(allData.map(r => {
         const ts = parseVN(r['Ngày']);
         return ts ? String(getWeekNumber(new Date(ts))) : null;
-    }).filter(Boolean))].sort().reverse();
+    }).filter(Boolean))].sort((a,b) => parseInt(b) - parseInt(a));
     renderNsMultiItems('week', weeks);
 
     const months = [...new Set(allData.map(r => {
@@ -2411,7 +2411,7 @@ function populateDtSelects() {
     if (!dayMenu || dayMenu.children.length > 0) return;
 
     const allData = state.donTaoData;
-    const days = [...new Set(allData.map(r => (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]).filter(Boolean))].sort().reverse();
+    const days = [...new Set(allData.map(r => (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
     renderDtMultiItems('day', days);
 
     const weeks = [...new Set(allData.map(r => {
@@ -2419,7 +2419,7 @@ function populateDtSelects() {
         if (!dStr) return null;
         const d = new Date(dStr);
         return isNaN(d) ? null : String(getWeekNumber(d));
-    }).filter(Boolean))].sort().reverse();
+    }).filter(Boolean))].sort((a,b) => parseInt(b) - parseInt(a));
     renderDtMultiItems('week', weeks);
 
     const months = [...new Set(allData.map(r => {
