@@ -3081,20 +3081,21 @@ function buildOverloadData() {
         const kho = shortKho(r['Kho']);
         if (!kho || kho === '--') return;
         if (!gtcByKho[kho]) gtcByKho[kho] = { days: [] };
-        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0) });
+        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0), gtcDon: parseInt(r['Số đơn GTC']||0) });
     });
 
     Object.keys(gtcByKho).forEach(kho => {
         const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
-        const pcts = days.map(d => d.pct).filter(p => p > 0);
+        const pcts   = days.map(d => d.pct).filter(p => p > 0);
         const ganAll = days.map(d => d.gan).filter(g => g > 0);
-        const avg7d = pcts.length ? pcts.reduce((a,b) => a+b,0) / pcts.length : 0;
-        const max7d = pcts.length ? Math.max(...pcts) : 0;
+        const avg7d  = pcts.length ? pcts.reduce((a,b) => a+b,0) / pcts.length : 0;
+        const max7d  = pcts.length ? Math.max(...pcts) : 0;
         const latestRow = state.gtcData.find(r => shortKho(r['Kho']) === kho && r['Ngày'] === latestGtcDate);
-        const gtcN1 = latestRow ? parsePct(latestRow['% GTC']) : (pcts[0] || 0);
-        // Tính đơn gán TB từ GTC data nếu không có donTaoData
-        const avgGan = ganAll.length ? Math.round(ganAll.reduce((a,b)=>a+b,0)/ganAll.length) : 0;
-        gtcByKho[kho] = { avg7d, max7d, gtcN1, avgGan };
+        const gtcN1     = latestRow ? parsePct(latestRow['% GTC']) : (pcts[0] || 0);
+        // Số đơn GTC THỰC TỌ ngày N-1 (không phải %)
+        const gtcN1Don  = latestRow ? parseInt(latestRow['Số đơn GTC'] || 0) : (days[0]?.gtcDon || 0);
+        const avgGan    = ganAll.length ? Math.round(ganAll.reduce((a,b)=>a+b,0)/ganAll.length) : 0;
+        gtcByKho[kho]   = { avg7d, max7d, gtcN1, gtcN1Don, avgGan };
     });
 
     // --- Bước 3: Backlog theo kho từ warningsData ---
@@ -3128,21 +3129,16 @@ function buildOverloadData() {
         if (!tongApLuc && !gtc.avg7d) return;
 
         // ---- NĂNG LỰC XỬ LÝ ----
-        // TB = đơn gán TB (avgGan) × GTC% TB — số đơn giao được trong 1 ngày bình thường
-        // Tốt nhất = đơn gán TB × GTC% max 7N — ngày làm tốt nhất
-        const avgGan = gtc.avgGan || donTaoN1;
+        const avgGan    = gtc.avgGan || donTaoN1;
+        const gtcN1Don  = gtc.gtcN1Don || 0;  // Số đơn GTC thực tế ngày N-1
         const nangLucTB  = avgGan > 0 ? Math.round(avgGan * gtc.avg7d / 100) : 0;
         const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
         // ---- CÔNG SUẤT GIẢI PHÓNG ----
-        // Định nghĩa: nếu kho chạy tăng cường gấp 1.5x so với ngày thường
-        // → năng lực tăng cường = avgGan × 1.5 × GTC%
-        // → phần dư để xử lý backlog = năng lực tăng cường − đơn tạo mới (donTaoN1)
-        // = avgGan×1.5×GTC% − donTaoN1
-        const nangLucTangCuongTB  = avgGan > 0 ? Math.round(avgGan * 1.5 * gtc.avg7d  / 100) : 0;
-        const nangLucTangCuongMax = avgGan > 0 ? Math.round(avgGan * 1.5 * gtc.max7d / 100) : 0;
-        const csGiaiPhongTB  = Math.max(0, nangLucTangCuongTB  - donTaoN1);
-        const csGiaiPhongMax = Math.max(0, nangLucTangCuongMax - donTaoN1);
+        // = Số đơn GTC thực tế ngày N-1 × 1.5 − Đơn tạo mới (donTaoN1)
+        // Ý nghĩa: nếu kho giao tốt hơn hôm qua 1.5x, phần dư sẽ giải phóng backlog cũ
+        const csGiaiPhongTB  = gtcN1Don > 0 ? Math.max(0, Math.round(gtcN1Don * 1.5 - donTaoN1)) : 0;
+        const csGiaiPhongMax = gtcN1Don > 0 ? Math.max(0, Math.round(gtcN1Don * 1.5 - donTaoN1)) : 0;
 
         // ---- SỐ NGÀY DỰ KIẾN ----
         const existingBacklog = bl.lm + bl.ktc;
