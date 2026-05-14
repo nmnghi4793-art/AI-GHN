@@ -3120,113 +3120,68 @@ function buildOverloadData() {
         const gtc = gtcByKho[kho] || { avg7d: 0, max7d: 0, gtcN1: 0, avgGan: 0 };
         const bl  = backlogByKho[kho] || { lm: 0, ktc: 0 };
 
-        // Đơn tạo N-1: ưu tiên donTaoData, fallback sang avgGan từ GTC
-        const donTaoN1 = donTaoByKho[kho] || gtc.avgGan || 0;
-
-        // Tổng áp lực = Backlog LM + Backlog KTC + Đơn tạo N-1
+        // Đơn tạo N-1
+        const donTaoN1  = donTaoByKho[kho] || gtc.avgGan || 0;
+        const avgGan    = gtc.avgGan || donTaoN1;
+        const gtcN1Don  = gtc.gtcN1Don || 0; // Số đơn GTC thực tế ngày N-1
         const tongApLuc = bl.lm + bl.ktc + donTaoN1;
-
         if (!tongApLuc && !gtc.avg7d) return;
 
-        // ---- NĂNG LỰC XỬ LÝ ----
-        const avgGan    = gtc.avgGan || donTaoN1;
-        const gtcN1Don  = gtc.gtcN1Don || 0;  // Số đơn GTC thực tế ngày N-1
         const nangLucTB  = avgGan > 0 ? Math.round(avgGan * gtc.avg7d / 100) : 0;
         const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
-        // ---- CÔNG SUẤT GIẢI PHÓNG ----
-        // = Số đơn GTC thực tế ngày N-1 × 1.5 − Đơn tạo mới (donTaoN1)
-        // Ý nghĩa: nếu kho giao tốt hơn hôm qua 1.5x, phần dư sẽ giải phóng backlog cũ
-        const csGiaiPhongTB  = gtcN1Don > 0 ? Math.max(0, Math.round(gtcN1Don * 1.5 - donTaoN1)) : 0;
-        const csGiaiPhongMax = gtcN1Don > 0 ? Math.max(0, Math.round(gtcN1Don * 1.5 - donTaoN1)) : 0;
+        // ---- ĐƠN CẦN CLEAR ----
+        // Tính: (Backlog LM + Backlog KTC) / 2 so với GTC N-1
+        // Nếu chênh lệch > 0 thì đó là số đơn cần xử lý thêm mỗi ngày
+        const blHalf   = Math.round((bl.lm + bl.ktc) / 2);
+        const donCanClear = Math.max(0, blHalf - gtcN1Don);
 
-        // ---- SỐ NGÀY DỰ KIẾN ----
-        const existingBacklog = bl.lm + bl.ktc;
-        let soNgayTB  = 0;
-        let soNgayMax = 0;
-
-        if (existingBacklog <= 0) {
-            soNgayTB  = 0;
-            soNgayMax = 0;
-        } else if (csGiaiPhongTB <= 0) {
-            soNgayTB  = 999;
+        // ---- PHÂN LOẠI TRẠNG THÁI dựa trên mức chênh lệch ----
+        let overloadStatus, statusLabel, statusColor, statusBg;
+        if (donCanClear <= 0) {
+            overloadStatus = 'stable';    statusLabel = '🟢 Ổn định';
+            statusColor = 'var(--green)'; statusBg = '#E8F5E9';
+        } else if (donCanClear <= 100) {
+            overloadStatus = 'watch';     statusLabel = '🟡 Theo dõi';
+            statusColor = '#F08C00';      statusBg = '#FFFDE7';
+        } else if (donCanClear <= 200) {
+            overloadStatus = 'risk';      statusLabel = '🟠 Nguy cơ';
+            statusColor = 'var(--orange)'; statusBg = '#FFF3E0';
         } else {
-            soNgayTB  = Math.ceil(existingBacklog / csGiaiPhongTB);
+            overloadStatus = 'overloaded'; statusLabel = '🔴 Quá tải';
+            statusColor = 'var(--red)';   statusBg = '#FFEBEE';
         }
 
-        if (existingBacklog <= 0) {
-            soNgayMax = 0;
-        } else if (csGiaiPhongMax <= 0) {
-            soNgayMax = 999;
-        } else {
-            soNgayMax = Math.ceil(existingBacklog / csGiaiPhongMax);
-        }
-
-        // ---- PHÂN LOẠI TRẠNG THÁI ----
-        let overloadStatus = 'stable';
-        let statusLabel = '🟢 Ổn định';
-        let statusColor = 'var(--green)';
-        let statusBg    = '#E8F5E9';
-        let action      = 'Duy trì vận hành, giám sát định kỳ.';
-
-        const blTotalRatio = donTaoN1 > 0 ? existingBacklog / donTaoN1 : 0;
-
-        // --- Tính xe cần thêm để đạt 1.5x ---
-        // Giả sử 1 xe xử lý thêm ~50 đơn/ngày khi tăng cường
-        const donCanTangCuong = Math.max(0, donTaoN1 * 1.5 - (nangLucTB || donTaoN1));
-        const soXeCanThem = Math.ceil(donCanTangCuong / 50);
-
-        if (soNgayTB > 14 || (csGiaiPhongTB <= 0 && existingBacklog > 200) || (gtc.gtcN1 < 80 && bl.lm > 300)) {
-            overloadStatus = 'overloaded';
-            statusLabel = '🔴 Quá tải';
-            statusColor = 'var(--red)';
-            statusBg    = '#FFEBEE';
-            if (soXeCanThem >= 3) {
-                action = `🚛 BÁO CÁO KHẨN: Cần thêm ~${soXeCanThem} xe tăng cường gấp để xử lý ${existingBacklog.toLocaleString()} đơn backlog. Tăng ca giao hàng, liên hệ điều phối khu vực, cân nhắc bàn giao tuyến tạm sang kho phụ.`;
-            } else {
-                action = `⚡ BÁO CÁO KHẨN: Yêu cầu toàn bộ NV tăng năng suất tối thiểu 30% so với ngày thường. Rà soát tuyến thất bại, đẩy ưu tiên xử lý ${existingBacklog.toLocaleString()} đơn tồn.`;
-            }
-        } else if (soNgayTB > 7 || blTotalRatio > 2 || (gtc.gtcN1 < 85 && bl.lm > 150)) {
-            overloadStatus = 'risk';
-            statusLabel = '🟠 Nguy cơ';
-            statusColor = 'var(--orange)';
-            statusBg    = '#FFF3E0';
-            if (soXeCanThem >= 2) {
-                action = `🚛 Cần thêm ~${soXeCanThem} xe chạy tăng cường trong ${soNgayTB} ngày để giải phóng ${existingBacklog.toLocaleString()} đơn backlog. Ưu tiên xử lý đơn tồn cũ trước, rà soát NV GTC thấp.`;
-            } else {
-                action = `📈 Yêu cầu NV tăng năng suất 20% so với ngày thường trong ${soNgayTB} ngày. Ưu tiên xử lý ${existingBacklog.toLocaleString()} đơn backlog, theo dõi sát GTC hàng ngày.`;
-            }
-        } else if (soNgayTB > 3 || blTotalRatio > 1 || gtc.gtcN1 < 88) {
-            overloadStatus = 'watch';
-            statusLabel = '🟡 Theo dõi';
-            statusColor = '#F08C00';
-            statusBg    = '#FFFDE7';
-            if (existingBacklog > 100) {
-                action = `📦 Theo dõi sát ${soNgayTB} ngày tới. Đảm bảo NV đủ tuyến, cân nhắc thêm 1 xe hỗ trợ nếu GTC tiếp tục giảm. Còn ${existingBacklog.toLocaleString()} đơn cần xử lý.`;
-            } else {
-                action = `✅ Tình hình kiểm soát được. Duy trì giám sát hàng ngày, nhắc NV duy trì GTC ổn định.`;
-            }
-        } else {
-            action = `✅ Kho vận hành bình thường. Tiếp tục theo dõi định kỳ.`;
+        // ---- ĐỀ XUẤT HÀNH ĐỘNG ----
+        // HĐ1: Số ngày về ổn định nếu không dùng xe TC
+        //   = (Đơn tạo N-1 + Đơn cần clear) / GTC N-1
+        let action = '✅ Kho vận hành bình thường. Tiếp tục theo dõi định kỳ.';
+        if (donCanClear > 0 && gtcN1Don > 0) {
+            const soNgayKhongXe = ((donTaoN1 + donCanClear) / gtcN1Don).toFixed(2);
+            // HĐ2: Số xe TC cần để clear trong 1 ngày (mỗi xe 50 đơn GTC)
+            const soXeTC = Math.floor(donCanClear / 50);
+            const soXeTCDisplay = soXeTC > 0 ? soXeTC : '<1';
+            action = `🕐 Hành động 1: Cần <strong>${soNgayKhongXe} ngày</strong> để kho trở về Ổn Định nếu không sử dụng thêm xe Tăng Cường.<br>`
+                   + `🚛 Hành động 2: Cần <strong>${soXeTCDisplay} xe</strong> tăng cường clear <strong>${donCanClear.toLocaleString()} đơn</strong> trong 1 ngày để kho trở về ngày thường (NS 50 đơn GTC/xe).`;
         }
 
         results.push({
             kho, overloadStatus, statusLabel, statusColor, statusBg,
             donTaoN1, blLm: bl.lm, blKtc: bl.ktc, tongApLuc,
             nangLucTB, nangLucMax,
-            csGiaiPhongTB, csGiaiPhongMax,
-            soNgayTB, soNgayMax,
+            donCanClear,
+            gtcN1Don,
             gtcN1: gtc.gtcN1, gtcAvg7d: gtc.avg7d, gtcMax7d: gtc.max7d,
             action
         });
     });
 
-    // Sắp xếp: quá tải → nguy cơ → theo dõi → ổn định, rồi theo soNgayTB giảm dần
+    // Sắp xếp: quá tải → nguy cơ → theo dõi → ổn định, rồi donCanClear giảm dần
     const order = { overloaded: 0, risk: 1, watch: 2, stable: 3 };
     results.sort((a, b) => {
         if (order[a.overloadStatus] !== order[b.overloadStatus])
             return order[a.overloadStatus] - order[b.overloadStatus];
-        return b.soNgayTB - a.soNgayTB;
+        return b.donCanClear - a.donCanClear;
     });
     return results;
 }
@@ -3237,30 +3192,17 @@ function renderOverloadTable() {
 
     const data = buildOverloadData();
     if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px;color:var(--text3)">Chưa đủ dữ liệu để phân tích quá tải</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Chưa đủ dữ liệu để phân tích quá tải</td></tr>';
         return;
     }
 
-    // Lọc theo khoFilter đã có
     const khoFilter = ((document.getElementById('filter-forecast-kho') || {}).value || '').toLowerCase();
-    const filtered = khoFilter ? data.filter(r => r.kho.toLowerCase().includes(khoFilter)) : data;
-
-    const fmtNgay = (n) => {
-        if (n <= 0) return `<span style="color:var(--green);font-weight:700">Hôm nay</span>`;
-        if (n >= 999) return `<span style="color:var(--red);font-weight:700">Tích lũy ↑</span>`;
-        const color = n > 14 ? 'var(--red)' : n > 7 ? 'var(--orange)' : n > 3 ? '#F08C00' : 'var(--green)';
-        return `<span style="font-weight:700;color:${color}">${n} ngày</span>`;
-    };
-
-    const fmtCs = (n) => {
-        if (n <= 0) return `<span style="color:var(--red);font-size:11px">Âm (tích lũy)</span>`;
-        return `<span style="color:var(--green)">${n.toLocaleString()}</span>`;
-    };
+    const filtered  = khoFilter ? data.filter(r => r.kho.toLowerCase().includes(khoFilter)) : data;
 
     tbody.innerHTML = filtered.map(r => {
-        const apLucColor = r.tongApLuc > r.nangLucTB * 3 ? 'var(--red)' : r.tongApLuc > r.nangLucTB * 1.5 ? 'var(--orange)' : 'inherit';
-        const donTaoColor = r.donTaoN1 > 0 ? 'var(--purple)' : 'var(--text3)';
-        const nlTBColor = r.nangLucTB < r.donTaoN1 * 0.85 ? 'var(--orange)' : 'var(--text2)';
+        const donTaoColor   = r.donTaoN1 > 0 ? 'var(--purple)' : 'var(--text3)';
+        const clearColor    = r.donCanClear > 200 ? 'var(--red)' : r.donCanClear > 100 ? 'var(--orange)' : r.donCanClear > 0 ? '#F08C00' : 'var(--green)';
+        const clearDisplay  = r.donCanClear > 0 ? `<strong style="color:${clearColor}">${r.donCanClear.toLocaleString()}</strong>` : `<span style="color:var(--green)">0 — Ổn</span>`;
 
         return `<tr style="background:${r.statusBg}15;border-left:3px solid ${r.statusColor}">
             <td style="font-weight:700;white-space:nowrap">${r.kho}</td>
@@ -3268,15 +3210,11 @@ function renderOverloadTable() {
                 <span style="font-size:12px;font-weight:700;color:${r.statusColor};padding:3px 8px;border-radius:12px;background:${r.statusBg}">${r.statusLabel}</span>
             </td>
             <td style="text-align:right;font-weight:600;color:${donTaoColor}">${r.donTaoN1 > 0 ? r.donTaoN1.toLocaleString() : '--'}</td>
-            <td style="text-align:right;font-weight:${r.blLm>500?'700':'400'};color:${r.blLm>1000?'var(--red)':r.blLm>500?'var(--orange)':'inherit'}">${r.blLm.toLocaleString()}</td>
-            <td style="text-align:right;font-weight:${r.blKtc>200?'700':'400'};color:${r.blKtc>500?'var(--red)':r.blKtc>200?'var(--orange)':'inherit'}">${r.blKtc.toLocaleString()}</td>
-            <td style="text-align:right;font-weight:700;color:${apLucColor}">${r.tongApLuc.toLocaleString()}</td>
-            <td style="text-align:right;color:${nlTBColor}">${r.nangLucTB > 0 ? r.nangLucTB.toLocaleString() : '--'}</td>
-            <td style="text-align:right;color:var(--blue)">${r.nangLucMax > 0 ? r.nangLucMax.toLocaleString() : '--'}</td>
-            <td style="text-align:right">${fmtCs(r.csGiaiPhongTB)}</td>
-            <td style="text-align:right">${fmtNgay(r.soNgayTB)}</td>
-            <td style="text-align:right">${fmtNgay(r.soNgayMax)}</td>
-            <td style="font-size:11px;color:var(--text2);min-width:220px">${r.action}</td>
+            <td style="text-align:right;color:${r.blLm>1000?'var(--red)':r.blLm>500?'var(--orange)':'inherit'}">${r.blLm.toLocaleString()}</td>
+            <td style="text-align:right;color:${r.blKtc>500?'var(--red)':r.blKtc>200?'var(--orange)':'inherit'}">${r.blKtc.toLocaleString()}</td>
+            <td style="text-align:right;color:var(--blue);font-weight:600">${r.gtcN1Don > 0 ? r.gtcN1Don.toLocaleString() : '--'}</td>
+            <td style="text-align:right">${clearDisplay}</td>
+            <td style="font-size:11.5px;color:var(--text2);min-width:280px;line-height:1.7">${r.action}</td>
         </tr>`;
     }).join('');
 }
