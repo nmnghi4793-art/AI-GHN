@@ -3131,12 +3131,15 @@ function buildOverloadData() {
         const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
         // ---- ĐƠN CẦN CLEAR ----
-        // = (Backlog LM + Backlog KTC) / 2
-        const donCanClear = Math.round((bl.lm + bl.ktc) / 2);
+        // = (Backlog LM + Backlog KTC) / 2 − GTC N-1 (đơn thực tế)
+        // Nếu âm thì để 0
+        const donCanClear = gtcN1Don > 0
+            ? Math.max(0, Math.round((bl.lm + bl.ktc) / 2 - gtcN1Don))
+            : Math.round((bl.lm + bl.ktc) / 2);
 
         // ---- PHÂN LOẠI TRẠNG THÁI ----
         let overloadStatus, statusLabel, statusColor, statusBg;
-        if (donCanClear <= 0) {
+        if (donCanClear <= 50) {
             overloadStatus = 'stable';     statusLabel = '🟢 Ổn định';
             statusColor = 'var(--green)';  statusBg = '#E8F5E9';
         } else if (donCanClear <= 100) {
@@ -3154,8 +3157,10 @@ function buildOverloadData() {
         let action;
         if (overloadStatus === 'stable' || overloadStatus === 'watch') {
             action = '✅ Cần tiếp tục theo dõi và giữ vững năng suất hiện tại của Kho.';
-        } else if (donCanClear > 0 && gtcN1Don > 0) {
-            const soNgayKhongXe = ((donTaoN1 + donCanClear) / gtcN1Don).toFixed(2);
+        } else if (gtcN1Don > 0) {
+            // HĐ1: (Backlog LM + Backlog KTC) / GTC N-1
+            const soNgayKhongXe = ((bl.lm + bl.ktc) / gtcN1Don).toFixed(2);
+            // HĐ2: Đơn cần clear / 50 đơn/xe (làm tròn xuống)
             const soXeTC = Math.floor(donCanClear / 50);
             const soXeTCDisplay = soXeTC > 0 ? soXeTC : '<1';
             action = `🕐 Hành động 1: Cần <strong>${soNgayKhongXe} ngày</strong> để kho trở về Ổn Định nếu không sử dụng thêm xe Tăng Cường.<br>`
