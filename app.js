@@ -3131,38 +3131,37 @@ function buildOverloadData() {
         const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
         // ---- ĐƠN CẦN CLEAR ----
-        // Tính: (Backlog LM + Backlog KTC) / 2 so với GTC N-1
-        // Nếu chênh lệch > 0 thì đó là số đơn cần xử lý thêm mỗi ngày
-        const blHalf   = Math.round((bl.lm + bl.ktc) / 2);
-        const donCanClear = Math.max(0, blHalf - gtcN1Don);
+        // = (Backlog LM + Backlog KTC) / 2
+        const donCanClear = Math.round((bl.lm + bl.ktc) / 2);
 
-        // ---- PHÂN LOẠI TRẠNG THÁI dựa trên mức chênh lệch ----
+        // ---- PHÂN LOẠI TRẠNG THÁI ----
         let overloadStatus, statusLabel, statusColor, statusBg;
         if (donCanClear <= 0) {
-            overloadStatus = 'stable';    statusLabel = '🟢 Ổn định';
-            statusColor = 'var(--green)'; statusBg = '#E8F5E9';
+            overloadStatus = 'stable';     statusLabel = '🟢 Ổn định';
+            statusColor = 'var(--green)';  statusBg = '#E8F5E9';
         } else if (donCanClear <= 100) {
-            overloadStatus = 'watch';     statusLabel = '🟡 Theo dõi';
-            statusColor = '#F08C00';      statusBg = '#FFFDE7';
-        } else if (donCanClear <= 200) {
-            overloadStatus = 'risk';      statusLabel = '🟠 Nguy cơ';
+            overloadStatus = 'watch';      statusLabel = '🟡 Theo dõi';
+            statusColor = '#F08C00';       statusBg = '#FFFDE7';
+        } else if (donCanClear <= 300) {
+            overloadStatus = 'risk';       statusLabel = '🟠 Nguy cơ';
             statusColor = 'var(--orange)'; statusBg = '#FFF3E0';
         } else {
             overloadStatus = 'overloaded'; statusLabel = '🔴 Quá tải';
-            statusColor = 'var(--red)';   statusBg = '#FFEBEE';
+            statusColor = 'var(--red)';    statusBg = '#FFEBEE';
         }
 
         // ---- ĐỀ XUẤT HÀNH ĐỘNG ----
-        // HĐ1: Số ngày về ổn định nếu không dùng xe TC
-        //   = (Đơn tạo N-1 + Đơn cần clear) / GTC N-1
-        let action = '✅ Kho vận hành bình thường. Tiếp tục theo dõi định kỳ.';
-        if (donCanClear > 0 && gtcN1Don > 0) {
+        let action;
+        if (overloadStatus === 'stable' || overloadStatus === 'watch') {
+            action = '✅ Cần tiếp tục theo dõi và giữ vững năng suất hiện tại của Kho.';
+        } else if (donCanClear > 0 && gtcN1Don > 0) {
             const soNgayKhongXe = ((donTaoN1 + donCanClear) / gtcN1Don).toFixed(2);
-            // HĐ2: Số xe TC cần để clear trong 1 ngày (mỗi xe 50 đơn GTC)
             const soXeTC = Math.floor(donCanClear / 50);
             const soXeTCDisplay = soXeTC > 0 ? soXeTC : '<1';
             action = `🕐 Hành động 1: Cần <strong>${soNgayKhongXe} ngày</strong> để kho trở về Ổn Định nếu không sử dụng thêm xe Tăng Cường.<br>`
                    + `🚛 Hành động 2: Cần <strong>${soXeTCDisplay} xe</strong> tăng cường clear <strong>${donCanClear.toLocaleString()} đơn</strong> trong 1 ngày để kho trở về ngày thường (NS 50 đơn GTC/xe).`;
+        } else {
+            action = '✅ Cần tiếp tục theo dõi và giữ vững năng suất hiện tại của Kho.';
         }
 
         results.push({
