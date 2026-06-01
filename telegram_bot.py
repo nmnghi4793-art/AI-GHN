@@ -36,7 +36,8 @@ def parse_caption(text: str) -> dict:
         "ten_kho": "",
         "ncc": "",
         "ngay": "",
-        "bien_so": ""
+        "bien_so": "",
+        "loai_xe": ""
     }
     
     # 1. Nhận diện các dòng dựa trên từ khóa hoặc định dạng rõ ràng
@@ -44,6 +45,7 @@ def parse_caption(text: str) -> dict:
     ncc_line = None
     date_line = None
     plate_line = None
+    loai_xe_line = None
     
     for line in lines:
         line_lower = line.lower()
@@ -57,9 +59,17 @@ def parse_caption(text: str) -> dict:
         # Nhận diện dòng Biển Số (có chứa các từ khóa liên quan đến biển số)
         elif any(k in line_lower for k in ["biển", "bien", "số xe", "so xe"]):
             plate_line = line
+        # Nhận diện dòng Loại Xe
+        elif "loại xe" in line_lower or "loai xe" in line_lower:
+            loai_xe_line = line
         # Nhận diện dòng NCC (có chứa từ "ncc")
         elif "ncc" in line_lower:
             ncc_line = line
+        # Nhận diện trực tiếp Loại Xe qua từ khóa trong dòng
+        elif "cố định" in line_lower or "co dinh" in line_lower:
+            result["loai_xe"] = "Xe Cố Định"
+        elif "tăng cường" in line_lower or "tang cuong" in line_lower:
+            result["loai_xe"] = "Xe Tăng Cường"
 
     # 2. Trích xuất thông tin từ các dòng đã nhận diện
     if warehouse_line:
@@ -94,8 +104,16 @@ def parse_caption(text: str) -> dict:
         clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
         result["bien_so"] = clean.upper()
 
-    # 3. Fallback: Nếu có đúng 4 dòng và một số trường thông tin vẫn bị thiếu
-    if len(lines) == 4:
+    if loai_xe_line and not result["loai_xe"]:
+        clean = re.sub(r'^(loại xe|loai xe)\s*', '', loai_xe_line, flags=re.IGNORECASE).strip()
+        clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+        if "tăng cường" in clean.lower() or "tang cuong" in clean.lower():
+            result["loai_xe"] = "Xe Tăng Cường"
+        else:
+            result["loai_xe"] = "Xe Cố Định"
+
+    # 3. Fallback: Nếu có ít nhất 4 dòng và một số trường thông tin vẫn bị thiếu
+    if len(lines) >= 4:
         # Dòng 0: Kho
         if not result["id_kho"] or not result["ten_kho"]:
             m = re.search(r'(\d{5,12})\s*-\s*(.*)', lines[0])
@@ -131,6 +149,18 @@ def parse_caption(text: str) -> dict:
             clean = re.sub(r'^(biển số xe|bien so xe|biển số|bien so|biển|bien|số xe|so xe)\s*', '', lines[3], flags=re.IGNORECASE).strip()
             clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
             result["bien_so"] = clean.upper()
+
+        # Dòng 4: Loại xe
+        if len(lines) >= 5 and not result["loai_xe"]:
+            clean = lines[4].strip()
+            if "tăng cường" in clean.lower() or "tang cuong" in clean.lower():
+                result["loai_xe"] = "Xe Tăng Cường"
+            else:
+                result["loai_xe"] = "Xe Cố Định"
+
+    # Mặc định Loại Xe nếu không tìm thấy
+    if not result["loai_xe"]:
+        result["loai_xe"] = "Xe Cố Định"
 
     # 4. Làm sạch triệt để các khoảng trắng thừa
     for k in result:
@@ -236,6 +266,7 @@ async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: 
         "odo_ve": metadata.get("odo_ve", 0),
         "ngay": metadata.get("ngay", ""),
         "bien_so": metadata.get("bien_so", ""),
+        "loai_xe": metadata.get("loai_xe", ""),
         "image_base64": images_payload[0]["base64"] if images_payload else "",
         "image_name": images_payload[0]["name"] if images_payload else "",
         "images": images_payload
@@ -327,6 +358,7 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
                 f"📍 **Kho**: {metadata['ten_kho']} (ID: {metadata['id_kho']})\n"
                 f"🚛 **Nhà xe (NCC)**: {metadata['ncc']}\n"
                 f"🔢 **Biển Số**: {metadata['bien_so']}\n"
+                f"🏷️ **Loại Xe**: {metadata['loai_xe']}\n"
                 f"📅 **Ngày**: {metadata['ngay']}\n"
                 f"🚀 **Số KM đi (Sáng)**: {metadata['odo_di']:,} km\n"
                 f"🏁 **Số KM về (Chiều)**: {metadata['odo_ve']:,} km\n"
