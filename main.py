@@ -432,11 +432,51 @@ def get_gtc_by_kho(force: bool = False):
 # ---- TELEGRAM BOT DIAGNOSTICS ----
 @app.get("/api/bot/status")
 def get_bot_status():
+    import os
+    import sys
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    files_in_base = []
+    try:
+        files_in_base = os.listdir(base_dir)
+    except Exception as e:
+        files_in_base = [f"Error: {e}"]
+        
+    backend_exists = os.path.exists(os.path.join(base_dir, "backend"))
+    backend_files = []
+    if backend_exists:
+        try:
+            backend_files = os.listdir(os.path.join(base_dir, "backend"))
+        except Exception as e:
+            backend_files = [f"Error: {e}"]
+
     try:
         from backend.telegram_bot import BOT_STATUS
-        return BOT_STATUS
+        return {
+            "status": "success",
+            "bot_status": BOT_STATUS,
+            "diagnostics": {
+                "base_dir": base_dir,
+                "sys_path": sys.path,
+                "files_in_base": files_in_base,
+                "backend_exists": backend_exists,
+                "backend_files": backend_files
+            }
+        }
     except Exception as e:
-        return {"status": "error", "message": f"Không thể lấy trạng thái Bot: {str(e)}"}
+        import traceback
+        return {
+            "status": "error",
+            "message": f"Không thể lấy trạng thái Bot: {str(e)}",
+            "diagnostics": {
+                "base_dir": base_dir,
+                "sys_path": sys.path,
+                "files_in_base": files_in_base,
+                "backend_exists": backend_exists,
+                "backend_files": backend_files,
+                "traceback": traceback.format_exc()
+            }
+        }
 
 # ---- TELEGRAM REPORTING ----
 import httpx
