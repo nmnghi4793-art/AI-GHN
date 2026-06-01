@@ -758,8 +758,15 @@ def validate_caption_strict(text: str) -> tuple[bool, str, dict]:
         return False, f"Biển số xe <code>{html.escape(plate_input)}</code> không hợp lệ! Biển số xe bắt buộc phải viết liền không dấu gạch ngang (-), không có dấu chấm (.) hay khoảng trắng.", {}
         
     # Dòng 5: Loại Xe
-    type_input = lines[4]
-    if type_input not in ["Xe Cố Định", "Xe Tăng Cường"]:
+    type_input = lines[4].strip()
+    type_clean = clean_str(type_input)
+    matched_type = None
+    if type_clean == clean_str("Xe Cố Định"):
+        matched_type = "Xe Cố Định"
+    elif type_clean == clean_str("Xe Tăng Cường"):
+        matched_type = "Xe Tăng Cường"
+        
+    if not matched_type:
         return False, f"Loại xe <code>{html.escape(type_input)}</code> không hợp lệ! Chỉ chấp nhận <code>Xe Cố Định</code> hoặc <code>Xe Tăng Cường</code>.", {}
         
     return True, "", {
@@ -768,7 +775,7 @@ def validate_caption_strict(text: str) -> tuple[bool, str, dict]:
         "ncc": ncc_matched,
         "ngay": date_input,
         "bien_so": plate_input.upper(),
-        "loai_xe": type_input
+        "loai_xe": matched_type
     }
 
 # Xử lý toàn bộ Album (Media Group) hoặc ảnh đơn sau khi đã thu thập đủ
@@ -792,16 +799,13 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
             photos.append(msg.photo[-1])
             
     if not caption:
-        # Gửi thông báo lỗi bằng tiếng Việt chuẩn
-        await primary_message.reply_text(
-            "❌ Vui lòng nhập nội dung mô tả kèm theo ảnh.\n\n"
-            "Mẫu mô tả bắt buộc:\n"
-            "<code>21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng\n"
-            "Mạnh Cường Khánh Hoà\n"
-            "01/06/2026\n"
-            "43H00912\n"
-            "Xe Cố Định</code>"
-        )
+        # Bỏ qua âm thầm nếu người dùng gửi hình ảnh không kèm mô tả (tránh làm phiền trong group chat)
+        return
+        
+    # Kiểm tra xem có phải là nỗ lực gửi báo cáo ODO hay không (dòng đầu bắt đầu bằng mã kho 5-12 chữ số)
+    lines_check = [line.strip() for line in caption.split('\n') if line.strip()]
+    if not lines_check or not re.match(r'^\d{5,12}', lines_check[0]):
+        # Không phải tin nhắn báo cáo ODO, bỏ qua âm thầm
         return
         
     # 1. Tách thông tin mô tả văn bản và kiểm tra tính hợp lệ nghiêm ngặt
