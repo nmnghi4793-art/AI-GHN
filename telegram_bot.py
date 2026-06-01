@@ -13,6 +13,24 @@ import google.generativeai as genai
 # Bộ nhớ đệm lưu trữ các tin nhắn thuộc cùng một Album (Media Group)
 MEDIA_GROUPS = {}
 
+def compress_image(image_bytes: bytes, max_size=(1024, 1024), quality=80) -> bytes:
+    from PIL import Image
+    import io
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        out_io = io.BytesIO()
+        img.save(out_io, format='JPEG', quality=quality)
+        compressed = out_io.getvalue()
+        print(f"[BOT] Compressed image: {len(image_bytes)} bytes -> {len(compressed)} bytes")
+        return compressed
+    except Exception as e:
+        print(f"[BOT] Error compressing image: {e}")
+        return image_bytes
+
+
 # --- STATE AND HELPER FUNCTIONS FOR ODO TRACKING ---
 def save_local_state(date_str: str, submission: dict = None, off_report: dict = None):
     state_file = "odo_state.json"
@@ -656,9 +674,10 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         for i, photo in enumerate(photos):
             file = await photo.get_file()
             photo_bytes = await file.download_as_bytearray()
+            compressed_bytes = compress_image(bytes(photo_bytes))
             image_parts.append({
                 "mime_type": "image/jpeg",
-                "data": bytes(photo_bytes)
+                "data": compressed_bytes
             })
             
         # 3. Sử dụng Gemini đọc ODO từ các ảnh
