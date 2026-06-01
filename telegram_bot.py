@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import google.generativeai as genai
+import html
+
 
 # Bộ nhớ đệm lưu trữ các tin nhắn thuộc cùng một Album (Media Group)
 MEDIA_GROUPS = {}
@@ -216,23 +218,23 @@ def generate_odo_warning_report(date_str: str) -> str:
         if missing_count > 0:
             off_str = f" (Off {off_count} xe)" if off_count > 0 else ""
             warning_lines.append(
-                f"• **{ten_kho}**{f' ({id_kho})' if id_kho else ''}:\n"
+                f"• <b>{html.escape(ten_kho)}</b>{f' ({html.escape(id_kho)})' if id_kho else ''}:\n"
                 f"  - Yêu cầu: {target_vehicles} xe{off_str}\n"
                 f"  - Đã nhập: {submitted_count} xe\n"
-                f"  - 🔴 **Thiếu: {missing_count} xe**"
+                f"  - 🔴 <b>Thiếu: {missing_count} xe</b>"
             )
             
-    msg = f"📊 **BÁO CÁO CẢNH BÁO CHƯA NHẬP ODO - NGÀY {date_str}**\n\n"
+    msg = f"📊 <b>BÁO CÁO CẢNH BÁO CHƯA NHẬP ODO - NGÀY {date_str}</b>\n\n"
     if warning_lines:
-        msg += f"🚨 **Danh sách các kho chưa nhập đủ ODO:**\n"
+        msg += f"🚨 <b>Danh sách các kho chưa nhập đủ ODO:</b>\n"
         msg += "\n".join(warning_lines)
         msg += "\n\n"
-        msg += f"📈 **Tổng quan toàn mạng lưới:**\n"
+        msg += f"📈 <b>Tổng quan toàn mạng lưới:</b>\n"
         msg += f"  - Tổng xe yêu cầu: {total_expected_all} xe\n"
         msg += f"  - Tổng xe đã nhập: {total_submitted_all} xe\n"
         msg += f"  - Tổng xe chưa nhập: {total_missing_all} xe\n"
     else:
-        msg += f"🎉 **Tất cả các kho đã nhập đủ chỉ số ODO cho ngày hôm nay!**\n"
+        msg += f"🎉 <b>Tất cả các kho đã nhập đủ chỉ số ODO cho ngày hôm nay!</b>\n"
         msg += f"  - Tổng số xe hoạt động: {total_expected_all} xe\n"
         
     return msg
@@ -257,7 +259,7 @@ async def scheduled_warning_loop(application):
                 await application.bot.send_message(
                     chat_id=warn_chat_id,
                     text=report_msg,
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
                 print(f"[BOT] Daily warning report sent for {current_date}")
                 last_sent_date = current_date
@@ -343,12 +345,12 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         id_display = f" (ID: {off_report['id_kho']})" if off_report["id_kho"] else ""
         
         await message.reply_text(
-            f"✅ **ĐÃ GHI NHẬN THÔNG TIN XE OFF!**\n\n"
-            f"📍 **Kho**: {ten_display}{id_display}\n"
-            f"📅 **Ngày**: {off_report['ngay']}\n"
-            f"🚫 **Số xe off**: {off_report['off_count']} xe\n\n"
+            f"✅ <b>ĐÃ GHI NHẬN THÔNG TIN XE OFF!</b>\n\n"
+            f"📍 <b>Kho</b>: {html.escape(ten_display)}{html.escape(id_display)}\n"
+            f"📅 <b>Ngày</b>: {html.escape(off_report['ngay'])}\n"
+            f"🚫 <b>Số xe off</b>: {off_report['off_count']} xe\n\n"
             f"Cuối ngày BOT sẽ tự động trừ xe off khi tổng hợp báo cáo ODO.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
 def clean_line_prefix(line: str) -> str:
@@ -547,8 +549,11 @@ async def read_odo_with_gemini(image_parts: list) -> dict:
         "  - 1 ảnh là lúc đi (giá trị ODO nhỏ hơn, thường chụp buổi sáng).\n"
         "  - 1 ảnh là lúc về (giá trị ODO lớn hơn, thường chụp buổi chiều).\n"
         "Hãy so sánh và xác định chính xác số ODO đi (odo_di) và số ODO về (odo_ve).\n"
-        "Nếu chỉ có 1 ảnh duy nhất (hoặc các ảnh có cùng chỉ số ODO), hãy gán giá trị đó cho cả odo_di và odo_ve.\n"
-        "Đọc kỹ phần số ODO hiển thị trên màn hình LCD (chỉ lấy phần số nguyên, bỏ chữ km và các ký tự khác).\n\n"
+        "Nếu chỉ có 1 ảnh duy nhất (hoặc các ảnh có cùng chỉ số ODO), hãy gán giá trị đó cho cả odo_di và odo_ve.\n\n"
+        "HƯỚNG DẪN ĐỌC SỐ ODO:\n"
+        "  - CHỈ đọc số ODO chính (dãy số ODO tổng hành trình thường có 6 chữ số, ví dụ như 209806).\n"
+        "  - BỎ QUA chỉ số TRIP/hành trình ngắn (thường có 3-4 chữ số kèm 1 chữ số thập phân ở cuối, thường nằm dưới kim chỉ tốc độ hoặc có nền màu trắng khác biệt ở ô số cuối).\n"
+        "  - Chỉ lấy phần số nguyên, bỏ chữ km và các ký tự khác.\n\n"
         "QUAN TRỌNG: Nếu hình ảnh quá mờ, loá sáng, không rõ nét, hoặc bị che khuất khiến bạn KHÔNG THỂ đọc được số ODO một cách chính xác, "
         "hãy trả về JSON có thuộc tính \"blurry\": true. Đừng cố đoán mò nếu số bị loè hoặc quá mờ.\n\n"
         "Trả về kết quả dưới định dạng JSON duy nhất như sau (KHÔNG chứa khối mã markdown ```json):\n"
@@ -691,13 +696,13 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         if is_blurry or (metadata["odo_di"] == 0 and metadata["odo_ve"] == 0):
             sheet_url = "https://docs.google.com/spreadsheets/d/1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk/"
             alert_msg = (
-                f"⚠️ **CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ**\n\n"
-                f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào [link Google Sheet]({sheet_url}).\n\n"
+                f"⚠️ <b>CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ</b>\n\n"
+                f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào <a href=\"{sheet_url}\">link Google Sheet</a>.\n\n"
                 f"cc: @Thu Điều_Admin_GXT @Thu_Dieu_Admin_GXT"
             )
             await primary_message.reply_text(
                 alert_msg,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 disable_web_page_preview=True
             )
             await status_message.delete()
@@ -726,18 +731,21 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
                 }
             )
             
+            success_msg = (
+                f"✅ <b>ĐÃ GHI NHẬN DỮ LIỆU THÀNH CÔNG!</b>\n\n"
+                f"📍 <b>Kho</b>: {html.escape(metadata['ten_kho'])} (ID: {html.escape(metadata['id_kho'])})\n"
+                f"🚛 <b>Nhà xe (NCC)</b>: {html.escape(metadata['ncc'])}\n"
+                f"🔢 <b>Biển Số</b>: {html.escape(metadata['bien_so'])}\n"
+                f"🏷️ <b>Loại Xe</b>: {html.escape(metadata['loai_xe'])}\n"
+                f"📅 <b>Ngày</b>: {html.escape(metadata['ngay'])}\n"
+                f"🚀 <b>Số KM đi (Sáng)</b>: {metadata['odo_di']:,} km\n"
+                f"🏁 <b>Số KM về (Chiều)</b>: {metadata['odo_ve']:,} km\n"
+                f"📈 <b>Tổng quãng đường di chuyển</b>: {km_di_chuyen:,} km\n\n"
+                f"📁 <a href=\"{html.escape(file_url)}\">Xem hình ảnh lưu trữ trên Google Drive</a>"
+            )
             await status_message.edit_text(
-                f"✅ **ĐÃ GHI NHẬN DỮ LIỆU THÀNH CÔNG!**\n\n"
-                f"📍 **Kho**: {metadata['ten_kho']} (ID: {metadata['id_kho']})\n"
-                f"🚛 **Nhà xe (NCC)**: {metadata['ncc']}\n"
-                f"🔢 **Biển Số**: {metadata['bien_so']}\n"
-                f"🏷️ **Loại Xe**: {metadata['loai_xe']}\n"
-                f"📅 **Ngày**: {metadata['ngay']}\n"
-                f"🚀 **Số KM đi (Sáng)**: {metadata['odo_di']:,} km\n"
-                f"🏁 **Số KM về (Chiều)**: {metadata['odo_ve']:,} km\n"
-                f"📈 **Tổng quãng đường di chuyển**: {km_di_chuyen:,} km\n\n"
-                f"📁 [Xem hình ảnh lưu trữ trên Google Drive]({file_url})",
-                parse_mode="Markdown",
+                success_msg,
+                parse_mode="HTML",
                 disable_web_page_preview=True
             )
         else:
@@ -745,7 +753,7 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
             
     except Exception as e:
         print(f"[BOT ERROR] Xử lý thất bại: {e}")
-        await status_message.edit_text(f"❌ **Xử lý thất bại!**\nChi tiết lỗi: `{str(e)}`", parse_mode="Markdown")
+        await status_message.edit_text(f"❌ <b>Xử lý thất bại!</b>\nChi tiết lỗi: <code>{html.escape(str(e))}</code>", parse_mode="HTML")
 
 # Trì hoãn xử lý Album để đảm bảo nhận đủ tin nhắn
 async def delayed_process_media_group(media_group_id: str, context: ContextTypes.DEFAULT_TYPE):
