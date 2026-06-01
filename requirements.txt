@@ -3,3 +3,5 @@ uvicorn[standard]
 python-multipart
 jinja2
 httpx
+python-telegram-bot==21.2
+google-generativeai

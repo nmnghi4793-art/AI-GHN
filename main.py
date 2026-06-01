@@ -18,6 +18,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    try:
+        from backend.telegram_bot import run_bot
+        asyncio.create_task(run_bot())
+        print("[STARTUP] Đã kích hoạt background task cho Telegram Bot.")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký background task cho Telegram Bot: {e}")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Frontend files (index.html, app.js, styles.css) are deployed at root alongside main.py
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend") if os.path.isdir(os.path.join(BASE_DIR, "frontend")) else BASE_DIR
