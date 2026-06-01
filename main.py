@@ -51,7 +51,7 @@ except Exception as e:
     print(f"[STARTUP] Could not list BASE_DIR: {e}")
 
 # ---- GOOGLE SHEETS MAPPING ----
-SHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+SHEET_ID = "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY"
 GIDS = {
     "gtc":       "0",
     "ontime":    "25240142",

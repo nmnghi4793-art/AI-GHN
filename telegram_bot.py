@@ -694,11 +694,11 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         
         # Kiểm tra hình ảnh quá mờ hoặc ODO bằng 0
         if is_blurry or (metadata["odo_di"] == 0 and metadata["odo_ve"] == 0):
-            sheet_url = "https://docs.google.com/spreadsheets/d/1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk/"
+            sheet_url = "https://docs.google.com/spreadsheets/d/1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY/edit?gid=0#gid=0"
             alert_msg = (
                 f"⚠️ <b>CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ</b>\n\n"
                 f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào <a href=\"{sheet_url}\">link Google Sheet</a>.\n\n"
-                f"cc: @Thu Điều_Admin_GXT @Thu_Dieu_Admin_GXT"
+                f"cc: @Thu_Dieu_Admin_GXT"
             )
             await primary_message.reply_text(
                 alert_msg,
