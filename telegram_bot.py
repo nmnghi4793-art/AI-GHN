@@ -144,10 +144,17 @@ async def read_odo_with_gemini(image_parts: list) -> dict:
             "odo_ve": int(odo_ve_match.group(1)) if odo_ve_match else 0
         }
 
-# Gửi dữ liệu và file ảnh (dạng base64) lên Google Apps Script Webhook
-async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_data: bytes, filename: str) -> dict:
-    image_base64 = base64.b64encode(image_data).decode('utf-8')
-    
+# Gửi dữ liệu và danh sách file ảnh (dạng base64) lên Google Apps Script Webhook
+async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: list) -> dict:
+    images_payload = []
+    for i, part in enumerate(image_parts):
+        filename = f"odo_{metadata['bien_so']}_{metadata['ngay'].replace('/', '-')}_{i+1}.jpg"
+        img_base64 = base64.b64encode(part["data"]).decode('utf-8')
+        images_payload.append({
+            "base64": img_base64,
+            "name": filename
+        })
+        
     payload = {
         "id_kho": metadata.get("id_kho", ""),
         "ten_kho": metadata.get("ten_kho", ""),
@@ -156,8 +163,7 @@ async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_data: b
         "odo_ve": metadata.get("odo_ve", 0),
         "ngay": metadata.get("ngay", ""),
         "bien_so": metadata.get("bien_so", ""),
-        "image_base64": image_base64,
-        "image_name": filename
+        "images": images_payload
     }
     
     async with httpx.AsyncClient() as client:
@@ -234,9 +240,8 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         if not webhook_url:
             raise ValueError("Hệ thống chưa cấu hình biến môi trường ODO_SHEET_WEBHOOK_URL.")
             
-        filename = f"odo_{metadata['bien_so']}_{metadata['ngay'].replace('/', '-')}.jpg"
-        # Gửi ảnh đầu tiên làm ảnh đại diện để lưu lên Drive
-        sheet_resp = await upload_to_google_sheet(webhook_url, metadata, image_parts[0]["data"], filename)
+        # Gửi toàn bộ ảnh và dữ liệu lên Apps Script Webhook
+        sheet_resp = await upload_to_google_sheet(webhook_url, metadata, image_parts)
         
         if sheet_resp.get("status") == "success":
             file_url = sheet_resp.get("file_url", "")
