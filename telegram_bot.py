@@ -4,6 +4,7 @@ import json
 import base64
 import asyncio
 import httpx
+import datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
@@ -11,6 +12,326 @@ import google.generativeai as genai
 
 # Bộ nhớ đệm lưu trữ các tin nhắn thuộc cùng một Album (Media Group)
 MEDIA_GROUPS = {}
+
+# --- STATE AND HELPER FUNCTIONS FOR ODO TRACKING ---
+def save_local_state(date_str: str, submission: dict = None, off_report: dict = None):
+    state_file = "odo_state.json"
+    state_data = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                state_data = json.load(f)
+        except Exception as e:
+            print(f"[BOT] Error reading state file before save: {e}")
+            
+    if date_str not in state_data:
+        state_data[date_str] = {
+            "submissions": [],
+            "off_reports": {}
+        }
+        
+    if submission:
+        # Check if already exists to avoid duplicates
+        exists = False
+        for s in state_data[date_str]["submissions"]:
+            if s.get("bien_so") == submission.get("bien_so") and s.get("id_kho") == submission.get("id_kho"):
+                exists = True
+                break
+        if not exists:
+            state_data[date_str]["submissions"].append(submission)
+            
+    if off_report:
+        id_kho = off_report.get("id_kho")
+        ten_kho = off_report.get("ten_kho")
+        off_count = off_report.get("off_count", 0)
+        key = id_kho if id_kho else ten_kho
+        
+        current_off = state_data[date_str]["off_reports"].get(key, 0)
+        state_data[date_str]["off_reports"][key] = current_off + off_count
+        
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(state_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[BOT] Error writing state file: {e}")
+
+def get_today_submissions(target_date_str: str):
+    # target_date_str format: "01/06/2026"
+    submissions = {}
+    
+    # 1. Read from local state file
+    state_file = "odo_state.json"
+    local_subs = []
+    local_offs = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                state_data = json.load(f)
+            day_data = state_data.get(target_date_str, {})
+            local_subs = day_data.get("submissions", [])
+            local_offs = day_data.get("off_reports", {})
+        except Exception as e:
+            print(f"[BOT] Error reading local state file: {e}")
+            
+    # 2. Read from Google Sheet if GID is provided
+    odo_gid = os.environ.get("ODO_SHEET_GID")
+    sheet_subs = []
+    if odo_gid:
+        try:
+            from main import read_csv, GIDS
+            if "odo_sheet" not in GIDS:
+                GIDS["odo_sheet"] = odo_gid
+            # force read_csv to fetch latest
+            data, _ = read_csv("odo_sheet", force=True)
+            for r in data:
+                r_date = r.get("Ngày") or r.get("ngay") or ""
+                if r_date.strip() == target_date_str:
+                    id_kho = r.get("ID Kho") or r.get("id_kho") or ""
+                    ten_kho = r.get("Tên kho") or r.get("ten_kho") or ""
+                    bien_so = r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or ""
+                    sheet_subs.append({
+                        "id_kho": id_kho.strip(),
+                        "ten_kho": ten_kho.strip(),
+                        "bien_so": bien_so.strip().upper()
+                    })
+        except Exception as e:
+            print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
+            
+    merged_subs = {}
+    for sub in local_subs + sheet_subs:
+        id_kho = sub.get("id_kho")
+        ten_kho = sub.get("ten_kho")
+        bien_so = sub.get("bien_so")
+        key = id_kho if id_kho else ten_kho
+        if not key:
+            continue
+        if key not in merged_subs:
+            merged_subs[key] = []
+        if bien_so not in merged_subs[key]:
+            merged_subs[key].append(bien_so)
+            
+    return merged_subs, local_offs
+
+def get_gxt_vehicles_count():
+    try:
+        from main import read_csv
+        data, _ = read_csv("xe_gxt")
+        vehicles_count = {}
+        for r in data:
+            kho = r.get("Kho") or r.get("Tên Kho GXT") or r.get("Kho giao") or ""
+            if not kho:
+                continue
+            
+            count_str = r.get("Tổng xe đang chạy") or r.get("Tổng xe") or "0"
+            try:
+                count_str = str(count_str).replace(".", "").replace(",", "").strip()
+                count = int(count_str) if count_str else 0
+            except:
+                count = 0
+                
+            if count <= 0:
+                continue
+                
+            m = re.search(r'(\d{5,12})', kho)
+            id_kho = m.group(1) if m else ""
+            
+            ten_kho = kho
+            if id_kho and id_kho in kho:
+                parts = kho.split('-', 1)
+                if len(parts) == 2:
+                    ten_kho = parts[1].strip()
+                else:
+                    ten_kho = kho.replace(id_kho, "").replace("-", "").strip()
+                    
+            key = id_kho if id_kho else ten_kho
+            if not key:
+                continue
+                
+            if key not in vehicles_count:
+                vehicles_count[key] = {
+                    "id_kho": id_kho,
+                    "ten_kho": ten_kho,
+                    "full_name": kho,
+                    "total_vehicles": 0
+                }
+            vehicles_count[key]["total_vehicles"] += count
+            
+        return vehicles_count
+    except Exception as e:
+        print(f"[BOT ERROR] Error fetching registered vehicles: {e}")
+        return {}
+
+def generate_odo_warning_report(date_str: str) -> str:
+    registered = get_gxt_vehicles_count()
+    if not registered:
+        return "⚠️ Không thể tải dữ liệu xe GXT từ Google Sheet để so sánh."
+        
+    submissions, off_reports = get_today_submissions(date_str)
+    
+    warning_lines = []
+    total_missing_all = 0
+    total_expected_all = 0
+    total_submitted_all = 0
+    
+    for key, info in registered.items():
+        id_kho = info["id_kho"]
+        ten_kho = info["ten_kho"]
+        total_vehicles = info["total_vehicles"]
+        
+        off_count = off_reports.get(id_kho, 0)
+        if not off_count and not id_kho:
+            off_count = off_reports.get(ten_kho, 0)
+            
+        target_vehicles = max(0, total_vehicles - off_count)
+        
+        subs_list = submissions.get(id_kho, [])
+        if not subs_list and not id_kho:
+            subs_list = submissions.get(ten_kho, [])
+            
+        submitted_count = len(subs_list)
+        missing_count = max(0, target_vehicles - submitted_count)
+        
+        total_expected_all += target_vehicles
+        total_submitted_all += submitted_count
+        total_missing_all += missing_count
+        
+        if missing_count > 0:
+            off_str = f" (Off {off_count} xe)" if off_count > 0 else ""
+            warning_lines.append(
+                f"• **{ten_kho}**{f' ({id_kho})' if id_kho else ''}:\n"
+                f"  - Yêu cầu: {target_vehicles} xe{off_str}\n"
+                f"  - Đã nhập: {submitted_count} xe\n"
+                f"  - 🔴 **Thiếu: {missing_count} xe**"
+            )
+            
+    msg = f"📊 **BÁO CÁO CẢNH BÁO CHƯA NHẬP ODO - NGÀY {date_str}**\n\n"
+    if warning_lines:
+        msg += f"🚨 **Danh sách các kho chưa nhập đủ ODO:**\n"
+        msg += "\n".join(warning_lines)
+        msg += "\n\n"
+        msg += f"📈 **Tổng quan toàn mạng lưới:**\n"
+        msg += f"  - Tổng xe yêu cầu: {total_expected_all} xe\n"
+        msg += f"  - Tổng xe đã nhập: {total_submitted_all} xe\n"
+        msg += f"  - Tổng xe chưa nhập: {total_missing_all} xe\n"
+    else:
+        msg += f"🎉 **Tất cả các kho đã nhập đủ chỉ số ODO cho ngày hôm nay!**\n"
+        msg += f"  - Tổng số xe hoạt động: {total_expected_all} xe\n"
+        
+    return msg
+
+async def scheduled_warning_loop(application):
+    print("[BOT] Scheduled warning loop started.")
+    tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
+    last_sent_date = ""
+    
+    while True:
+        try:
+            await asyncio.sleep(30)
+            now_local = dt.datetime.now(tz_utc_7)
+            current_date = now_local.strftime("%d/%m/%Y")
+            current_time = now_local.strftime("%H:%M")
+            
+            warn_time = os.environ.get("WARN_TIME", "19:00")
+            warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
+            
+            if current_time == warn_time and last_sent_date != current_date:
+                report_msg = generate_odo_warning_report(current_date)
+                await application.bot.send_message(
+                    chat_id=warn_chat_id,
+                    text=report_msg,
+                    parse_mode="Markdown"
+                )
+                print(f"[BOT] Daily warning report sent for {current_date}")
+                last_sent_date = current_date
+        except Exception as e:
+            print(f"[BOT ERROR] Error in scheduled warning loop: {e}")
+
+def parse_off_report(text: str) -> dict:
+    if not text:
+        return None
+        
+    match_off = re.search(r'(?i)\boff\s*(\d+)\s*xe', text)
+    if not match_off:
+        match_off = re.search(r'(?i)\boff\s*(\d+)', text)
+        
+    if not match_off:
+        return None
+        
+    off_count = int(match_off.group(1))
+    
+    id_kho = ""
+    match_id = re.search(r'\b(\d{5,12})\b', text)
+    if match_id:
+        id_kho = match_id.group(1)
+        
+    ten_kho = ""
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    for line in lines:
+        if id_kho and id_kho in line:
+            parts = line.split('-', 1)
+            if len(parts) == 2:
+                ten_kho = parts[1].strip()
+            else:
+                ten_kho = line.replace(id_kho, "").replace("-", "").strip()
+            break
+        elif "kho" in line.lower() and not "off" in line.lower():
+            ten_kho = line
+            break
+            
+    ngay = ""
+    match_date = re.search(r'(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})', text)
+    if match_date:
+        ngay = match_date.group(1)
+    else:
+        tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
+        now_local = dt.datetime.now(tz_utc_7)
+        ngay = now_local.strftime("%d/%m/%Y")
+        
+    return {
+        "id_kho": id_kho,
+        "ten_kho": ten_kho,
+        "ngay": ngay,
+        "off_count": off_count
+    }
+
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    if not message or not message.text:
+        return
+        
+    off_report = parse_off_report(message.text)
+    if off_report:
+        registered_khos = get_gxt_vehicles_count()
+        id_kho = off_report["id_kho"]
+        ten_kho = off_report["ten_kho"]
+        
+        matched_kho = None
+        if id_kho:
+            matched_kho = registered_khos.get(id_kho)
+            
+        if not matched_kho and ten_kho:
+            for k_key, k_val in registered_khos.items():
+                if ten_kho.lower() in k_val["ten_kho"].lower() or k_val["ten_kho"].lower() in ten_kho.lower():
+                    matched_kho = k_val
+                    break
+                    
+        if matched_kho:
+            off_report["id_kho"] = matched_kho["id_kho"]
+            off_report["ten_kho"] = matched_kho["ten_kho"]
+            
+        save_local_state(off_report["ngay"], off_report=off_report)
+        
+        ten_display = off_report["ten_kho"] if off_report["ten_kho"] else "Chưa rõ tên"
+        id_display = f" (ID: {off_report['id_kho']})" if off_report["id_kho"] else ""
+        
+        await message.reply_text(
+            f"✅ **ĐÃ GHI NHẬN THÔNG TIN XE OFF!**\n\n"
+            f"📍 **Kho**: {ten_display}{id_display}\n"
+            f"📅 **Ngày**: {off_report['ngay']}\n"
+            f"🚫 **Số xe off**: {off_report['off_count']} xe\n\n"
+            f"Cuối ngày BOT sẽ tự động trừ xe off khi tổng hợp báo cáo ODO.",
+            parse_mode="Markdown"
+        )
 
 def clean_line_prefix(line: str) -> str:
     line = line.strip()
@@ -210,10 +531,13 @@ async def read_odo_with_gemini(image_parts: list) -> dict:
         "Hãy so sánh và xác định chính xác số ODO đi (odo_di) và số ODO về (odo_ve).\n"
         "Nếu chỉ có 1 ảnh duy nhất (hoặc các ảnh có cùng chỉ số ODO), hãy gán giá trị đó cho cả odo_di và odo_ve.\n"
         "Đọc kỹ phần số ODO hiển thị trên màn hình LCD (chỉ lấy phần số nguyên, bỏ chữ km và các ký tự khác).\n\n"
+        "QUAN TRỌNG: Nếu hình ảnh quá mờ, loá sáng, không rõ nét, hoặc bị che khuất khiến bạn KHÔNG THỂ đọc được số ODO một cách chính xác, "
+        "hãy trả về JSON có thuộc tính \"blurry\": true. Đừng cố đoán mò nếu số bị loè hoặc quá mờ.\n\n"
         "Trả về kết quả dưới định dạng JSON duy nhất như sau (KHÔNG chứa khối mã markdown ```json):\n"
         "{\n"
-        "  \"odo_di\": <số_km_đi>,\n"
-        "  \"odo_ve\": <số_km_về>\n"
+        "  \"blurry\": <true_hoặc_false>,\n"
+        "  \"odo_di\": <số_km_đi_hoặc_0>,\n"
+        "  \"odo_ve\": <số_km_về_hoặc_0>\n"
         "}"
     )
     
@@ -237,12 +561,19 @@ async def read_odo_with_gemini(image_parts: list) -> dict:
     text_response = text_response.strip()
     
     try:
-        return json.loads(text_response)
+        data = json.loads(text_response)
+        return {
+            "blurry": data.get("blurry", False),
+            "odo_di": data.get("odo_di", 0),
+            "odo_ve": data.get("odo_ve", 0)
+        }
     except Exception as e:
         print(f"[GEMINI ERROR] Lỗi phân tích cú pháp JSON: {text_response}. Chi tiết: {e}")
         odo_di_match = re.search(r'"odo_di"\s*:\s*(\d+)', text_response)
         odo_ve_match = re.search(r'"odo_ve"\s*:\s*(\d+)', text_response)
+        blurry_match = re.search(r'"blurry"\s*:\s*(true|false)', text_response, re.IGNORECASE)
         return {
+            "blurry": (blurry_match.group(1).lower() == "true") if blurry_match else False,
             "odo_di": int(odo_di_match.group(1)) if odo_di_match else 0,
             "odo_ve": int(odo_ve_match.group(1)) if odo_ve_match else 0
         }
@@ -335,10 +666,23 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         odo_results = await read_odo_with_gemini(image_parts)
         metadata["odo_di"] = odo_results.get("odo_di", 0)
         metadata["odo_ve"] = odo_results.get("odo_ve", 0)
+        is_blurry = odo_results.get("blurry", False)
         
-        # Kiểm tra tính hợp lệ của ODO
-        if metadata["odo_di"] == 0 and metadata["odo_ve"] == 0:
-            raise ValueError("Không tìm thấy chỉ số ODO hợp lệ từ các ảnh. Vui lòng chụp rõ màn hình hiển thị ODO và gửi lại.")
+        # Kiểm tra hình ảnh quá mờ hoặc ODO bằng 0
+        if is_blurry or (metadata["odo_di"] == 0 and metadata["odo_ve"] == 0):
+            sheet_url = "https://docs.google.com/spreadsheets/d/1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk/"
+            alert_msg = (
+                f"⚠️ **CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ**\n\n"
+                f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào [link Google Sheet]({sheet_url}).\n\n"
+                f"cc: @Thu Điều_Admin_GXT @Thu_Dieu_Admin_GXT"
+            )
+            await primary_message.reply_text(
+                alert_msg,
+                parse_mode="Markdown",
+                disable_web_page_preview=True
+            )
+            await status_message.delete()
+            return
             
         # 4. Gửi dữ liệu và ảnh đầu tiên (ảnh buổi sáng/đại diện) lên Google Sheets/Drive
         await status_message.edit_text("⏳ Đang lưu dữ liệu và lưu trữ ảnh lên Google Drive...")
@@ -352,6 +696,16 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         if sheet_resp.get("status") == "success":
             file_url = sheet_resp.get("file_url", "")
             km_di_chuyen = metadata["odo_ve"] - metadata["odo_di"]
+            
+            # Lưu lại trạng thái đã nộp ODO thành công
+            save_local_state(
+                metadata["ngay"],
+                submission={
+                    "id_kho": metadata.get("id_kho", ""),
+                    "ten_kho": metadata.get("ten_kho", ""),
+                    "bien_so": metadata.get("bien_so", "")
+                }
+            )
             
             await status_message.edit_text(
                 f"✅ **ĐÃ GHI NHẬN DỮ LIỆU THÀNH CÔNG!**\n\n"
@@ -466,10 +820,16 @@ async def run_bot():
             # Đăng ký handler lắng nghe tin nhắn có hình ảnh
             application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
             
+            # Đăng ký handler lắng nghe tin nhắn văn bản (cho báo cáo xe off)
+            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+            
             # Khởi chạy bot dạng polling
             await application.initialize()
             await application.start()
             await application.updater.start_polling()
+            
+            # Khởi chạy background loop cho báo cáo cảnh báo hàng ngày
+            asyncio.create_task(scheduled_warning_loop(application))
             
             BOT_STATUS["initialized"] = True
             BOT_STATUS["running"] = True
