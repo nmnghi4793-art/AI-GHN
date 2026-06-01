@@ -251,7 +251,7 @@ async def scheduled_warning_loop(application):
             current_date = now_local.strftime("%d/%m/%Y")
             current_time = now_local.strftime("%H:%M")
             
-            warn_time = os.environ.get("WARN_TIME", "19:00")
+            warn_time = os.environ.get("WARN_TIME", "22:00")
             warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
             
             if current_time == warn_time and last_sent_date != current_date:
@@ -640,6 +640,131 @@ def normalize_plate(plate: str) -> str:
         return ""
     return re.sub(r'[^A-Z0-9]', '', plate.upper())
 
+ALLOWED_WAREHOUSES = {
+    "21086000": "Kho Giao Hàng Nặng - Đông Thọ - Thanh Hóa",
+    "21095000": "Kho Giao Hàng Nặng - Vinh - Nghệ An",
+    "21682000": "Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh",
+    "21283000": "Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình",
+    "21521000": "Kho Giao Hàng Nặng - Đông Hà - Quảng Trị",
+    "21096000": "Kho Giao Hàng Nặng - Hương Thủy - Huế",
+    "21089000": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
+    "22059000": "Kho Giao Hàng Nặng - Hòa Xuân - Đà Nẵng",
+    "21386000": "Kho Giao Hàng Nặng - Hội An - Quảng Nam",
+    "21483000": "Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam",
+    "21284000": "Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi",
+    "21162000": "Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum",
+    "21091000": "Kho Giao Hàng Nặng - Pleiku - Gia Lai",
+    "21090000": "Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk",
+    "22782000": "Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk",
+    "21525000": "Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông",
+    "22168000": "Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định",
+    "21087000": "Kho Giao Hàng Nặng - Quy Nhơn - Bình Định",
+    "21347000": "Kho Giao Hàng Nặng - Tuy Hòa - Phú Yên",
+    "21094000": "Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa",
+    "21498000": "Kho Giao Hàng Nặng - Cam Ranh - Khánh Hòa",
+    "21163000": "Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận",
+    "22057000": "Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận",
+    "21285000": "Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận",
+    "22028000": "Kho Giao Hàng Nặng - La Gi - Bình Thuận"
+}
+
+ALLOWED_NCC = [
+    "Ngọc Định", "Tín Thành", "An Logistics", "Minh Đăng", "Lã Mạnh Hùng", 
+    "Hải Đăng", "Nguyễn Mạnh Đà Nẵng", "Trần Xuân Phúc", "Thần Đèn", "HTL", 
+    "Bảo Châu Phát", "Gia Hân", "Nguyễn Huy Logistics", "Đặng Ngọc Phúc", 
+    "Tốt và Rẻ ĐN", "Gia Nghĩa", "Phú Hảo", "Quân Khang Phát", "Việt Bắc", 
+    "Mạnh Cường Khánh Hòa", "Mạnh Cường Khánh Hoà", "NAK"
+]
+
+def clean_str(s: str) -> str:
+    s = s.lower().strip()
+    replacements = {
+        'a': 'áàảãạăắằẳẵặâấầẩẫậa',
+        'e': 'éèẻẽẹêếềểễệe',
+        'i': 'íìỉĩịi',
+        'o': 'óòỏõọôốồổỗộơớờởỡợo',
+        'u': 'úùủũụưứừửữựu',
+        'y': 'ýỳỷỹỵy',
+        'd': 'đd'
+    }
+    for base, accents in replacements.items():
+        for accent in accents:
+            s = s.replace(accent, base)
+    s = re.sub(r'[^a-z0-9]', '', s)
+    return s
+
+def validate_caption_strict(text: str) -> tuple[bool, str, dict]:
+    if not text:
+        return False, "Nội dung mô tả trống.", {}
+        
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    if len(lines) != 5:
+        return False, (
+            "Sai cấu trúc tin nhắn báo cáo! Cú pháp bắt buộc phải có đúng 5 dòng như sau:\n\n"
+            "<code>[Mã Kho] - [Tên Kho]\n"
+            "[Tên NCC]\n"
+            "[Ngày dd/mm/yyyy]\n"
+            "[Biển Số Xe]\n"
+            "[Loại Xe]</code>\n\n"
+            "Ví dụ mẫu chuẩn:\n"
+            "<code>21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng\n"
+            "Mạnh Cường Khánh Hoà\n"
+            "01/06/2026\n"
+            "43H00912\n"
+            "Xe Cố Định</code>"
+        ), {}
+
+    # Dòng 1: [Mã Kho] - [Tên Kho]
+    warehouse_line = lines[0]
+    match_wh = re.match(r'^(\d{5,12})\s*-\s*(.*)$', warehouse_line)
+    if not match_wh:
+        return False, "Dòng 1 sai cú pháp! Định dạng đúng phải là: <code>[Mã Kho] - [Tên Kho]</code> (Ví dụ: <code>21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng</code>).", {}
+        
+    id_kho = match_wh.group(1).strip()
+    ten_kho_input = match_wh.group(2).strip()
+    
+    if id_kho not in ALLOWED_WAREHOUSES:
+        return False, f"Mã kho <code>{html.escape(id_kho)}</code> không tồn tại trong hệ thống hoặc không hợp lệ!", {}
+        
+    wh_expected = ALLOWED_WAREHOUSES[id_kho]
+    if clean_str(ten_kho_input) != clean_str(wh_expected):
+        return False, f"Tên kho không khớp với mã kho! Tên đúng của mã kho {id_kho} là: <code>{html.escape(wh_expected)}</code>.", {}
+        
+    # Dòng 2: Tên NCC
+    ncc_input = lines[1]
+    ncc_matched = None
+    for ncc in ALLOWED_NCC:
+        if clean_str(ncc_input) == clean_str(ncc):
+            ncc_matched = ncc
+            break
+            
+    if not ncc_matched:
+        return False, f"Tên nhà cung cấp (NCC) <code>{html.escape(ncc_input)}</code> không hợp lệ hoặc không có trong danh sách được phép!", {}
+        
+    # Dòng 3: Ngày dd/mm/yyyy
+    date_input = lines[2]
+    if not re.match(r'^\d{2}/\d{2}/\d{4}$', date_input):
+        return False, f"Định dạng ngày <code>{html.escape(date_input)}</code> không đúng! Vui lòng nhập đúng định dạng <code>dd/mm/yyyy</code> (Ví dụ: <code>01/06/2026</code>).", {}
+        
+    # Dòng 4: Biển số xe
+    plate_input = lines[3]
+    if not re.match(r'^[A-Z0-9]+$', plate_input.upper()):
+        return False, f"Biển số xe <code>{html.escape(plate_input)}</code> không hợp lệ! Biển số xe bắt buộc phải viết liền không dấu gạch ngang (-), không có dấu chấm (.) hay khoảng trắng.", {}
+        
+    # Dòng 5: Loại Xe
+    type_input = lines[4]
+    if type_input not in ["Xe Cố Định", "Xe Tăng Cường"]:
+        return False, f"Loại xe <code>{html.escape(type_input)}</code> không hợp lệ! Chỉ chấp nhận <code>Xe Cố Định</code> hoặc <code>Xe Tăng Cường</code>.", {}
+        
+    return True, "", {
+        "id_kho": id_kho,
+        "ten_kho": wh_expected,
+        "ncc": ncc_matched,
+        "ngay": date_input,
+        "bien_so": plate_input.upper(),
+        "loai_xe": type_input
+    }
+
 # Xử lý toàn bộ Album (Media Group) hoặc ảnh đơn sau khi đã thu thập đủ
 async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT_TYPE):
     group_data = MEDIA_GROUPS.pop(media_group_id, None)
@@ -664,46 +789,50 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         # Gửi thông báo lỗi bằng tiếng Việt chuẩn
         await primary_message.reply_text(
             "❌ Vui lòng nhập nội dung mô tả kèm theo ảnh.\n\n"
-            "Mẫu mô tả:\n"
-            "1. 21089000 - Kho Giao Hàng Nặng Liên Chiểu - Đà Nẵng\n"
-            "2. NCC Mạnh Cường Khánh Hoà\n"
-            "3. Ngày 01/06/2026\n"
-            "4. Biển Số Xe : 43H00912"
+            "Mẫu mô tả bắt buộc:\n"
+            "<code>21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng\n"
+            "Mạnh Cường Khánh Hoà\n"
+            "01/06/2026\n"
+            "43H00912\n"
+            "Xe Cố Định</code>"
         )
         return
         
-    status_message = await primary_message.reply_text("⏳ Đang tải ảnh và phân tích dữ liệu ODO bằng AI, vui lòng đợi trong giây lát...")
-    
-    try:
-        # 1. Tách thông tin mô tả văn bản
-        metadata = parse_caption(caption)
+    # 1. Tách thông tin mô tả văn bản và kiểm tra tính hợp lệ nghiêm ngặt
+    is_valid, error_msg, metadata = validate_caption_strict(caption)
+    if not is_valid:
+        alert_msg = (
+            f"❌ <b>SAI CẤU TRÚC HOẶC SAI THÔNG TIN TIN NHẮN BÁO CÁO!</b>\n\n"
+            f"{error_msg}\n\n"
+            f"Yêu cầu bạn chỉnh sửa lại nội dung tin nhắn cho đúng cú pháp.\n"
+            f"cc: @Thu_Dieu_Admin_GXT"
+        )
+        await primary_message.reply_text(
+            alert_msg,
+            parse_mode="HTML"
+        )
+        return
         
-        # Đảm bảo có ngày tháng
-        if not metadata.get("ngay"):
-            tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
-            metadata["ngay"] = dt.datetime.now(tz_utc_7).strftime("%d/%m/%Y")
+    # Kiểm tra trùng lặp biển số xe trong ngày
+    incoming_plate_norm = normalize_plate(metadata.get("bien_so"))
+    if incoming_plate_norm:
+        today_subs, _ = get_today_submissions(metadata["ngay"])
+        all_plates_today = []
+        for plates in today_subs.values():
+            all_plates_today.extend(plates)
             
-        # Kiểm tra trùng lặp biển số xe trong ngày
-        incoming_plate_norm = normalize_plate(metadata.get("bien_so"))
-        if incoming_plate_norm:
-            today_subs, _ = get_today_submissions(metadata["ngay"])
-            all_plates_today = []
-            for plates in today_subs.values():
-                all_plates_today.extend(plates)
-                
-            if incoming_plate_norm in [normalize_plate(p) for p in all_plates_today]:
-                alert_msg = (
-                    f"⚠️ <b>CẢNH BÁO: BIỂN SỐ XE {html.escape(metadata['bien_so'])} ĐÃ BÁO ODO TRONG NGÀY HÔM NAY {html.escape(metadata['ngay'])}</b>\n\n"
-                    f"Yêu cầu bạn kiểm tra lại thông tin. Báo cáo trùng lặp này không được ghi nhận.\n\n"
-                    f"cc: @Thu_Dieu_Admin_GXT"
-                )
-                await primary_message.reply_text(
-                    alert_msg,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True
-                )
-                await status_message.delete()
-                return
+        if incoming_plate_norm in [normalize_plate(p) for p in all_plates_today]:
+            alert_msg = (
+                f"⚠️ <b>CẢNH BÁO: BIỂN SỐ XE {html.escape(metadata['bien_so'])} ĐÃ BÁO ODO TRONG NGÀY HÔM NAY {html.escape(metadata['ngay'])}</b>\n\n"
+                f"Yêu cầu bạn kiểm tra lại thông tin. Báo cáo trùng lặp này không được ghi nhận.\n\n"
+                f"cc: @Thu_Dieu_Admin_GXT"
+            )
+            await primary_message.reply_text(
+                alert_msg,
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+            return
         
         # 2. Tải tất cả ảnh trong Album về bộ nhớ
         await status_message.edit_text(f"⏳ Đang tải {len(photos)} hình ảnh...")
