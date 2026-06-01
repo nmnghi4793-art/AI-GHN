@@ -181,18 +181,99 @@ def get_gxt_vehicles_count():
         print(f"[BOT ERROR] Error fetching registered vehicles: {e}")
         return {}
 
-def generate_odo_warning_report(date_str: str) -> str:
+def get_today_detailed_submissions(target_date_str: str):
+    state_file = "odo_state.json"
+    local_subs = []
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                state_data = json.load(f)
+            local_subs = state_data.get(target_date_str, {}).get("submissions", [])
+        except Exception as e:
+            print(f"[BOT] Error reading local state file: {e}")
+            
+    odo_gid = os.environ.get("ODO_SHEET_GID")
+    sheet_subs = []
+    if odo_gid:
+        try:
+            from main import read_csv, GIDS
+            if "odo_sheet" not in GIDS:
+                GIDS["odo_sheet"] = odo_gid
+            data, _ = read_csv("odo_sheet", force=True)
+            for r in data:
+                r_date = r.get("Ngày") or r.get("ngay") or ""
+                if r_date.strip() == target_date_str:
+                    id_kho = r.get("ID Kho") or r.get("id_kho") or ""
+                    ten_kho = r.get("Tên kho") or r.get("ten_kho") or ""
+                    bien_so = r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or ""
+                    loai_xe = r.get("Loại Xe") or r.get("loai_xe") or "Xe Cố Định"
+                    sheet_subs.append({
+                        "id_kho": id_kho.strip(),
+                        "ten_kho": ten_kho.strip(),
+                        "bien_so": bien_so.strip().upper(),
+                        "loai_xe": loai_xe.strip()
+                    })
+        except Exception as e:
+            print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
+            
+    merged = []
+    seen = set()
+    for sub in local_subs + sheet_subs:
+        id_kho = sub.get("id_kho", "").strip()
+        ten_kho = sub.get("ten_kho", "").strip()
+        bien_so = sub.get("bien_so", "").strip().upper()
+        loai_xe = sub.get("loai_xe", "Xe Cố Định").strip()
+        key = id_kho if id_kho else ten_kho
+        if not key:
+            continue
+        unique_key = (key, bien_so)
+        if unique_key not in seen:
+            seen.add(unique_key)
+            merged.append({
+                "id_kho": id_kho,
+                "ten_kho": ten_kho,
+                "bien_so": bien_so,
+                "loai_xe": loai_xe
+            })
+    return merged
+
+def get_today_off_reports(target_date_str: str):
+    state_file = "odo_state.json"
+    local_offs = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                state_data = json.load(f)
+            local_offs = state_data.get(target_date_str, {}).get("off_reports", {})
+        except Exception as e:
+            print(f"[BOT] Error reading local state file for off reports: {e}")
+    return local_offs
+
+def generate_odo_warning_report(date_str: str, moc_time: str) -> str:
     registered = get_gxt_vehicles_count()
     if not registered:
         return "⚠️ Không thể tải dữ liệu xe GXT từ Google Sheet để so sánh."
         
-    submissions, off_reports = get_today_submissions(date_str)
+    submissions = get_today_detailed_submissions(date_str)
+    off_reports = get_today_off_reports(date_str)
     
-    warning_lines = []
-    total_missing_all = 0
-    total_expected_all = 0
-    total_submitted_all = 0
+    # Phân nhóm ODO đã báo
+    co_dinh_by_kho = {}
+    tang_cuong_by_kho = {}
+    for sub in submissions:
+        key = sub["id_kho"] if sub["id_kho"] else sub["ten_kho"]
+        if not key:
+            continue
+        if "tăng cường" in sub["loai_xe"].lower() or "tang cuong" in sub["loai_xe"].lower():
+            tang_cuong_by_kho[key] = tang_cuong_by_kho.get(key, 0) + 1
+        else:
+            co_dinh_by_kho[key] = co_dinh_by_kho.get(key, 0) + 1
+            
+    missing_lines = []
+    off_lines = []
+    tang_cuong_lines = []
     
+    # 1. Quét tìm kho thiếu xe cố định
     for key, info in registered.items():
         id_kho = info["id_kho"]
         ten_kho = info["ten_kho"]
@@ -202,67 +283,133 @@ def generate_odo_warning_report(date_str: str) -> str:
         if not off_count and not id_kho:
             off_count = off_reports.get(ten_kho, 0)
             
-        target_vehicles = max(0, total_vehicles - off_count)
-        
-        subs_list = submissions.get(id_kho, [])
-        if not subs_list and not id_kho:
-            subs_list = submissions.get(ten_kho, [])
+        expected_co_dinh = max(0, total_vehicles - off_count)
+        submitted_co_dinh = co_dinh_by_kho.get(id_kho, 0)
+        if not submitted_co_dinh and not id_kho:
+            submitted_co_dinh = co_dinh_by_kho.get(ten_kho, 0)
             
-        submitted_count = len(subs_list)
-        missing_count = max(0, target_vehicles - submitted_count)
-        
-        total_expected_all += target_vehicles
-        total_submitted_all += submitted_count
-        total_missing_all += missing_count
+        missing_count = max(0, expected_co_dinh - submitted_co_dinh)
         
         if missing_count > 0:
-            off_str = f" (Off {off_count} xe)" if off_count > 0 else ""
-            warning_lines.append(
-                f"• <b>{html.escape(ten_kho)}</b>{f' ({html.escape(id_kho)})' if id_kho else ''}:\n"
-                f"  - Yêu cầu: {target_vehicles} xe{off_str}\n"
-                f"  - Đã nhập: {submitted_count} xe\n"
-                f"  - 🔴 <b>Thiếu: {missing_count} xe</b>"
+            missing_lines.append(
+                f"• <b>{html.escape(ten_kho)}</b>{f' (ID: {html.escape(id_kho)})' if id_kho else ''}: "
+                f"Thiếu {missing_count} xe (Yêu cầu: {expected_co_dinh} xe, Đã báo: {submitted_co_dinh} xe)"
             )
             
-    msg = f"📊 <b>BÁO CÁO CẢNH BÁO CHƯA NHẬP ODO - NGÀY {date_str}</b>\n\n"
-    if warning_lines:
-        msg += f"🚨 <b>Danh sách các kho chưa nhập đủ ODO:</b>\n"
-        msg += "\n".join(warning_lines)
-        msg += "\n\n"
-        msg += f"📈 <b>Tổng quan toàn mạng lưới:</b>\n"
-        msg += f"  - Tổng xe yêu cầu: {total_expected_all} xe\n"
-        msg += f"  - Tổng xe đã nhập: {total_submitted_all} xe\n"
-        msg += f"  - Tổng xe chưa nhập: {total_missing_all} xe\n"
+    # 2. Danh sách kho off xe trong ngày
+    for key, off_count in off_reports.items():
+        if off_count > 0:
+            ten_kho = key
+            id_kho = ""
+            if key in registered:
+                ten_kho = registered[key]["ten_kho"]
+                id_kho = registered[key]["id_kho"]
+            else:
+                for r_key, r_info in registered.items():
+                    if r_info["id_kho"] == key:
+                        ten_kho = r_info["ten_kho"]
+                        id_kho = r_info["id_kho"]
+                        break
+            off_lines.append(
+                f"• <b>{html.escape(ten_kho)}</b>{f' (ID: {html.escape(id_kho)})' if id_kho else ''}: "
+                f"Off {off_count} xe"
+            )
+            
+    # 3. Danh sách kho có xe tăng cường trong ngày
+    for key, tc_count in tang_cuong_by_kho.items():
+        if tc_count > 0:
+            ten_kho = key
+            id_kho = ""
+            if key in registered:
+                ten_kho = registered[key]["ten_kho"]
+                id_kho = registered[key]["id_kho"]
+            tang_cuong_lines.append(
+                f"• <b>{html.escape(ten_kho)}</b>{f' (ID: {html.escape(id_kho)})' if id_kho else ''}: "
+                f"{tc_count} xe tăng cường"
+            )
+            
+    # Xây dựng tin nhắn báo cáo
+    msg = f"📊 <b>BÁO CÁO THỐNG KÊ ODO NGÀY {date_str} - MỐC {moc_time}</b>\n\n"
+    
+    msg += "⚠️ <b>CÁC KHO CHƯA BÁO CÁO ĐỦ XE CỐ ĐỊNH:</b>\n"
+    if missing_lines:
+        msg += "\n".join(missing_lines)
     else:
-        msg += f"🎉 <b>Tất cả các kho đã nhập đủ chỉ số ODO cho ngày hôm nay!</b>\n"
-        msg += f"  - Tổng số xe hoạt động: {total_expected_all} xe\n"
+        msg += "🎉 <i>Tất cả các kho đã nhập đủ chỉ số ODO cố định!</i>"
+    msg += "\n\n"
+    
+    msg += "🚫 <b>KHO CÓ XE OFF TRONG NGÀY:</b>\n"
+    if off_lines:
+        msg += "\n".join(off_lines)
+    else:
+        msg += "<i>Không có xe off.</i>"
+    msg += "\n\n"
+    
+    msg += "🚀 <b>KHO CÓ XE TĂNG CƯỜNG TRONG NGÀY:</b>\n"
+    if tang_cuong_lines:
+        msg += "\n".join(tang_cuong_lines)
+    else:
+        msg += "<i>Không có xe tăng cường.</i>"
         
     return msg
 
 async def scheduled_warning_loop(application):
     print("[BOT] Scheduled warning loop started.")
     tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
-    last_sent_date = ""
+    
+    # Lưu ngày cuối cùng đã gửi báo cáo cho từng mốc để tránh trùng lặp
+    last_sent = {
+        "22:00": "",
+        "23:00": "",
+        "09:00": ""
+    }
     
     while True:
         try:
-            await asyncio.sleep(30)
+            await asyncio.sleep(20)
             now_local = dt.datetime.now(tz_utc_7)
             current_date = now_local.strftime("%d/%m/%Y")
             current_time = now_local.strftime("%H:%M")
             
-            warn_time = os.environ.get("WARN_TIME", "22:00")
             warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
             
-            if current_time == warn_time and last_sent_date != current_date:
-                report_msg = generate_odo_warning_report(current_date)
+            # Mốc 22:00 - Báo cáo cho ngày hôm nay (Day N)
+            if current_time == "22:00" and last_sent["22:00"] != current_date:
+                report_msg = generate_odo_warning_report(current_date, "22:00")
                 await application.bot.send_message(
                     chat_id=warn_chat_id,
                     text=report_msg,
                     parse_mode="HTML"
                 )
-                print(f"[BOT] Daily warning report sent for {current_date}")
-                last_sent_date = current_date
+                last_sent["22:00"] = current_date
+                print(f"[BOT] Daily warning report 22:00 sent for {current_date}")
+                
+            # Mốc 23:00 - Báo cáo cho ngày hôm nay (Day N)
+            elif current_time == "23:00" and last_sent["23:00"] != current_date:
+                report_msg = generate_odo_warning_report(current_date, "23:00")
+                await application.bot.send_message(
+                    chat_id=warn_chat_id,
+                    text=report_msg,
+                    parse_mode="HTML"
+                )
+                last_sent["23:00"] = current_date
+                print(f"[BOT] Daily warning report 23:00 sent for {current_date}")
+                
+            # Mốc 09:00 - Báo cáo cho ngày hôm qua (Day N - 1)
+            elif current_time == "09:00" and last_sent["09:00"] != current_date:
+                yesterday_local = now_local - dt.timedelta(days=1)
+                yesterday_date_str = yesterday_local.strftime("%d/%m/%Y")
+                
+                if last_sent["09:00"] != yesterday_date_str:
+                    report_msg = generate_odo_warning_report(yesterday_date_str, "09:00 (N+1)")
+                    await application.bot.send_message(
+                        chat_id=warn_chat_id,
+                        text=report_msg,
+                        parse_mode="HTML"
+                    )
+                    last_sent["09:00"] = yesterday_date_str
+                    print(f"[BOT] Morning warning report 09:00 sent for {yesterday_date_str}")
+                    
         except Exception as e:
             print(f"[BOT ERROR] Error in scheduled warning loop: {e}")
 
@@ -917,7 +1064,8 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
                 submission={
                     "id_kho": metadata.get("id_kho", ""),
                     "ten_kho": metadata.get("ten_kho", ""),
-                    "bien_so": metadata.get("bien_so", "")
+                    "bien_so": metadata.get("bien_so", ""),
+                    "loai_xe": metadata.get("loai_xe", "")
                 }
             )
             
