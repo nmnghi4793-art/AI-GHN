@@ -423,6 +423,15 @@ def get_gtc_by_kho(force: bool = False):
         })
     return {"data": sorted(result, key=lambda x: x["pct_gtc"]), "last_sync": last_sync}
 
+# ---- TELEGRAM BOT DIAGNOSTICS ----
+@app.get("/api/bot/status")
+def get_bot_status():
+    try:
+        from backend.telegram_bot import BOT_STATUS
+        return BOT_STATUS
+    except Exception as e:
+        return {"status": "error", "message": f"Không thể lấy trạng thái Bot: {str(e)}"}
+
 # ---- TELEGRAM REPORTING ----
 import httpx
 from datetime import datetime

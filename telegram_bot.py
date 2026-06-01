@@ -222,28 +222,75 @@ async def handle_odo_submission(update: Update, context: ContextTypes.DEFAULT_TY
         print(f"[BOT ERROR] Xử lý thất bại: {e}")
         await status_message.edit_text(f"❌ **Xử lý thất bại!**\nChi tiết lỗi: `{str(e)}`", parse_mode="Markdown")
 
+# Trạng thái hoạt động của Bot để phục vụ API chẩn đoán
+BOT_STATUS = {
+    "initialized": False,
+    "running": False,
+    "last_error": None,
+    "token_preview": None,
+    "gemini_preview": None,
+    "gemini_status": "Chưa kiểm tra",
+    "webhook_preview": None,
+    "logs": []
+}
+
+def log_status(message: str):
+    print(f"[TELEGRAM BOT] {message}")
+    BOT_STATUS["logs"].append(message)
+    if len(BOT_STATUS["logs"]) > 50:
+        BOT_STATUS["logs"].pop(0)
+
 # Hàm chạy bot trong nền
 async def run_bot():
+    global BOT_STATUS
+    import traceback
+    
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    webhook_url = os.environ.get("ODO_SHEET_WEBHOOK_URL")
+    
+    BOT_STATUS["token_preview"] = f"{token[:6]}...{token[-4:]}" if token else "Không có"
+    BOT_STATUS["gemini_preview"] = f"{gemini_key[:6]}...{gemini_key[-4:]}" if gemini_key else "Không có"
+    BOT_STATUS["webhook_preview"] = f"{webhook_url[:15]}..." if webhook_url else "Không có"
+    
+    # Kiểm tra định dạng API Key Gemini của người dùng
+    if gemini_key:
+        if gemini_key.startswith("AIzaSy"):
+            BOT_STATUS["gemini_status"] = "Định dạng hợp lệ (bắt đầu bằng AIzaSy)"
+        else:
+            BOT_STATUS["gemini_status"] = "Định dạng KHÔNG hợp lệ! (Khoá Gemini phải bắt đầu bằng AIzaSy. Có vẻ bạn đã copy nhầm ID Google Apps Script làm GEMINI_API_KEY)"
+    else:
+        BOT_STATUS["gemini_status"] = "Chưa cấu hình"
+
     if not token:
-        print("[TELEGRAM BOT] WARNING: Biến TELEGRAM_BOT_TOKEN chưa được cấu hình. Bỏ qua khởi động bot.")
+        log_status("WARNING: Biến TELEGRAM_BOT_TOKEN chưa được cấu hình. Bỏ qua khởi động bot.")
         return
         
-    print("[TELEGRAM BOT] Đang khởi động Telegram Bot...")
+    log_status("Đang khởi động Telegram Bot...")
     
-    # Khởi tạo application
-    application = Application.builder().token(token).build()
-    
-    # Đăng ký handler lắng nghe tin nhắn có hình ảnh
-    application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
-    
-    # Khởi chạy bot dạng polling
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling()
-    
-    print("[TELEGRAM BOT] Bot đã khởi động thành công và đang lắng nghe tin nhắn.")
-    
-    # Giữ bot chạy vô hạn (nền)
-    while True:
-        await asyncio.sleep(3600)
+    try:
+        # Khởi tạo application
+        application = Application.builder().token(token).build()
+        
+        # Đăng ký handler lắng nghe tin nhắn có hình ảnh
+        application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
+        
+        # Khởi chạy bot dạng polling
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        
+        BOT_STATUS["initialized"] = True
+        BOT_STATUS["running"] = True
+        log_status("Bot đã khởi động thành công và đang lắng nghe tin nhắn.")
+        
+        # Giữ bot chạy vô hạn (nền)
+        while True:
+            await asyncio.sleep(3600)
+            
+    except Exception as e:
+        err_msg = f"Lỗi khởi động Bot: {str(e)}\n{traceback.format_exc()}"
+        log_status(err_msg)
+        BOT_STATUS["last_error"] = err_msg
+        BOT_STATUS["running"] = False
+
