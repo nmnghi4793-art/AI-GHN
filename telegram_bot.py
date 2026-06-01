@@ -796,7 +796,13 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
             caption = msg.caption
             primary_message = msg
         if msg.photo:
-            photos.append(msg.photo[-1])
+            # Tối ưu hóa: Chọn ảnh có độ phân giải vừa đủ (rộng >= 800px) thay vì ảnh gốc siêu nặng để tăng tốc tải xuống/tải lên
+            best_photo = msg.photo[-1]
+            for p in msg.photo:
+                if p.width and p.width >= 800:
+                    best_photo = p
+                    break
+            photos.append(best_photo)
             
     if not caption:
         # Bỏ qua âm thầm nếu người dùng gửi hình ảnh không kèm mô tả (tránh làm phiền trong group chat)
