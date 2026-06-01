@@ -255,10 +255,12 @@ async def run_bot():
     
     # Kiểm tra định dạng API Key Gemini của người dùng
     if gemini_key:
-        if gemini_key.startswith("AIzaSy"):
-            BOT_STATUS["gemini_status"] = "Định dạng hợp lệ (bắt đầu bằng AIzaSy)"
+        if gemini_key.startswith("AIzaSy") or gemini_key.startswith("AQ."):
+            BOT_STATUS["gemini_status"] = "Định dạng hợp lệ"
+        elif gemini_key.startswith("AKfy"):
+            BOT_STATUS["gemini_status"] = "Định dạng KHÔNG hợp lệ! (Có vẻ bạn đã copy nhầm ID Google Apps Script làm GEMINI_API_KEY)"
         else:
-            BOT_STATUS["gemini_status"] = "Định dạng KHÔNG hợp lệ! (Khoá Gemini phải bắt đầu bằng AIzaSy. Có vẻ bạn đã copy nhầm ID Google Apps Script làm GEMINI_API_KEY)"
+            BOT_STATUS["gemini_status"] = "Có vẻ hợp lệ (vui lòng đảm bảo đây là API Key lấy từ AI Studio)"
     else:
         BOT_STATUS["gemini_status"] = "Chưa cấu hình"
 
