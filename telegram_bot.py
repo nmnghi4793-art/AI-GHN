@@ -802,9 +802,14 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
     is_valid, error_msg, metadata = validate_caption_strict(caption)
     if not is_valid:
         alert_msg = (
-            f"❌ <b>SAI CẤU TRÚC HOẶC SAI THÔNG TIN TIN NHẮN BÁO CÁO!</b>\n\n"
+            f"❌ <b>SAI CÚ PHÁP</b>\n\n"
             f"{error_msg}\n\n"
-            f"Yêu cầu bạn chỉnh sửa lại nội dung tin nhắn cho đúng cú pháp.\n"
+            f"Yêu cầu bạn chỉnh sửa lại nội dung tin nhắn cho đúng cú pháp theo mẫu:\n"
+            f"<code>21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng\n"
+            f"Mạnh Cường Khánh Hoà\n"
+            f"01/06/2026\n"
+            f"43H00912\n"
+            f"Xe Cố Định</code>\n\n"
             f"cc: @Thu_Dieu_Admin_GXT"
         )
         await primary_message.reply_text(
