@@ -12,12 +12,25 @@ import google.generativeai as genai
 # Bộ nhớ đệm lưu trữ các tin nhắn thuộc cùng một Album (Media Group)
 MEDIA_GROUPS = {}
 
+def clean_line_prefix(line: str) -> str:
+    line = line.strip()
+    m = re.match(r'^([1-9])\s*[\.\:\-]\s*(.*)$', line)
+    if m:
+        return m.group(2).strip()
+    m = re.match(r'^([1-9])\s+(.*)$', line)
+    if m:
+        if not re.match(r'^[0-9]{1,2}[-\/][0-9]{2,4}', line):
+            return m.group(2).strip()
+    return line
+
 # Cắt chuỗi và trích xuất dữ liệu từ caption của người dùng
 def parse_caption(text: str) -> dict:
     if not text:
         return {}
     
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    raw_lines = [line.strip() for line in text.split('\n') if line.strip()]
+    lines = [clean_line_prefix(line) for line in raw_lines]
+    
     result = {
         "id_kho": "",
         "ten_kho": "",
@@ -26,45 +39,105 @@ def parse_caption(text: str) -> dict:
         "bien_so": ""
     }
     
+    # 1. Nhận diện các dòng dựa trên từ khóa hoặc định dạng rõ ràng
+    warehouse_line = None
+    ncc_line = None
+    date_line = None
+    plate_line = None
+    
     for line in lines:
         line_lower = line.lower()
         
-        # 1. Dòng chứa thông tin Kho (ví dụ: "1. 21089000 - Kho Giao Hàng Nặng...")
-        if "kho" in line_lower:
-            m = re.search(r'(\d{5,12})\s*-\s*(.*)', line)
+        # Nhận diện dòng Kho (có chứa mã kho 5-12 số và dấu gạch ngang, hoặc chứa từ "kho")
+        if re.search(r'\d{5,12}\s*-\s*', line) or "kho" in line_lower:
+            warehouse_line = line
+        # Nhận diện dòng Ngày (có định dạng ngày xx/xx/xxxx hoặc xx-xx-xxxx, hoặc chứa từ "ngày"/"ngay")
+        elif re.search(r'\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}', line) or "ngày" in line_lower or "ngay" in line_lower:
+            date_line = line
+        # Nhận diện dòng Biển Số (có chứa các từ khóa liên quan đến biển số)
+        elif any(k in line_lower for k in ["biển", "bien", "số xe", "so xe"]):
+            plate_line = line
+        # Nhận diện dòng NCC (có chứa từ "ncc")
+        elif "ncc" in line_lower:
+            ncc_line = line
+
+    # 2. Trích xuất thông tin từ các dòng đã nhận diện
+    if warehouse_line:
+        m = re.search(r'(\d{5,12})\s*-\s*(.*)', warehouse_line)
+        if m:
+            result["id_kho"] = m.group(1).strip()
+            result["ten_kho"] = m.group(2).strip()
+        else:
+            parts = warehouse_line.split('-', 1)
+            if len(parts) == 2:
+                result["id_kho"] = "".join(c for c in parts[0] if c.isdigit())
+                result["ten_kho"] = parts[1].strip()
+            else:
+                result["ten_kho"] = warehouse_line
+                
+    if ncc_line:
+        clean = re.sub(r'^ncc\s*', '', ncc_line, flags=re.IGNORECASE).strip()
+        clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+        result["ncc"] = clean
+        
+    if date_line:
+        m = re.search(r'(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})', date_line)
+        if m:
+            result["ngay"] = m.group(1).strip()
+        else:
+            clean = re.sub(r'^ng[àa]y\s*', '', date_line, flags=re.IGNORECASE).strip()
+            clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+            result["ngay"] = clean
+            
+    if plate_line:
+        clean = re.sub(r'^(biển số xe|bien so xe|biển số|bien so|biển|bien|số xe|so xe)\s*', '', plate_line, flags=re.IGNORECASE).strip()
+        clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+        result["bien_so"] = clean.upper()
+
+    # 3. Fallback: Nếu có đúng 4 dòng và một số trường thông tin vẫn bị thiếu
+    if len(lines) == 4:
+        # Dòng 0: Kho
+        if not result["id_kho"] or not result["ten_kho"]:
+            m = re.search(r'(\d{5,12})\s*-\s*(.*)', lines[0])
             if m:
                 result["id_kho"] = m.group(1).strip()
                 result["ten_kho"] = m.group(2).strip()
             else:
-                # Cắt theo dấu gạch ngang đầu tiên làm phương án dự phòng
-                parts = line.split('-', 1)
+                parts = lines[0].split('-', 1)
                 if len(parts) == 2:
-                    digits = "".join(c for c in parts[0] if c.isdigit())
-                    result["id_kho"] = digits
+                    result["id_kho"] = "".join(c for c in parts[0] if c.isdigit())
                     result["ten_kho"] = parts[1].strip()
                 else:
-                    # Loại bỏ phần tiền tố số thứ tự (ví dụ: "1. ")
-                    clean = re.sub(r'^\d+\.?\s*', '', line).strip()
-                    result["ten_kho"] = clean
+                    result["ten_kho"] = lines[0]
                     
-        # 2. Dòng chứa nhà cung cấp (ví dụ: "2. NCC Mạnh Cường Khánh Hoà")
-        elif "ncc" in line_lower:
-            clean = re.sub(r'^\d+\.?\s*ncc\s*', '', line, flags=re.IGNORECASE).strip()
-            clean = re.sub(r'^:\s*', '', clean).strip() # Xóa dấu hai chấm nếu có
+        # Dòng 1: NCC
+        if not result["ncc"]:
+            clean = re.sub(r'^ncc\s*', '', lines[1], flags=re.IGNORECASE).strip()
+            clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
             result["ncc"] = clean
             
-        # 3. Dòng chứa ngày (ví dụ: "3. Ngày 01/06/2026")
-        elif "ngày" in line_lower or "ngay" in line_lower:
-            clean = re.sub(r'^\d+\.?\s*ngày\s*', '', line, flags=re.IGNORECASE).strip()
-            clean = re.sub(r'^:\s*', '', clean).strip()
-            result["ngay"] = clean
-            
-        # 4. Dòng chứa biển số xe (ví dụ: "4. Biển Số Xe : 43H00912")
-        elif "biển" in line_lower or "bien" in line_lower or "số xe" in line_lower or "so xe" in line_lower:
-            clean = re.sub(r'^\d+\.?\s*(biển số xe|bien so xe|biển số|bien so|biển|bien)\s*', '', line, flags=re.IGNORECASE).strip()
-            clean = re.sub(r'^:\s*', '', clean).strip()
-            result["bien_so"] = clean
-            
+        # Dòng 2: Ngày
+        if not result["ngay"]:
+            m = re.search(r'(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})', lines[2])
+            if m:
+                result["ngay"] = m.group(1).strip()
+            else:
+                clean = re.sub(r'^ng[àa]y\s*', '', lines[2], flags=re.IGNORECASE).strip()
+                clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+                result["ngay"] = clean
+                
+        # Dòng 3: Biển Số
+        if not result["bien_so"]:
+            clean = re.sub(r'^(biển số xe|bien so xe|biển số|bien so|biển|bien|số xe|so xe)\s*', '', lines[3], flags=re.IGNORECASE).strip()
+            clean = re.sub(r'^[\:\-]\s*', '', clean).strip()
+            result["bien_so"] = clean.upper()
+
+    # 4. Làm sạch triệt để các khoảng trắng thừa
+    for k in result:
+        result[k] = result[k].strip()
+    if result["bien_so"]:
+        result["bien_so"] = result["bien_so"].upper()
+        
     return result
 
 # Sử dụng Google Gemini Vision để nhận diện chỉ số ODO từ các hình ảnh
