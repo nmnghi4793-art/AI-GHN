@@ -71,7 +71,30 @@ async def read_odo_with_gemini(image_data: bytes) -> dict:
         raise ValueError("Chưa cấu hình biến môi trường GEMINI_API_KEY trên hệ thống.")
         
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Tự động dò tìm model Flash khả dụng nhất trên tài khoản
+    model_name = "gemini-1.5-flash"
+    try:
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            available_models = await loop.run_in_executor(
+                pool, 
+                lambda: [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
+            )
+        
+        flash_models = [m for m in available_models if "flash" in m.lower()]
+        if flash_models:
+            # Sắp xếp để chọn bản mới nhất (ví dụ: gemini-2.0-flash hoặc gemini-2.5-flash)
+            flash_models.sort(reverse=True)
+            model_name = flash_models[0]
+            print(f"[GEMINI] Tự động chọn model: {model_name}")
+        else:
+            if available_models:
+                model_name = available_models[0]
+    except Exception as e:
+        print(f"[GEMINI WARNING] Không thể lấy danh sách model, sử dụng mặc định {model_name}. Lỗi: {e}")
+        
+    model = genai.GenerativeModel(model_name)
     
     prompt = (
         "Hãy phân tích hình ảnh bảng đồng hồ công tơ mét này của xe ô tô và đọc số ODO đi (lúc sáng, giá trị nhỏ hơn) và số ODO về (lúc chiều, giá trị lớn hơn).\n"
@@ -295,4 +318,3 @@ async def run_bot():
         log_status(err_msg)
         BOT_STATUS["last_error"] = err_msg
         BOT_STATUS["running"] = False
-
