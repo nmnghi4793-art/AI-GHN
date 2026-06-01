@@ -293,28 +293,36 @@ async def run_bot():
         
     log_status("Đang khởi động Telegram Bot...")
     
-    try:
-        # Khởi tạo application
-        application = Application.builder().token(token).build()
-        
-        # Đăng ký handler lắng nghe tin nhắn có hình ảnh
-        application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
-        
-        # Khởi chạy bot dạng polling
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling()
-        
-        BOT_STATUS["initialized"] = True
-        BOT_STATUS["running"] = True
-        log_status("Bot đã khởi động thành công và đang lắng nghe tin nhắn.")
-        
-        # Giữ bot chạy vô hạn (nền)
-        while True:
-            await asyncio.sleep(3600)
+    retry_delay = 10
+    while True:
+        try:
+            # Khởi tạo application
+            application = Application.builder().token(token).build()
             
-    except Exception as e:
-        err_msg = f"Lỗi khởi động Bot: {str(e)}\n{traceback.format_exc()}"
-        log_status(err_msg)
-        BOT_STATUS["last_error"] = err_msg
-        BOT_STATUS["running"] = False
+            # Đăng ký handler lắng nghe tin nhắn có hình ảnh
+            application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
+            
+            # Khởi chạy bot dạng polling
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling()
+            
+            BOT_STATUS["initialized"] = True
+            BOT_STATUS["running"] = True
+            BOT_STATUS["last_error"] = None
+            log_status("Bot đã khởi động thành công và đang lắng nghe tin nhắn.")
+            
+            # Giữ bot chạy vô hạn (nền)
+            while True:
+                await asyncio.sleep(3600)
+                
+        except Exception as e:
+            err_msg = f"Lỗi chạy Bot: {str(e)}"
+            log_status(err_msg)
+            BOT_STATUS["last_error"] = f"{err_msg}\n{traceback.format_exc()}"
+            BOT_STATUS["running"] = False
+            
+            # Đợi một chút rồi thử lại (tránh trường hợp xung đột cổng/instance tạm thời)
+            log_status(f"Thử lại sau {retry_delay} giây...")
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(retry_delay + 10, 60)
