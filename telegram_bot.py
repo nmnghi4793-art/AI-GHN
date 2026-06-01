@@ -635,6 +635,11 @@ async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: 
     else:
         raise RuntimeError(f"Google Webhook phản hồi lỗi {resp.status_code}: {resp.text}")
 
+def normalize_plate(plate: str) -> str:
+    if not plate:
+        return ""
+    return re.sub(r'[^A-Z0-9]', '', plate.upper())
+
 # Xử lý toàn bộ Album (Media Group) hoặc ảnh đơn sau khi đã thu thập đủ
 async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT_TYPE):
     group_data = MEDIA_GROUPS.pop(media_group_id, None)
@@ -672,6 +677,33 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
     try:
         # 1. Tách thông tin mô tả văn bản
         metadata = parse_caption(caption)
+        
+        # Đảm bảo có ngày tháng
+        if not metadata.get("ngay"):
+            tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
+            metadata["ngay"] = dt.datetime.now(tz_utc_7).strftime("%d/%m/%Y")
+            
+        # Kiểm tra trùng lặp biển số xe trong ngày
+        incoming_plate_norm = normalize_plate(metadata.get("bien_so"))
+        if incoming_plate_norm:
+            today_subs, _ = get_today_submissions(metadata["ngay"])
+            all_plates_today = []
+            for plates in today_subs.values():
+                all_plates_today.extend(plates)
+                
+            if incoming_plate_norm in [normalize_plate(p) for p in all_plates_today]:
+                alert_msg = (
+                    f"⚠️ <b>CẢNH BÁO: BIỂN SỐ XE {html.escape(metadata['bien_so'])} ĐÃ BÁO ODO TRONG NGÀY HÔM NAY {html.escape(metadata['ngay'])}</b>\n\n"
+                    f"Yêu cầu bạn kiểm tra lại thông tin. Báo cáo trùng lặp này không được ghi nhận.\n\n"
+                    f"cc: @Thu_Dieu_Admin_GXT"
+                )
+                await primary_message.reply_text(
+                    alert_msg,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
+                )
+                await status_message.delete()
+                return
         
         # 2. Tải tất cả ảnh trong Album về bộ nhớ
         await status_message.edit_text(f"⏳ Đang tải {len(photos)} hình ảnh...")
