@@ -51,7 +51,8 @@ except Exception as e:
     print(f"[STARTUP] Could not list BASE_DIR: {e}")
 
 # ---- GOOGLE SHEETS MAPPING ----
-SHEET_ID = "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY"
+SHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+ODO_SHEET_ID = "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY"
 GIDS = {
     "gtc":       "0",
     "ontime":    "25240142",
@@ -103,7 +104,8 @@ def read_csv(key: str, force: bool = False):
     if not force and key in CACHE and (now - CACHE[key]['time']) < CACHE_TTL:
         return CACHE[key]['data'], CACHE[key]['time']
         
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
+    current_sheet_id = ODO_SHEET_ID if key == "odo_sheet" else SHEET_ID
+    url = f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/export?format=csv&gid={gid}"
     data = []
     try:
         # Added timeout of 10 seconds to prevent hanging
