@@ -511,37 +511,43 @@ def parse_caption(text: str) -> dict:
         
     return result
 
+# Bộ nhớ đệm lưu model Gemini đã dò tìm để tăng tốc xử lý
+CACHED_GEMINI_MODEL = None
+
 # Sử dụng Google Gemini Vision để nhận diện chỉ số ODO từ các hình ảnh
 async def read_odo_with_gemini(image_parts: list) -> dict:
+    global CACHED_GEMINI_MODEL
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("Chưa cấu hình biến môi trường GEMINI_API_KEY trên hệ thống.")
         
     genai.configure(api_key=api_key)
     
-    # Tự động dò tìm model Flash khả dụng nhất trên tài khoản
-    model_name = "gemini-1.5-flash"
-    try:
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as pool:
-            available_models = await loop.run_in_executor(
-                pool, 
-                lambda: [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
-            )
-        
-        flash_models = [m for m in available_models if "flash" in m.lower()]
-        if flash_models:
-            # Sắp xếp để chọn bản mới nhất (ví dụ: gemini-2.0-flash hoặc gemini-2.5-flash)
-            flash_models.sort(reverse=True)
-            model_name = flash_models[0]
-            print(f"[GEMINI] Tự động chọn model: {model_name}")
-        else:
-            if available_models:
-                model_name = available_models[0]
-    except Exception as e:
-        print(f"[GEMINI WARNING] Không thể lấy danh sách model, sử dụng mặc định {model_name}. Lỗi: {e}")
-        
-    model = genai.GenerativeModel(model_name)
+    if not CACHED_GEMINI_MODEL:
+        model_name = "gemini-1.5-flash"
+        try:
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor() as pool:
+                available_models = await loop.run_in_executor(
+                    pool, 
+                    lambda: [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
+                )
+            
+            flash_models = [m for m in available_models if "flash" in m.lower()]
+            if flash_models:
+                # Sắp xếp để chọn bản mới nhất (ví dụ: gemini-2.0-flash hoặc gemini-2.5-flash)
+                flash_models.sort(reverse=True)
+                model_name = flash_models[0]
+                print(f"[GEMINI] Tự động chọn model: {model_name}")
+            else:
+                if available_models:
+                    model_name = available_models[0]
+            CACHED_GEMINI_MODEL = model_name
+        except Exception as e:
+            print(f"[GEMINI WARNING] Không thể lấy danh sách model, sử dụng mặc định {model_name}. Lỗi: {e}")
+            CACHED_GEMINI_MODEL = model_name
+            
+    model = genai.GenerativeModel(CACHED_GEMINI_MODEL)
     
     prompt = (
         "Hãy phân tích các hình ảnh bảng đồng hồ công tơ mét này của xe ô tô và đọc số ODO đi (lúc sáng, giá trị nhỏ hơn) và số ODO về (lúc chiều, giá trị lớn hơn).\n"
