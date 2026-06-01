@@ -3223,10 +3223,96 @@ function renderOverloadTable() {
     }).join('');
 }
 
+// ---- LOGIN & LOGOUT SYSTEM ----
+function initLogin() {
+    const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
+    const loginWrapper = document.getElementById('login-wrapper');
+    const appContainer = document.getElementById('app-container');
+
+    if (isAlreadyLoggedIn) {
+        if (loginWrapper) loginWrapper.style.display = 'none';
+        if (appContainer) appContainer.style.display = 'flex';
+        // Start dashboard loading
+        fetchAll();
+        startSyncTimer();
+        checkAdminAccess();
+        setupLogout();
+    } else {
+        if (loginWrapper) loginWrapper.style.display = 'flex';
+        if (appContainer) appContainer.style.display = 'none';
+        setupLoginForm();
+    }
+}
+
+function setupLoginForm() {
+    const submitBtn = document.getElementById('login-submit-btn');
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    const loginError = document.getElementById('login-error');
+    const togglePasswordEye = document.getElementById('toggle-password-eye');
+
+    if (togglePasswordEye && passwordInput) {
+        // Toggle password visibility
+        togglePasswordEye.onclick = () => {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                togglePasswordEye.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                togglePasswordEye.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        };
+    }
+
+    const handleLoginSubmit = () => {
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+
+        if (username === 'giaohangnangmientrung' && password === 'b2bmientrung') {
+            localStorage.setItem('ghn_logged_in', 'true');
+            if (loginError) loginError.style.display = 'none';
+            initLogin();
+        } else {
+            if (loginError) {
+                loginError.style.display = 'flex';
+                // Add shake animation
+                loginError.style.animation = 'none';
+                loginError.offsetHeight; // trigger reflow
+                loginError.style.animation = null;
+            }
+        }
+    };
+
+    if (submitBtn) {
+        submitBtn.onclick = handleLoginSubmit;
+    }
+
+    // Support enter key submit
+    const inputs = [usernameInput, passwordInput];
+    inputs.forEach(input => {
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    handleLoginSubmit();
+                }
+            };
+        }
+    });
+}
+
+function setupLogout() {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem('ghn_logged_in');
+            window.location.reload();
+        };
+    }
+}
+
 // ---- INIT ----
 document.addEventListener('DOMContentLoaded', () => {
-    fetchAll();
-    startSyncTimer();
-    checkAdminAccess();
+    initLogin();
 });
 

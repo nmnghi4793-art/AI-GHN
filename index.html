@@ -93,8 +93,44 @@
     </style>
     <link rel="stylesheet" href="styles.css?v=1.1">
 </head>
-<body>
-    <div class="app-container">
+    <!-- ===== LOGIN SCREEN ===== -->
+    <div class="login-wrapper" id="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+                <div class="login-brand-text">GHN Ops <span>Miền Trung</span></div>
+                <div class="login-title">Đăng nhập vận hành GXT Miền Trung</div>
+            </div>
+            <div class="login-form">
+                <div class="login-error" id="login-error">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
+                </div>
+                <div class="input-group">
+                    <label for="login-username">Tài khoản</label>
+                    <div class="input-field-wrap">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="login-password">Mật khẩu</label>
+                    <div class="input-field-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="login-password" class="login-input" placeholder="••••••••" style="padding-right: 40px;">
+                        <i class="fa-solid fa-eye" id="toggle-password-eye" style="left: auto; right: 14px; cursor: pointer;"></i>
+                    </div>
+                </div>
+                <button type="button" class="login-btn" id="login-submit-btn">
+                    Đăng nhập <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" style="display: none;">
         <!-- ===== SIDEBAR ===== -->
         <aside class="sidebar" id="sidebar">
             <div class="logo">
@@ -163,6 +199,9 @@
                         <span class="user-role">GHN Miền Trung</span>
                     </div>
                 </div>
+                <button class="btn btn-outline" id="logout-btn" style="width: 100%; justify-content: center; margin-top: 5px; color: var(--red); border-color: rgba(245,54,92,0.2); background: rgba(245,54,92,0.05); transition: all 0.2s;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                </button>
             </div>
         </aside>
 
