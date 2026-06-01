@@ -236,6 +236,8 @@ async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: 
         "odo_ve": metadata.get("odo_ve", 0),
         "ngay": metadata.get("ngay", ""),
         "bien_so": metadata.get("bien_so", ""),
+        "image_base64": images_payload[0]["base64"] if images_payload else "",
+        "image_name": images_payload[0]["name"] if images_payload else "",
         "images": images_payload
     }
     
