@@ -834,6 +834,14 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
             )
             return
         
+    status_message = await primary_message.reply_text("⏳ Đang tải ảnh và phân tích dữ liệu ODO bằng AI, vui lòng đợi trong giây lát...")
+    
+    try:
+        # Đảm bảo có ngày tháng
+        if not metadata.get("ngay"):
+            tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
+            metadata["ngay"] = dt.datetime.now(tz_utc_7).strftime("%d/%m/%Y")
+            
         # 2. Tải tất cả ảnh trong Album về bộ nhớ
         await status_message.edit_text(f"⏳ Đang tải {len(photos)} hình ảnh...")
         image_parts = []
