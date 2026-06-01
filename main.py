@@ -28,7 +28,10 @@ app.add_middleware(
 async def startup_event():
     import asyncio
     try:
-        from backend.telegram_bot import run_bot
+        try:
+            from backend.telegram_bot import run_bot
+        except ImportError:
+            from telegram_bot import run_bot
         asyncio.create_task(run_bot())
         print("[STARTUP] Đã kích hoạt background task cho Telegram Bot.")
     except Exception as e:
@@ -451,7 +454,10 @@ def get_bot_status():
             backend_files = [f"Error: {e}"]
 
     try:
-        from backend.telegram_bot import BOT_STATUS
+        try:
+            from backend.telegram_bot import BOT_STATUS
+        except ImportError:
+            from telegram_bot import BOT_STATUS
         return {
             "status": "success",
             "bot_status": BOT_STATUS,
