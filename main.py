@@ -549,10 +549,13 @@ async def send_telegram_report(payload: dict):
             return {"status": "error", "message": "Nội dung báo cáo trống."}
 
         # Gửi qua Telegram API
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", TELEGRAM_TOKEN)
+        chat_id = os.environ.get("WARN_CHAT_ID", CHAT_ID)
+        
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json={
-                "chat_id": CHAT_ID,
+                "chat_id": chat_id,
                 "text": message,
                 "parse_mode": "Markdown",
                 "disable_web_page_preview": True

@@ -467,7 +467,32 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not message or not message.text:
         return
         
+    # Nếu là chat riêng tư (private) và không phải lệnh/báo cáo off xe
     off_report = parse_off_report(message.text)
+    if not off_report and message.chat.type == "private" and not message.text.startswith('/'):
+        warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
+        # Kiểm tra xem người chat riêng với bot có phải admin của group nhận cảnh báo không
+        try:
+            member = await context.bot.get_chat_member(chat_id=warn_chat_id, user_id=update.effective_user.id)
+            if member.status not in ["administrator", "creator"]:
+                await message.reply_text("❌ Bạn không có quyền gửi tin nhắn từ Bot vào nhóm chat vận hành.")
+                return
+        except Exception as e:
+            await message.reply_text(f"❌ Không thể xác thực quyền hạn của bạn trong nhóm chat. Lỗi: {e}")
+            return
+            
+        # Gửi tin nhắn vào nhóm chat dưới danh nghĩa Bot
+        try:
+            await context.bot.send_message(
+                chat_id=warn_chat_id,
+                text=message.text
+            )
+            await message.reply_text("✅ Đã gửi tin nhắn này vào nhóm vận hành dưới danh nghĩa Bot!")
+            return
+        except Exception as e:
+            await message.reply_text(f"❌ Gửi tin nhắn vào nhóm thất bại: {e}")
+            return
+            
     if off_report:
         registered_khos = get_gxt_vehicles_count()
         id_kho = off_report["id_kho"]

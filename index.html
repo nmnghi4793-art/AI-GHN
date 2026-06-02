@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GHN Operations Dashboard | Miền Trung</title>
     <meta name="description" content="Hệ thống theo dõi vận hành GHN Miền Trung - GTC, Ontime, Backlog, B2B">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -23,8 +25,8 @@
             --text2: #525F7F;
             --text3: #8898AA;
             --border: #E9ECEF;
-            --shadow-sm: 0 2px 10px rgba(0,0,0,0.05);
-            --shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
         /* Dropdown Multi-select styles */
@@ -32,6 +34,7 @@
             position: relative;
             width: 100%;
         }
+
         .dropdown-trigger {
             background: #fff;
             border: 1px solid #ddd;
@@ -44,6 +47,7 @@
             font-size: 0.9rem;
             color: var(--text2);
         }
+
         .dropdown-list {
             position: absolute;
             top: 100%;
@@ -58,13 +62,16 @@
             padding: 10px;
             margin-top: 5px;
         }
+
         .dropdown-list.active {
             display: block;
         }
+
         .dropdown-items {
             max-height: 200px;
             overflow-y: auto;
         }
+
         .dropdown-items label {
             display: flex;
             align-items: center;
@@ -74,17 +81,21 @@
             transition: background 0.2s;
             font-size: 0.85rem;
         }
+
         .dropdown-items label:hover {
             background: #f0f4f8;
         }
+
         .dropdown-items input {
             margin-right: 10px;
         }
+
         .filter-group {
             display: flex;
             flex-direction: column;
             gap: 5px;
         }
+
         .filter-group label {
             font-weight: 600;
             font-size: 0.8rem;
@@ -93,900 +104,941 @@
     </style>
     <link rel="stylesheet" href="styles.css?v=1.1">
 </head>
-    <!-- ===== LOGIN SCREEN ===== -->
-    <div class="login-wrapper" id="login-wrapper">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="login-logo">
-                    <i class="fa-solid fa-truck-fast"></i>
-                </div>
-                <div class="login-brand-text">GHN Ops <span>Miền Trung</span></div>
-                <div class="login-title">Đăng nhập vận hành GXT Miền Trung</div>
+<!-- ===== LOGIN SCREEN ===== -->
+<div class="login-wrapper" id="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <i class="fa-solid fa-truck-fast"></i>
             </div>
-            <div class="login-form">
-                <div class="login-error" id="login-error">
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
-                </div>
-                <div class="input-group">
-                    <label for="login-username">Tài khoản</label>
-                    <div class="input-field-wrap">
-                        <i class="fa-solid fa-user"></i>
-                        <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="login-password">Mật khẩu</label>
-                    <div class="input-field-wrap">
-                        <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="login-password" class="login-input" placeholder="••••••••" style="padding-right: 40px;">
-                        <i class="fa-solid fa-eye" id="toggle-password-eye" style="left: auto; right: 14px; cursor: pointer;"></i>
-                    </div>
-                </div>
-                <button type="button" class="login-btn" id="login-submit-btn">
-                    Đăng nhập <i class="fa-solid fa-arrow-right"></i>
-                </button>
+            <div class="login-brand-text">GHN Ops <span>Miền Trung</span></div>
+            <div class="login-title">Đăng nhập vận hành GXT Miền Trung</div>
+        </div>
+        <div class="login-form">
+            <div class="login-error" id="login-error">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
             </div>
+            <div class="input-group">
+                <label for="login-username">Tài khoản</label>
+                <div class="input-field-wrap">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập">
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="login-password">Mật khẩu</label>
+                <div class="input-field-wrap">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="login-password" class="login-input" placeholder="••••••••"
+                        style="padding-right: 40px;">
+                    <i class="fa-solid fa-eye" id="toggle-password-eye"
+                        style="left: auto; right: 14px; cursor: pointer;"></i>
+                </div>
+            </div>
+            <button type="button" class="login-btn" id="login-submit-btn">
+                Đăng nhập <i class="fa-solid fa-arrow-right"></i>
+            </button>
         </div>
     </div>
+</div>
 
-    <div class="app-container" id="app-container" style="display: none;">
-        <!-- ===== SIDEBAR ===== -->
-        <aside class="sidebar" id="sidebar">
-            <div class="logo">
-                <div class="logo-icon-wrap"><i class="fa-solid fa-truck-fast"></i></div>
-                <div class="logo-text">
-                    <span class="logo-brand">GHN Ops</span>
-                    <span class="logo-region">Miền Trung</span>
+<div class="app-container" id="app-container" style="display: none;">
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            <div class="logo-icon-wrap"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="logo-text">
+                <span class="logo-brand">GHN Ops</span>
+                <span class="logo-region">Miền Trung</span>
+            </div>
+        </div>
+
+        <nav>
+            <a href="#" class="nav-item active" data-section="overview" id="nav-overview">
+                <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
+            </a>
+            <a href="#" class="nav-item" data-section="warnings" id="nav-warnings">
+                <i class="fa-solid fa-bell"></i><span>Hệ Thống Cảnh Báo</span>
+                <span class="nav-badge danger" id="nav-warnings-count">--</span>
+            </a>
+            <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
+                <i class="fa-solid fa-check-double"></i><span>GTC & Năng Suất</span>
+            </a>
+            <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
+                <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog > 7 Ngày</span>
+                <span class="nav-badge danger" id="nav-backlog-count">--</span>
+            </a>
+            <a href="#" class="nav-item" data-section="b2b" id="nav-b2b">
+                <i class="fa-solid fa-crown"></i><span>B2B & SLA</span>
+                <span class="nav-badge danger" id="nav-b2b-count">--</span>
+            </a>
+            <a href="#" class="nav-item" data-section="returns" id="nav-returns">
+                <i class="fa-solid fa-rotate-left"></i><span>Trả Hàng & FD</span>
+            </a>
+            <a href="#" class="nav-item" data-section="personnel" id="nav-personnel">
+                <i class="fa-solid fa-users"></i><span>Nhân Sự</span>
+            </a>
+            <a href="#" class="nav-item" data-section="nangsuat" id="nav-nangsuat">
+                <i class="fa-solid fa-motorcycle"></i><span>Năng Suất NV</span>
+            </a>
+            <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
+                <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
+            </a>
+            <a href="#" class="nav-item" data-section="xesuco" id="nav-xesuco">
+                <i class="fa-solid fa-triangle-exclamation"></i><span>Xe Sự Cố</span>
+            </a>
+            <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
+                <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
+            </a>
+            <a href="#" class="nav-item" data-section="forecast" id="nav-forecast">
+                <i class="fa-solid fa-magnifying-glass-chart"></i><span>Dự Báo Rủi Ro Kho</span>
+                <span class="nav-badge danger" id="nav-forecast-count" style="display:none">!</span>
+            </a>
+            <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
+                <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="last-updated">
+                <i class="fa-solid fa-circle" style="color:#0CA678;font-size:8px"></i>
+                <span id="last-update-time">Đang tải...</span>
+            </div>
+            <div class="user-profile">
+                <div class="avatar">MT</div>
+                <div class="user-info">
+                    <span class="user-name">Operations Manager</span>
+                    <span class="user-role">GHN Miền Trung</span>
                 </div>
             </div>
+            <button class="btn btn-outline" id="logout-btn"
+                style="width: 100%; justify-content: center; margin-top: 5px; color: var(--red); border-color: rgba(245,54,92,0.2); background: rgba(245,54,92,0.05); transition: all 0.2s;">
+                <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+            </button>
+        </div>
+    </aside>
 
-            <nav>
-                <a href="#" class="nav-item active" data-section="overview" id="nav-overview">
-                    <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
-                </a>
-                <a href="#" class="nav-item" data-section="warnings" id="nav-warnings">
-                    <i class="fa-solid fa-bell"></i><span>Hệ Thống Cảnh Báo</span>
-                    <span class="nav-badge danger" id="nav-warnings-count">--</span>
-                </a>
-                <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
-                    <i class="fa-solid fa-check-double"></i><span>GTC & Năng Suất</span>
-                </a>
-                <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
-                    <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog > 7 Ngày</span>
-                    <span class="nav-badge danger" id="nav-backlog-count">--</span>
-                </a>
-                <a href="#" class="nav-item" data-section="b2b" id="nav-b2b">
-                    <i class="fa-solid fa-crown"></i><span>B2B & SLA</span>
-                    <span class="nav-badge danger" id="nav-b2b-count">--</span>
-                </a>
-                <a href="#" class="nav-item" data-section="returns" id="nav-returns">
-                    <i class="fa-solid fa-rotate-left"></i><span>Trả Hàng & FD</span>
-                </a>
-                <a href="#" class="nav-item" data-section="personnel" id="nav-personnel">
-                    <i class="fa-solid fa-users"></i><span>Nhân Sự</span>
-                </a>
-                <a href="#" class="nav-item" data-section="nangsuat" id="nav-nangsuat">
-                    <i class="fa-solid fa-motorcycle"></i><span>Năng Suất NV</span>
-                </a>
-                <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
-                    <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
-                </a>
-                <a href="#" class="nav-item" data-section="xesuco" id="nav-xesuco">
-                    <i class="fa-solid fa-triangle-exclamation"></i><span>Xe Sự Cố</span>
-                </a>
-                <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
-                    <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
-                </a>
-                <a href="#" class="nav-item" data-section="forecast" id="nav-forecast">
-                    <i class="fa-solid fa-magnifying-glass-chart"></i><span>Dự Báo Rủi Ro Kho</span>
-                    <span class="nav-badge danger" id="nav-forecast-count" style="display:none">!</span>
-                </a>
-                <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
-                    <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
-                </a>
-            </nav>
-
-            <div class="sidebar-footer">
-                <div class="last-updated">
-                    <i class="fa-solid fa-circle" style="color:#0CA678;font-size:8px"></i>
-                    <span id="last-update-time">Đang tải...</span>
+    <!-- ===== MAIN ===== -->
+    <main class="main-content">
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebar-toggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div>
+                    <h1 id="page-title">Báo Cáo Tổng Quan</h1>
+                    <p class="subtitle" id="page-subtitle">Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung</p>
                 </div>
-                <div class="user-profile">
-                    <div class="avatar">MT</div>
-                    <div class="user-info">
-                        <span class="user-name">Operations Manager</span>
-                        <span class="user-role">GHN Miền Trung</span>
+            </div>
+            <div class="topbar-actions">
+                <div id="sync-status-area" class="sync-status-wrap">
+                    <div class="sync-countdown">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Cập nhật sau: <strong id="sync-timer">5:00</strong></span>
+                    </div>
+                    <div class="sync-progress-bar">
+                        <div id="sync-progress" style="width: 100%"></div>
                     </div>
                 </div>
-                <button class="btn btn-outline" id="logout-btn" style="width: 100%; justify-content: center; margin-top: 5px; color: var(--red); border-color: rgba(245,54,92,0.2); background: rgba(245,54,92,0.05); transition: all 0.2s;">
-                    <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                <div class="date-badge">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span id="current-date">--</span>
+                </div>
+                <button class="btn btn-primary" id="telegram-btn"
+                    style="background:#0088cc; border:none; margin-right:10px; display:none;">
+                    <i class="fa-brands fa-telegram"></i> Gửi Telegram
+                </button>
+                <button class="btn btn-outline" id="refresh-btn">
+                    <i class="fa-solid fa-rotate-right"></i> Làm mới
                 </button>
             </div>
-        </aside>
+        </header>
 
-        <!-- ===== MAIN ===== -->
-        <main class="main-content">
-            <!-- TOPBAR -->
-            <header class="topbar">
-                <div class="topbar-left">
-                    <button class="sidebar-toggle" id="sidebar-toggle">
-                        <i class="fa-solid fa-bars"></i>
-                    </button>
-                    <div>
-                        <h1 id="page-title">Báo Cáo Tổng Quan</h1>
-                        <p class="subtitle" id="page-subtitle">Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung</p>
+        <!-- ===== SECTION: TỔNG QUAN ===== -->
+        <section class="section active" id="section-overview">
+
+            <!-- MAIN KPI CARDS GRID -->
+            <div class="overview-cards">
+                <!-- 1. GTC -->
+                <div class="stat-card green-card">
+                    <div class="stat-icon green"><i class="fa-solid fa-check-double"></i></div>
+                    <div class="stat-details">
+                        <h3>Tổng % GTC</h3>
+                        <h2 id="val-gtc" class="text-green">--%</h2>
+                        <p class="stat-sub" id="sub-gtc">Ngày gần nhất</p>
                     </div>
                 </div>
-                <div class="topbar-actions">
-                    <div id="sync-status-area" class="sync-status-wrap">
-                        <div class="sync-countdown">
-                            <i class="fa-solid fa-arrows-rotate"></i>
-                            <span>Cập nhật sau: <strong id="sync-timer">5:00</strong></span>
-                        </div>
-                        <div class="sync-progress-bar"><div id="sync-progress" style="width: 100%"></div></div>
+                <!-- 3. BACKLOG > 7N -->
+                <div class="stat-card red-card alert-card">
+                    <div class="stat-icon red"><i class="fa-solid fa-fire"></i></div>
+                    <div class="stat-details">
+                        <h3>Backlog > 7 Ngày</h3>
+                        <h2 id="val-backlog" class="text-danger">--</h2>
+                        <p class="stat-sub text-danger">Cần xử lý ngay</p>
                     </div>
-                    <div class="date-badge">
-                        <i class="fa-solid fa-calendar-day"></i>
-                        <span id="current-date">--</span>
-                    </div>
-                    <button class="btn btn-primary" id="telegram-btn" style="background:#0088cc; border:none; margin-right:10px; display:none;">
-                        <i class="fa-brands fa-telegram"></i> Gửi Telegram
-                    </button>
-                    <button class="btn btn-outline" id="refresh-btn">
-                        <i class="fa-solid fa-rotate-right"></i> Làm mới
-                    </button>
                 </div>
-            </header>
-
-            <!-- ===== SECTION: TỔNG QUAN ===== -->
-            <section class="section active" id="section-overview">
-
-                <!-- MAIN KPI CARDS GRID -->
-                <div class="overview-cards">
-                    <!-- 1. GTC -->
-                    <div class="stat-card green-card">
-                        <div class="stat-icon green"><i class="fa-solid fa-check-double"></i></div>
-                        <div class="stat-details">
-                            <h3>Tổng % GTC</h3>
-                            <h2 id="val-gtc" class="text-green">--%</h2>
-                            <p class="stat-sub" id="sub-gtc">Ngày gần nhất</p>
-                        </div>
+                <!-- 4. B2B -->
+                <div class="stat-card orange-card">
+                    <div class="stat-icon orange"><i class="fa-solid fa-crown"></i></div>
+                    <div class="stat-details">
+                        <h3>Đơn B2B Ưu Tiên</h3>
+                        <h2 id="val-b2b" class="text-warning">--</h2>
+                        <p class="stat-sub">Hôm nay & ngày mai</p>
                     </div>
-                    <!-- 3. BACKLOG > 7N -->
-                    <div class="stat-card red-card alert-card">
-                        <div class="stat-icon red"><i class="fa-solid fa-fire"></i></div>
-                        <div class="stat-details">
-                            <h3>Backlog > 7 Ngày</h3>
-                            <h2 id="val-backlog" class="text-danger">--</h2>
-                            <p class="stat-sub text-danger">Cần xử lý ngay</p>
-                        </div>
+                </div>
+                <!-- 5. FD TRẢ -->
+                <div class="stat-card purple-card">
+                    <div class="stat-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
+                    <div class="stat-details">
+                        <h3>Tỷ lệ FD Trả</h3>
+                        <h2 id="val-fd" style="color:var(--purple)">--%</h2>
+                        <p class="stat-sub">Trung bình tất cả kho</p>
                     </div>
-                    <!-- 4. B2B -->
-                    <div class="stat-card orange-card">
-                        <div class="stat-icon orange"><i class="fa-solid fa-crown"></i></div>
-                        <div class="stat-details">
-                            <h3>Đơn B2B Ưu Tiên</h3>
-                            <h2 id="val-b2b" class="text-warning">--</h2>
-                            <p class="stat-sub">Hôm nay & ngày mai</p>
-                        </div>
+                </div>
+                <!-- 6. NĂNG SUẤT NV -->
+                <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFE0B2">
+                    <div class="stat-icon" style="background:#FFE0B2;color:#E65100"><i
+                            class="fa-solid fa-motorcycle"></i></div>
+                    <div class="stat-details">
+                        <h3>Năng Suất NV</h3>
+                        <h2 id="val-nangsuat" style="color:#E65100">--</h2>
+                        <p class="stat-sub" style="color:#F57C00">Đơn/giờ/nhân viên</p>
                     </div>
-                    <!-- 5. FD TRẢ -->
-                    <div class="stat-card purple-card">
-                        <div class="stat-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
-                        <div class="stat-details">
-                            <h3>Tỷ lệ FD Trả</h3>
-                            <h2 id="val-fd" style="color:var(--purple)">--%</h2>
-                            <p class="stat-sub">Trung bình tất cả kho</p>
-                        </div>
+                </div>
+                <!-- 7. XE GXT -->
+                <div class="stat-card" style="background:#E3F2FD;border:1px solid #BBDEFB">
+                    <div class="stat-icon" style="background:#BBDEFB;color:#1565C0"><i
+                            class="fa-solid fa-truck-moving"></i></div>
+                    <div class="stat-details">
+                        <h3>Tổng Xe GXT / Delivery Staff</h3>
+                        <h2 id="val-xegxt-total" style="color:#1565C0">--</h2>
+                        <p class="stat-sub" style="color:#1E88E5">Vận tải GXT / Nhân sự giao nhận</p>
                     </div>
-                    <!-- 6. NĂNG SUẤT NV -->
-                    <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFE0B2">
-                        <div class="stat-icon" style="background:#FFE0B2;color:#E65100"><i class="fa-solid fa-motorcycle"></i></div>
-                        <div class="stat-details">
-                            <h3>Năng Suất NV</h3>
-                            <h2 id="val-nangsuat" style="color:#E65100">--</h2>
-                            <p class="stat-sub" style="color:#F57C00">Đơn/giờ/nhân viên</p>
-                        </div>
+                </div>
+                <!-- 9. TỔNG KHO GXT -->
+                <div class="stat-card" style="background:#E1F5FE;border:1px solid #B3E5FC">
+                    <div class="stat-icon" style="background:#B3E5FC;color:#01579B"><i
+                            class="fa-solid fa-warehouse"></i></div>
+                    <div class="stat-details">
+                        <h3>Tổng Kho GXT</h3>
+                        <h2 id="val-khogxt-total" style="color:#01579B">--</h2>
+                        <p class="stat-sub" style="color:#0288D1">Điểm nhận hàng</p>
                     </div>
-                    <!-- 7. XE GXT -->
-                    <div class="stat-card" style="background:#E3F2FD;border:1px solid #BBDEFB">
-                        <div class="stat-icon" style="background:#BBDEFB;color:#1565C0"><i class="fa-solid fa-truck-moving"></i></div>
-                        <div class="stat-details">
-                            <h3>Tổng Xe GXT / Delivery Staff</h3>
-                            <h2 id="val-xegxt-total" style="color:#1565C0">--</h2>
-                            <p class="stat-sub" style="color:#1E88E5">Vận tải GXT / Nhân sự giao nhận</p>
-                        </div>
-                    </div>
-                    <!-- 9. TỔNG KHO GXT -->
-                    <div class="stat-card" style="background:#E1F5FE;border:1px solid #B3E5FC">
-                        <div class="stat-icon" style="background:#B3E5FC;color:#01579B"><i class="fa-solid fa-warehouse"></i></div>
-                        <div class="stat-details">
-                            <h3>Tổng Kho GXT</h3>
-                            <h2 id="val-khogxt-total" style="color:#01579B">--</h2>
-                            <p class="stat-sub" style="color:#0288D1">Điểm nhận hàng</p>
-                        </div>
-                    </div>
-                    <!-- 10. ĐƠN TẠO N-1 -->
-                    <div class="stat-card" style="background:#F3E5F5;border:1px solid #E1BEE7">
-                        <div class="stat-icon" style="background:#E1BEE7;color:#7B1FA2"><i class="fa-solid fa-file-invoice"></i></div>
-                        <div class="stat-details">
-                            <h3>Đơn Tạo N-1</h3>
-                            <h2 id="val-dontao" style="color:#7B1FA2">-- / --</h2>
-                            <p class="stat-sub" style="color:#8E24AA">Tổng đơn / Tổng KL (KG)</p>
-                        </div>
-                    </div>
-
-                    <!-- WARNING CARDS INTEGRATED INTO MAIN GRID -->
-                    <div class="stat-card red-card">
-                        <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Nghiêm Trọng</h3>
-                            <h2 id="ov-warn-critical-count" class="text-danger">--</h2>
-                            <p class="stat-sub">Cần xử lý tức thì</p>
-                        </div>
-                    </div>
-                    <div class="stat-card orange-card">
-                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Bất Ổn</h3>
-                            <h2 id="ov-warn-warning-count" class="text-warning">--</h2>
-                            <p class="stat-sub">Cần theo dõi sát</p>
-                        </div>
-                    </div>
-                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i></div>
-                        <div class="stat-details">
-                            <h3>Cảnh Báo Sắp Tới</h3>
-                            <h2 id="ov-warn-upcoming-count" style="color:#F08C00">--</h2>
-                            <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
-                        </div>
-                    </div>
-                    <div class="stat-card blue-card">
-                        <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
-                        <div class="stat-details">
-                            <h3>Ngày Trở Lại Bình Thường</h3>
-                            <h2 id="ov-warn-avg-days" style="color:var(--blue)">--</h2>
-                            <p class="stat-sub">Trung bình toàn vùng</p>
-                        </div>
+                </div>
+                <!-- 10. ĐƠN TẠO N-1 -->
+                <div class="stat-card" style="background:#F3E5F5;border:1px solid #E1BEE7">
+                    <div class="stat-icon" style="background:#E1BEE7;color:#7B1FA2"><i
+                            class="fa-solid fa-file-invoice"></i></div>
+                    <div class="stat-details">
+                        <h3>Đơn Tạo N-1</h3>
+                        <h2 id="val-dontao" style="color:#7B1FA2">-- / --</h2>
+                        <p class="stat-sub" style="color:#8E24AA">Tổng đơn / Tổng KL (KG)</p>
                     </div>
                 </div>
 
-                <!-- CHARTS -->
-                <div class="charts-row">
-                    <!-- GTC Trend Line -->
-                    <div class="chart-card">
-                        <div class="chart-header" style="display:flex; justify-content: space-between; align-items: center;">
-                            <h3><i class="fa-solid fa-chart-line"></i> GTC Theo Ngày - Toàn Mạng Lưới</h3>
-                            <div style="display:flex; gap: 10px; align-items: center;">
-                                <div class="filter-tabs" style="display:flex; gap: 5px;">
-                                    <button class="btn-mini active" id="btn-ov-day" onclick="switchOverviewGtcPeriod('day')">Ngày</button>
-                                    <button class="btn-mini" id="btn-ov-week" onclick="switchOverviewGtcPeriod('week')">Tuần</button>
-                                    <button class="btn-mini" id="btn-ov-month" onclick="switchOverviewGtcPeriod('month')">Tháng</button>
-                                </div>
-                                <div class="legend-dots">
-                                    <span class="dot orange"></span>
-                                    <span style="font-size:11px;color:var(--text3)">% GTC</span>
-                                </div>
+                <!-- WARNING CARDS INTEGRATED INTO MAIN GRID -->
+                <div class="stat-card red-card">
+                    <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Nghiêm Trọng</h3>
+                        <h2 id="ov-warn-critical-count" class="text-danger">--</h2>
+                        <p class="stat-sub">Cần xử lý tức thì</p>
+                    </div>
+                </div>
+                <div class="stat-card orange-card">
+                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Bất Ổn</h3>
+                        <h2 id="ov-warn-warning-count" class="text-warning">--</h2>
+                        <p class="stat-sub">Cần theo dõi sát</p>
+                    </div>
+                </div>
+                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>Cảnh Báo Sắp Tới</h3>
+                        <h2 id="ov-warn-upcoming-count" style="color:#F08C00">--</h2>
+                        <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
+                    </div>
+                </div>
+                <div class="stat-card blue-card">
+                    <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
+                    <div class="stat-details">
+                        <h3>Ngày Trở Lại Bình Thường</h3>
+                        <h2 id="ov-warn-avg-days" style="color:var(--blue)">--</h2>
+                        <p class="stat-sub">Trung bình toàn vùng</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="charts-row">
+                <!-- GTC Trend Line -->
+                <div class="chart-card">
+                    <div class="chart-header"
+                        style="display:flex; justify-content: space-between; align-items: center;">
+                        <h3><i class="fa-solid fa-chart-line"></i> GTC Theo Ngày - Toàn Mạng Lưới</h3>
+                        <div style="display:flex; gap: 10px; align-items: center;">
+                            <div class="filter-tabs" style="display:flex; gap: 5px;">
+                                <button class="btn-mini active" id="btn-ov-day"
+                                    onclick="switchOverviewGtcPeriod('day')">Ngày</button>
+                                <button class="btn-mini" id="btn-ov-week"
+                                    onclick="switchOverviewGtcPeriod('week')">Tuần</button>
+                                <button class="btn-mini" id="btn-ov-month"
+                                    onclick="switchOverviewGtcPeriod('month')">Tháng</button>
+                            </div>
+                            <div class="legend-dots">
+                                <span class="dot orange"></span>
+                                <span style="font-size:11px;color:var(--text3)">% GTC</span>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <canvas id="chart-gtc-trend"></canvas>
-                        </div>
-                    </div>
-                    <!-- Returns Pie -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3><i class="fa-solid fa-chart-donut"></i> Lý Do Trả Hàng</h3>
-                        </div>
-                        <div class="chart-container-sm">
-                            <canvas id="chart-returns-pie"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ALERT TABLES -->
-                <div class="tables-row">
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Đơn Tồn Lâu (Backlog > 7n)</h3>
-                            <a href="#" class="view-all" data-section="backlog">Xem tất cả →</a>
-                        </div>
-                        <div class="table-scroll">
-                            <table class="data-table mini-table">
-                                <thead>
-                                    <tr>
-                                        <th>Kho</th>
-                                        <th style="text-align:right">Tổng đơn</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-backlog-overview"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Đơn B2B Cần Xử Lý</h3>
-                            <a href="#" class="view-all" data-section="b2b">Xem tất cả →</a>
-                        </div>
-                        <div class="table-scroll">
-                            <table class="data-table mini-table">
-                                <thead>
-                                    <tr>
-                                        <th>Kho</th>
-                                        <th style="text-align:right">Tổng đơn</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-b2b-overview"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CRITICAL WARNINGS -->
-                <div class="tables-row" style="margin-top:18px; grid-template-columns: 1fr;">
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-radiation" style="color:var(--red)"></i> Kho Nghiêm Trọng & Bất Ổn</h3>
-                            <a href="#" class="view-all" data-section="warnings">Chi tiết →</a>
-                        </div>
-                        <div class="table-scroll" style="max-height:220px">
-                            <table class="data-table mini-table">
-                                <thead>
-                                    <tr>
-                                        <th>Kho</th>
-                                        <th>LM</th>
-                                        <th>KTC</th>
-                                        <th>Tổng</th>
-                                        <th>Dự Báo</th>
-                                        <th>Số Ngày</th>
-                                        <th>Trạng Thái</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-critical-overview">
-                                    <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">Đang kiểm tra...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: DỰ BÁO RỦI RO KHO ===== -->
-            <section class="section" id="section-forecast">
-                <div class="section-filters" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
-                    <input type="text" id="filter-forecast-kho" placeholder="🔍 Tìm kho..." class="filter-input" style="width:200px; height:42px;">
-                    <select id="filter-forecast-risk" class="filter-select" style="height:42px;">
-                        <option value="">Tất cả mức độ rủi ro</option>
-                        <option value="critical">🔴 Nghiêm trọng</option>
-                        <option value="warning">🟠 Cảnh báo</option>
-                        <option value="watch">🟡 Theo dõi</option>
-                        <option value="good">🟢 Ổn định</option>
-                    </select>
-                </div>
-
-                <!-- KPI Tổng hợp -->
-                <div class="overview-cards" style="margin-bottom:20px">
-                    <div class="stat-card red-card">
-                        <div class="stat-icon red"><i class="fa-solid fa-circle-radiation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Rủi Ro Cao</h3>
-                            <h2 id="fc-critical-count" class="text-danger">--</h2>
-                            <p class="stat-sub">Cần can thiệp ngay</p>
-                        </div>
-                    </div>
-                    <div class="stat-card orange-card">
-                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Cảnh Báo</h3>
-                            <h2 id="fc-warning-count" class="text-warning">--</h2>
-                            <p class="stat-sub">Theo dõi chặt chẽ</p>
-                        </div>
-                    </div>
-                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-eye"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Cần Theo Dõi</h3>
-                            <h2 id="fc-watch-count" style="color:#F08C00">--</h2>
-                            <p class="stat-sub">Có dấu hiệu xuống cấp</p>
-                        </div>
-                    </div>
-                    <div class="stat-card green-card">
-                        <div class="stat-icon green"><i class="fa-solid fa-shield-halved"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Ổn Định</h3>
-                            <h2 id="fc-good-count" class="text-green">--</h2>
-                            <p class="stat-sub">Vận hành bình thường</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bảng dự báo chi tiết -->
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--purple)"></i> Dự Báo Rủi Ro Vận Hành Từng Kho — Vài Ngày Tới</h3>
-                        <div style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên phân tích: GTC N-1, Xu hướng GTC 7 ngày, Backlog, Năng suất nhân viên</div>
-                    </div>
-                    <div class="table-scroll" style="max-height:none">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th>
-                                    <th style="text-align:center">Rủi ro</th>
-                                    <th style="text-align:center">Điểm</th>
-                                    <th style="text-align:right">GTC N-1</th>
-                                    <th style="text-align:right">GTC TB 7N</th>
-                                    <th style="text-align:right">GTC Max 7N</th>
-                                    <th style="text-align:right">Xu hướng GTC</th>
-                                    <th style="text-align:right">Backlog LM</th>
-                                    <th style="text-align:right">Backlog KTC</th>
-                                    <th>Cảnh báo chính</th>
-                                    <th>Khuyến nghị</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-forecast"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Ghi chú phương pháp -->
-                <div style="margin-top:16px; padding:14px 18px; background:linear-gradient(135deg,#f8fafc,#eef2ff); border-radius:12px; border:1px solid #c7d2fe; font-size:12px; color:var(--text2);">
-                    <strong style="color:var(--purple)"><i class="fa-solid fa-circle-info"></i> Phương pháp tính điểm rủi ro:</strong>
-                    <span style="margin-left:8px">
-                        🔴 GTC &lt; 82% → +40đ &nbsp;|&nbsp;
-                        🟠 GTC 82-87% → +20đ &nbsp;|&nbsp;
-                        📉 Xu hướng GTC giảm &gt;3% → +25đ &nbsp;|&nbsp;
-                        📦 Backlog LM &gt;500 → +20đ &nbsp;|&nbsp;
-                        📦 Backlog KTC &gt;200 → +15đ &nbsp;|&nbsp;
-                        ⚠️ Đã cảnh báo (sheet) → +30đ
-                    </span>
-                </div>
-
-                <!-- ===== BẢNG DỰ BÁO QUÁ TẢI KHO ===== -->
-                <div class="table-card" style="margin-top:28px;">
-                    <div class="table-header">
-                        <div>
-                            <h3><i class="fa-solid fa-boxes-stacked" style="color:var(--orange)"></i> Dự Báo Quá Tải & Số Ngày Trở Lại Bình Thường</h3>
-                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
-                                Tính từ: Backlog KTC + Backlog LM + Đơn tạo N-1 &nbsp;|&nbsp; Năng lực = Đơn tạo × GTC% &nbsp;|&nbsp; Số ngày = Tổng áp lực ÷ Công suất giải phóng
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <div style="display:flex;gap:6px;">
-                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🔴 Quá tải</span>
-                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">🟠 Nguy cơ</span>
-                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFFDE7;color:#F08C00;padding:4px 10px;border-radius:20px;font-weight:600">🟡 Theo dõi</span>
-                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">🟢 Ổn định</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-scroll" style="max-height:none;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th>
-                                    <th style="text-align:center">Trạng thái</th>
-                                    <th style="text-align:right">Đơn Tạo N-1</th>
-                                    <th style="text-align:right">Backlog LM</th>
-                                    <th style="text-align:right">Backlog KTC</th>
-                                    <th style="text-align:right">GTC N-1 (đơn)</th>
-                                    <th style="text-align:right">Đơn Cần Clear</th>
-                                    <th>Đề xuất hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-overload"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- ===== BẢNG CẢNH BÁO HÀNG TẠO vs GTC MAX ===== -->
-                <div class="table-card" style="margin-top:28px;">
-                    <div class="table-header">
-                        <div>
-                            <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--red)"></i> Cảnh Báo Hàng Tạo N-1 vs Năng Lực GTC Max</h3>
-                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
-                                So sánh <strong>Đơn Tạo N-1</strong> với <strong>Số đơn GTC cao nhất 1 ngày trong 7 ngày gần nhất</strong> của từng kho.
-                                Nếu hàng tạo &gt; 1.5× GTC max → nguy cơ tồn hàng cao, cần chuẩn bị xe tăng cường.
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🚛 &gt;1.5x — Tăng xe ngay</span>
-                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">⚠️ &gt;1.2x — Theo dõi sát</span>
-                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅ An toàn</span>
-                        </div>
-                    </div>
-                    <div class="table-scroll" style="max-height:none;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th>
-                                    <th style="text-align:right">Đơn Tạo N-1</th>
-                                    <th style="text-align:right">GTC Max/Ngày (7N)</th>
-                                    <th style="text-align:center">Tỉ lệ</th>
-                                    <th style="text-align:center">Mức độ</th>
-                                    <th>Cảnh báo & Đề xuất</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-dontao-vs-gtc"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->
-            <section class="section" id="section-warnings">
-                <div class="section-filters">
-                    <input type="text" id="filter-kho-warnings" placeholder="🔍 Tìm kho..." class="filter-input">
-                    <select id="filter-status-warnings" class="filter-select">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="Nghiêm trọng">Nghiêm trọng</option>
-                        <option value="Cảnh báo">Cảnh báo</option>
-                        <option value="Bình thường">Bình thường</option>
-                    </select>
-                </div>
-
-                <div class="overview-cards">
-                    <div class="stat-card red-card">
-                        <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Nghiêm Trọng</h3>
-                            <h2 id="warn-critical-count" class="text-danger">--</h2>
-                            <p class="stat-sub">Cần xử lý tức thì</p>
-                        </div>
-                    </div>
-                    <div class="stat-card orange-card">
-                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                        <div class="stat-details">
-                            <h3>Kho Bất Ổn</h3>
-                            <h2 id="warn-warning-count" class="text-warning">--</h2>
-                            <p class="stat-sub">Cần theo dõi sát</p>
-                        </div>
-                    </div>
-                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i></div>
-                        <div class="stat-details">
-                            <h3>Cảnh Báo Sắp Tới</h3>
-                            <h2 id="warn-upcoming-count" style="color:#F08C00">--</h2>
-                            <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
-                        </div>
-                    </div>
-                    <div class="stat-card blue-card">
-                        <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
-                        <div class="stat-details">
-                            <h3>Ngày Trở Lại Bình Thường</h3>
-                            <h2 id="warn-avg-days" style="color:var(--blue)">--</h2>
-                            <p class="stat-sub">Trung bình toàn vùng</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-card" style="margin-top:18px">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-shield-heart" style="color:var(--green)"></i> Trạng Thái Sức Khỏe Mạng Lưới</h3>
-                    </div>
-                    <div class="table-scroll" style="max-height: none;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                     <th>Kho</th>
-                                     <th>Trạng Thái Hiện Tại</th>
-                                     <th>Backlog Last Mile</th>
-                                     <th>Backlog KTC</th>
-                                     <th>Tổng Backlog</th>
-                                     <th>Đơn N-1 (Tạo / GTC)</th>
-                                     <th>tb gtc (L7D)</th>
-                                     <th>max gtc (L7D)</th>
-                                     <th>Số Ngày Về Bình Thường</th>
-                                     <th>Dự Báo Sắp Tới</th>
-                                     <th>Rank</th>
-                                 </tr>
-                            </thead>
-                            <tbody id="tbody-warnings"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: GTC & NĂNG SUẤT ===== -->
-            <section class="section" id="section-gtc">
-                <div class="chart-card" style="margin-bottom:18px">
-                    <div class="chart-header">
-                        <h3><i class="fa-solid fa-ranking-star"></i> GTC theo từng kho</h3>
-                    </div>
-                    <div style="position:relative;min-height:300px" id="gtc-by-kho-wrapper">
-                        <canvas id="chart-gtc-by-kho"></canvas>
-                    </div>
-                </div>
-
-                <!-- GTC BEST/WORST RANKINGS -->
-                <div id="gtc-top-bottom"></div>
-
-                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <input type="text" id="filter-kho-gtc" placeholder="🔍 Tìm kiếm kho hoặc ngày..." class="filter-input" style="width: 240px; height: 42px;">
-                    
-                    <div class="ghn-filter-container" id="multi-gtc-day">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('day')">Chọn Ngày...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-day"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-gtc-week">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('week')">Chọn Tuần...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-week"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-gtc-month">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('month')">Chọn Tháng...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-month"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-gtc-kho">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('kho')">Chọn Kho...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-kho"></div>
-                    </div>
-                </div>
-
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-table"></i> Chi Tiết GTC Toàn Bộ</h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th><th>Kho</th><th>Ngày</th>
-                                    <th>KL Gán</th><th>Số Đơn Gán</th>
-                                    <th>Số Đơn GTC</th><th>% GTC</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-gtc"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: BACKLOG > 7N ===== -->
-            <section class="section" id="section-backlog">
-                <div class="section-filters">
-                    <input type="text" id="filter-kho-backlog" placeholder="🔍 Tìm kho hoặc mã đơn..." class="filter-input">
-                    <select id="filter-luong" class="filter-select">
-                        <option value="">Tất cả luồng</option>
-                        <option value="giao">Giao</option>
-                        <option value="sort">Sort / Trung chuyển</option>
-                    </select>
-                </div>
-                <div class="chart-card" style="margin-bottom:18px">
-                    <div class="chart-header">
-                        <h3><i class="fa-solid fa-chart-bar"></i> Số Đơn Tồn > 7n Theo Kho</h3>
-                    </div>
-                    <div style="height:220px;position:relative">
-                        <canvas id="chart-backlog-by-kho"></canvas>
-                    </div>
-                </div>
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Danh Sách Đơn Tồn > 7 Ngày</h3>
-                        <span class="count-badge danger" id="backlog-count-label">-- đơn</span>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Status</th><th>Vùng</th><th>Kho</th>
-                                    <th>PIC</th><th>Order Code</th><th>Client Type</th>
-                                    <th>Lý Do Thất Bại</th>
-                                    <th>Ngày Nhập</th><th>Aging</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-backlog"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: B2B & SLA ===== -->
-            <section class="section" id="section-b2b">
-                <div class="section-filters">
-                    <input type="text" id="filter-b2b" placeholder="🔍 Tìm mã đơn hoặc kho..." class="filter-input">
-                    <select id="filter-priority" class="filter-select">
-                        <option value="">Tất cả ưu tiên</option>
-                        <option value="1: trong hôm nay">1: Trong hôm nay</option>
-                        <option value="2: trong ngày mai">2: Trong ngày mai</option>
-                        <option value="3: trong ngày mốt">3: Trong ngày mốt</option>
-                    </select>
-                    <select id="filter-b2b-client" class="filter-select">
-                        <option value="">Tất cả khách</option>
-                    </select>
-                    <select id="filter-b2b-type" class="filter-select">
-                        <option value="">Tất cả loại</option>
-                    </select>
-                </div>
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Danh Sách Đơn B2B Theo Mức Độ Ưu Tiên</h3>
-                        <span class="count-badge warning" id="b2b-count-label">-- đơn</span>
-                    </div>
-                    <div class="table-scroll" style="max-height:calc(100vh - 240px)">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Ưu Tiên</th><th>Kho</th><th>PIC</th>
-                                    <th>Order Code</th><th>Loại</th><th>Khách</th>
-                                    <th>Ngày Nhập</th><th>Lưu Kho (Ngày)</th><th>Địa Chỉ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-b2b"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: TRẢ HÀNG ===== -->
-            <section class="section" id="section-returns">
-                <div class="section-filters">
-                    <input type="text" id="filter-client-returns" placeholder="🔍 Tìm tên khách..." class="filter-input">
-                </div>
-                
-                <div class="chart-card" style="margin-bottom:18px">
-                    <div class="chart-header">
-                        <h3><i class="fa-solid fa-chart-line"></i> Tỷ Lệ Trả Hàng (FD) Theo Ngày</h3>
                     </div>
                     <div class="chart-container">
-                        <canvas id="chart-fd-trend"></canvas>
+                        <canvas id="chart-gtc-trend"></canvas>
                     </div>
                 </div>
-
-                <div class="table-card" style="margin-bottom:18px">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-users-viewfinder"></i> Phân Loại Trả Hàng Theo Loại Khách</h3>
+                <!-- Returns Pie -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-chart-donut"></i> Lý Do Trả Hàng</h3>
                     </div>
-                    <div class="table-scroll" style="max-height: 300px;">
-                        <table class="data-table">
+                    <div class="chart-container-sm">
+                        <canvas id="chart-returns-pie"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ALERT TABLES -->
+            <div class="tables-row">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Đơn Tồn Lâu (Backlog > 7n)</h3>
+                        <a href="#" class="view-all" data-section="backlog">Xem tất cả →</a>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table mini-table">
                             <thead>
                                 <tr>
-                                    <th>Thời Gian</th>
-                                    <th style="text-align:center">Đơn Trả</th>
-                                    <th style="text-align:right">% Tổng</th>
-                                    <th style="text-align:right">SHOPEE</th>
-                                    <th style="text-align:right">TTS</th>
-                                    <th style="text-align:right">SME</th>
-                                    <th style="text-align:right">B2B</th>
-                                    <th style="text-align:right">Ecom</th>
+                                    <th>Kho</th>
+                                    <th style="text-align:right">Tổng đơn</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-returns-client">
-                                <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                            <tbody id="tbody-backlog-overview"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Đơn B2B Cần Xử Lý</h3>
+                        <a href="#" class="view-all" data-section="b2b">Xem tất cả →</a>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:right">Tổng đơn</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-b2b-overview"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRITICAL WARNINGS -->
+            <div class="tables-row" style="margin-top:18px; grid-template-columns: 1fr;">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-radiation" style="color:var(--red)"></i> Kho Nghiêm Trọng & Bất Ổn
+                        </h3>
+                        <a href="#" class="view-all" data-section="warnings">Chi tiết →</a>
+                    </div>
+                    <div class="table-scroll" style="max-height:220px">
+                        <table class="data-table mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th>LM</th>
+                                    <th>KTC</th>
+                                    <th>Tổng</th>
+                                    <th>Dự Báo</th>
+                                    <th>Số Ngày</th>
+                                    <th>Trạng Thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-critical-overview">
+                                <tr>
+                                    <td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">Đang kiểm
+                                        tra...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+            </div>
+        </section>
 
+        <!-- ===== SECTION: DỰ BÁO RỦI RO KHO ===== -->
+        <section class="section" id="section-forecast">
+            <div class="section-filters"
+                style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+                <input type="text" id="filter-forecast-kho" placeholder="🔍 Tìm kho..." class="filter-input"
+                    style="width:200px; height:42px;">
+                <select id="filter-forecast-risk" class="filter-select" style="height:42px;">
+                    <option value="">Tất cả mức độ rủi ro</option>
+                    <option value="critical">🔴 Nghiêm trọng</option>
+                    <option value="warning">🟠 Cảnh báo</option>
+                    <option value="watch">🟡 Theo dõi</option>
+                    <option value="good">🟢 Ổn định</option>
+                </select>
+            </div>
+
+            <!-- KPI Tổng hợp -->
+            <div class="overview-cards" style="margin-bottom:20px">
+                <div class="stat-card red-card">
+                    <div class="stat-icon red"><i class="fa-solid fa-circle-radiation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Rủi Ro Cao</h3>
+                        <h2 id="fc-critical-count" class="text-danger">--</h2>
+                        <p class="stat-sub">Cần can thiệp ngay</p>
+                    </div>
+                </div>
+                <div class="stat-card orange-card">
+                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Cảnh Báo</h3>
+                        <h2 id="fc-warning-count" class="text-warning">--</h2>
+                        <p class="stat-sub">Theo dõi chặt chẽ</p>
+                    </div>
+                </div>
+                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-eye"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>Kho Cần Theo Dõi</h3>
+                        <h2 id="fc-watch-count" style="color:#F08C00">--</h2>
+                        <p class="stat-sub">Có dấu hiệu xuống cấp</p>
+                    </div>
+                </div>
+                <div class="stat-card green-card">
+                    <div class="stat-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Ổn Định</h3>
+                        <h2 id="fc-good-count" class="text-green">--</h2>
+                        <p class="stat-sub">Vận hành bình thường</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng dự báo chi tiết -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--purple)"></i> Dự Báo Rủi Ro Vận
+                        Hành Từng Kho — Vài Ngày Tới</h3>
+                    <div style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên phân tích: GTC N-1, Xu
+                        hướng GTC 7 ngày, Backlog, Năng suất nhân viên</div>
+                </div>
+                <div class="table-scroll" style="max-height:none">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th style="text-align:center">Rủi ro</th>
+                                <th style="text-align:center">Điểm</th>
+                                <th style="text-align:right">GTC N-1</th>
+                                <th style="text-align:right">GTC TB 7N</th>
+                                <th style="text-align:right">GTC Max 7N</th>
+                                <th style="text-align:right">Xu hướng GTC</th>
+                                <th style="text-align:right">Backlog LM</th>
+                                <th style="text-align:right">Backlog KTC</th>
+                                <th>Cảnh báo chính</th>
+                                <th>Khuyến nghị</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-forecast"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Ghi chú phương pháp -->
+            <div
+                style="margin-top:16px; padding:14px 18px; background:linear-gradient(135deg,#f8fafc,#eef2ff); border-radius:12px; border:1px solid #c7d2fe; font-size:12px; color:var(--text2);">
+                <strong style="color:var(--purple)"><i class="fa-solid fa-circle-info"></i> Phương pháp tính điểm rủi
+                    ro:</strong>
+                <span style="margin-left:8px">
+                    🔴 GTC &lt; 82% → +40đ &nbsp;|&nbsp;
+                    🟠 GTC 82-87% → +20đ &nbsp;|&nbsp;
+                    📉 Xu hướng GTC giảm &gt;3% → +25đ &nbsp;|&nbsp;
+                    📦 Backlog LM &gt;500 → +20đ &nbsp;|&nbsp;
+                    📦 Backlog KTC &gt;200 → +15đ &nbsp;|&nbsp;
+                    ⚠️ Đã cảnh báo (sheet) → +30đ
+                </span>
+            </div>
+
+            <!-- ===== BẢNG DỰ BÁO QUÁ TẢI KHO ===== -->
+            <div class="table-card" style="margin-top:28px;">
+                <div class="table-header">
+                    <div>
+                        <h3><i class="fa-solid fa-boxes-stacked" style="color:var(--orange)"></i> Dự Báo Quá Tải & Số
+                            Ngày Trở Lại Bình Thường</h3>
+                        <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                            Tính từ: Backlog KTC + Backlog LM + Đơn tạo N-1 &nbsp;|&nbsp; Năng lực = Đơn tạo × GTC%
+                            &nbsp;|&nbsp; Số ngày = Tổng áp lực ÷ Công suất giải phóng
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div style="display:flex;gap:6px;">
+                            <span
+                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🔴
+                                Quá tải</span>
+                            <span
+                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">🟠
+                                Nguy cơ</span>
+                            <span
+                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFFDE7;color:#F08C00;padding:4px 10px;border-radius:20px;font-weight:600">🟡
+                                Theo dõi</span>
+                            <span
+                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">🟢
+                                Ổn định</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-scroll" style="max-height:none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th style="text-align:center">Trạng thái</th>
+                                <th style="text-align:right">Đơn Tạo N-1</th>
+                                <th style="text-align:right">Backlog LM</th>
+                                <th style="text-align:right">Backlog KTC</th>
+                                <th style="text-align:right">GTC N-1 (đơn)</th>
+                                <th style="text-align:right">Đơn Cần Clear</th>
+                                <th>Đề xuất hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-overload"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ===== BẢNG CẢNH BÁO HÀNG TẠO vs GTC MAX ===== -->
+            <div class="table-card" style="margin-top:28px;">
+                <div class="table-header">
+                    <div>
+                        <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--red)"></i> Cảnh Báo Hàng Tạo N-1 vs
+                            Năng Lực GTC Max</h3>
+                        <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                            So sánh <strong>Đơn Tạo N-1</strong> với <strong>Số đơn GTC cao nhất 1 ngày trong 7 ngày gần
+                                nhất</strong> của từng kho.
+                            Nếu hàng tạo &gt; 1.5× GTC max → nguy cơ tồn hàng cao, cần chuẩn bị xe tăng cường.
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                        <span
+                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🚛
+                            &gt;1.5x — Tăng xe ngay</span>
+                        <span
+                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">⚠️
+                            &gt;1.2x — Theo dõi sát</span>
+                        <span
+                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅
+                            An toàn</span>
+                    </div>
+                </div>
+                <div class="table-scroll" style="max-height:none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th style="text-align:right">Đơn Tạo N-1</th>
+                                <th style="text-align:right">GTC Max/Ngày (7N)</th>
+                                <th style="text-align:center">Tỉ lệ</th>
+                                <th style="text-align:center">Mức độ</th>
+                                <th>Cảnh báo & Đề xuất</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-dontao-vs-gtc"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->
+        <section class="section" id="section-warnings">
+            <div class="section-filters">
+                <input type="text" id="filter-kho-warnings" placeholder="🔍 Tìm kho..." class="filter-input">
+                <select id="filter-status-warnings" class="filter-select">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Nghiêm trọng">Nghiêm trọng</option>
+                    <option value="Cảnh báo">Cảnh báo</option>
+                    <option value="Bình thường">Bình thường</option>
+                </select>
+            </div>
+
+            <div class="overview-cards">
+                <div class="stat-card red-card">
+                    <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Nghiêm Trọng</h3>
+                        <h2 id="warn-critical-count" class="text-danger">--</h2>
+                        <p class="stat-sub">Cần xử lý tức thì</p>
+                    </div>
+                </div>
+                <div class="stat-card orange-card">
+                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-details">
+                        <h3>Kho Bất Ổn</h3>
+                        <h2 id="warn-warning-count" class="text-warning">--</h2>
+                        <p class="stat-sub">Cần theo dõi sát</p>
+                    </div>
+                </div>
+                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>Cảnh Báo Sắp Tới</h3>
+                        <h2 id="warn-upcoming-count" style="color:#F08C00">--</h2>
+                        <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
+                    </div>
+                </div>
+                <div class="stat-card blue-card">
+                    <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
+                    <div class="stat-details">
+                        <h3>Ngày Trở Lại Bình Thường</h3>
+                        <h2 id="warn-avg-days" style="color:var(--blue)">--</h2>
+                        <p class="stat-sub">Trung bình toàn vùng</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card" style="margin-top:18px">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-shield-heart" style="color:var(--green)"></i> Trạng Thái Sức Khỏe Mạng
+                        Lưới</h3>
+                </div>
+                <div class="table-scroll" style="max-height: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th>Trạng Thái Hiện Tại</th>
+                                <th>Backlog Last Mile</th>
+                                <th>Backlog KTC</th>
+                                <th>Tổng Backlog</th>
+                                <th>Đơn N-1 (Tạo / GTC)</th>
+                                <th>tb gtc (L7D)</th>
+                                <th>max gtc (L7D)</th>
+                                <th>Số Ngày Về Bình Thường</th>
+                                <th>Dự Báo Sắp Tới</th>
+                                <th>Rank</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-warnings"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: GTC & NĂNG SUẤT ===== -->
+        <section class="section" id="section-gtc">
+            <div class="chart-card" style="margin-bottom:18px">
+                <div class="chart-header">
+                    <h3><i class="fa-solid fa-ranking-star"></i> GTC theo từng kho</h3>
+                </div>
+                <div style="position:relative;min-height:300px" id="gtc-by-kho-wrapper">
+                    <canvas id="chart-gtc-by-kho"></canvas>
+                </div>
+            </div>
+
+            <!-- GTC BEST/WORST RANKINGS -->
+            <div id="gtc-top-bottom"></div>
+
+            <div class="section-filters ghn-filter-row"
+                style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <input type="text" id="filter-kho-gtc" placeholder="🔍 Tìm kiếm kho hoặc ngày..." class="filter-input"
+                    style="width: 240px; height: 42px;">
+
+                <div class="ghn-filter-container" id="multi-gtc-day">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('day')">Chọn Ngày...</div>
+                    <div class="ghn-filter-menu" id="menu-gtc-day"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-gtc-week">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('week')">Chọn Tuần...</div>
+                    <div class="ghn-filter-menu" id="menu-gtc-week"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-gtc-month">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('month')">Chọn Tháng...</div>
+                    <div class="ghn-filter-menu" id="menu-gtc-month"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-gtc-kho">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('kho')">Chọn Kho...</div>
+                    <div class="ghn-filter-menu" id="menu-gtc-kho"></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-table"></i> Chi Tiết GTC Toàn Bộ</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Kho</th>
+                                <th>Ngày</th>
+                                <th>KL Gán</th>
+                                <th>Số Đơn Gán</th>
+                                <th>Số Đơn GTC</th>
+                                <th>% GTC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-gtc"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: BACKLOG > 7N ===== -->
+        <section class="section" id="section-backlog">
+            <div class="section-filters">
+                <input type="text" id="filter-kho-backlog" placeholder="🔍 Tìm kho hoặc mã đơn..." class="filter-input">
+                <select id="filter-luong" class="filter-select">
+                    <option value="">Tất cả luồng</option>
+                    <option value="giao">Giao</option>
+                    <option value="sort">Sort / Trung chuyển</option>
+                </select>
+            </div>
+            <div class="chart-card" style="margin-bottom:18px">
+                <div class="chart-header">
+                    <h3><i class="fa-solid fa-chart-bar"></i> Số Đơn Tồn > 7n Theo Kho</h3>
+                </div>
+                <div style="height:220px;position:relative">
+                    <canvas id="chart-backlog-by-kho"></canvas>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Danh Sách Đơn Tồn > 7 Ngày</h3>
+                    <span class="count-badge danger" id="backlog-count-label">-- đơn</span>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Vùng</th>
+                                <th>Kho</th>
+                                <th>PIC</th>
+                                <th>Order Code</th>
+                                <th>Client Type</th>
+                                <th>Lý Do Thất Bại</th>
+                                <th>Ngày Nhập</th>
+                                <th>Aging</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-backlog"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: B2B & SLA ===== -->
+        <section class="section" id="section-b2b">
+            <div class="section-filters">
+                <input type="text" id="filter-b2b" placeholder="🔍 Tìm mã đơn hoặc kho..." class="filter-input">
+                <select id="filter-priority" class="filter-select">
+                    <option value="">Tất cả ưu tiên</option>
+                    <option value="1: trong hôm nay">1: Trong hôm nay</option>
+                    <option value="2: trong ngày mai">2: Trong ngày mai</option>
+                    <option value="3: trong ngày mốt">3: Trong ngày mốt</option>
+                </select>
+                <select id="filter-b2b-client" class="filter-select">
+                    <option value="">Tất cả khách</option>
+                </select>
+                <select id="filter-b2b-type" class="filter-select">
+                    <option value="">Tất cả loại</option>
+                </select>
+            </div>
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Danh Sách Đơn B2B Theo Mức Độ Ưu
+                        Tiên</h3>
+                    <span class="count-badge warning" id="b2b-count-label">-- đơn</span>
+                </div>
+                <div class="table-scroll" style="max-height:calc(100vh - 240px)">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ưu Tiên</th>
+                                <th>Kho</th>
+                                <th>PIC</th>
+                                <th>Order Code</th>
+                                <th>Loại</th>
+                                <th>Khách</th>
+                                <th>Ngày Nhập</th>
+                                <th>Lưu Kho (Ngày)</th>
+                                <th>Địa Chỉ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-b2b"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: TRẢ HÀNG ===== -->
+        <section class="section" id="section-returns">
+            <div class="section-filters">
+                <input type="text" id="filter-client-returns" placeholder="🔍 Tìm tên khách..." class="filter-input">
+            </div>
+
+            <div class="chart-card" style="margin-bottom:18px">
+                <div class="chart-header">
+                    <h3><i class="fa-solid fa-chart-line"></i> Tỷ Lệ Trả Hàng (FD) Theo Ngày</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart-fd-trend"></canvas>
+                </div>
+            </div>
+
+            <div class="table-card" style="margin-bottom:18px">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-users-viewfinder"></i> Phân Loại Trả Hàng Theo Loại Khách</h3>
+                </div>
+                <div class="table-scroll" style="max-height: 300px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thời Gian</th>
+                                <th style="text-align:center">Đơn Trả</th>
+                                <th style="text-align:right">% Tổng</th>
+                                <th style="text-align:right">SHOPEE</th>
+                                <th style="text-align:right">TTS</th>
+                                <th style="text-align:right">SME</th>
+                                <th style="text-align:right">B2B</th>
+                                <th style="text-align:right">Ecom</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-returns-client">
+                            <tr>
+                                <td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Đang tải dữ
+                                    liệu...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-rotate-left"></i> Chi Tiết Trả Hàng Theo Kho</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Kho</th>
+                                <th>Ngày</th>
+                                <th style="text-align:center">Số Đơn Trả</th>
+                                <th style="text-align:right">% FD</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-returns"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: NHÂN SỰ ===== -->
+        <section class="section" id="section-personnel">
+            <div class="section-filters">
+                <input type="text" id="filter-personnel" placeholder="🔍 Tìm tên nhân viên hoặc kho..."
+                    class="filter-input">
+                <select id="filter-position" class="filter-select">
+                    <option value="">Tất cả vị trí</option>
+                    <option value="Delivery Staff">Delivery Staff</option>
+                    <option value="Freight Operations Executive">Freight Operations Executive</option>
+                    <option value="Administration">Administration</option>
+                </select>
+            </div>
+
+            <!-- OVERVIEW CARDS FOR PERSONNEL -->
+            <div class="tables-row" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
                 <div class="table-card">
                     <div class="table-header">
-                        <h3><i class="fa-solid fa-rotate-left"></i> Chi Tiết Trả Hàng Theo Kho</h3>
+                        <h3><i class="fa-solid fa-users" style="color:var(--blue)"></i> Nhân Sự Theo Vị Trí</h3>
                     </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th><th>Ngày</th><th style="text-align:center">Số Đơn Trả</th>
-                                    <th style="text-align:right">% FD</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-returns"></tbody>
-                        </table>
+                    <div class="table-scroll" style="max-height:220px">
+                        <div id="personnel-by-pos"></div>
                     </div>
                 </div>
-            </section>
-
-            <!-- ===== SECTION: NHÂN SỰ ===== -->
-            <section class="section" id="section-personnel">
-                <div class="section-filters">
-                    <input type="text" id="filter-personnel" placeholder="🔍 Tìm tên nhân viên hoặc kho..." class="filter-input">
-                    <select id="filter-position" class="filter-select">
-                        <option value="">Tất cả vị trí</option>
-                        <option value="Delivery Staff">Delivery Staff</option>
-                        <option value="Freight Operations Executive">Freight Operations Executive</option>
-                        <option value="Administration">Administration</option>
-                    </select>
-                </div>
-
-                <!-- OVERVIEW CARDS FOR PERSONNEL -->
-                <div class="tables-row" style="margin-bottom:20px; grid-template-columns: 1fr 1fr;">
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-users" style="color:var(--blue)"></i> Nhân Sự Theo Vị Trí</h3>
-                        </div>
-                        <div class="table-scroll" style="max-height:220px">
-                            <div id="personnel-by-pos"></div>
-                        </div>
-                    </div>
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-user-clock" style="color:var(--orange)"></i> Nhân Sự Theo Thâm Niên</h3>
-                        </div>
-                        <div class="table-scroll" style="max-height:220px">
-                            <div id="personnel-by-tenure"></div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="table-card">
                     <div class="table-header">
-                        <h3><i class="fa-solid fa-users"></i> Danh Sách Nhân Sự</h3>
-                        <span class="count-badge" id="personnel-count-label">-- người</span>
+                        <h3><i class="fa-solid fa-user-clock" style="color:var(--orange)"></i> Nhân Sự Theo Thâm Niên
+                        </h3>
                     </div>
-                    <div class="table-scroll" style="max-height:calc(100vh - 240px)">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th><th>ID</th><th>Họ Tên</th>
-                                    <th>Vị Trí</th><th>Loại HĐ</th><th>Thâm Niên</th><th>Kho</th><th>Phòng Ban</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-personnel"></tbody>
-                        </table>
+                    <div class="table-scroll" style="max-height:220px">
+                        <div id="personnel-by-tenure"></div>
                     </div>
                 </div>
-            </section>
+            </div>
 
-            <!-- ===== SECTION: NĂNG SUẤT NV ===== -->
-            <section class="section" id="section-nangsuat">
-                <div class="section-filters" style="margin-bottom: 20px; display:flex; justify-content: space-between;">
-                    <div class="filter-tabs" style="display:flex; gap: 10px;">
-                        <button class="btn btn-outline" id="btn-ns-day" style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700">Ngày gần nhất</button>
-                        <button class="btn btn-outline" id="btn-ns-week" onclick="switchNsPeriod('week')">Tuần</button>
-                        <button class="btn btn-outline" id="btn-ns-month" onclick="switchNsPeriod('month')">Tháng</button>
-                    </div>
-                    <select id="filter-ns-province" class="filter-select">
-                        <option value="">Tất cả khu vực</option>
-                    </select>
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-users"></i> Danh Sách Nhân Sự</h3>
+                    <span class="count-badge" id="personnel-count-label">-- người</span>
                 </div>
-
-                <div class="tables-row">
-                    <!-- Top 10 -->
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-trophy" style="color:var(--green)"></i> Top 10 NV Năng Suất Tốt Nhất</h3>
-                        </div>
-                        <div class="table-scroll">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
-                                        <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-ns-top"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <!-- Bottom 10 -->
-                    <div class="table-card">
-                        <div class="table-header">
-                            <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Top 10 NV Năng Suất Thấp Nhất</h3>
-                        </div>
-                        <div class="table-scroll">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
-                                        <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-ns-bottom"></tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="table-scroll" style="max-height:calc(100vh - 240px)">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>ID</th>
+                                <th>Họ Tên</th>
+                                <th>Vị Trí</th>
+                                <th>Loại HĐ</th>
+                                <th>Thâm Niên</th>
+                                <th>Kho</th>
+                                <th>Phòng Ban</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-personnel"></tbody>
+                    </table>
                 </div>
+            </div>
+        </section>
 
-                <div class="table-card" style="margin-top: 20px;">
-                    <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
-                        <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Cảnh Báo NV Năng Suất Thấp</h3>
-                        <div class="tab-buttons">
-                            <button class="tab-btn active" onclick="switchProdTab(this, 7)">Tuần</button>
-                            <button class="tab-btn" onclick="switchProdTab(this, 30)">Tháng</button>
-                        </div>
+        <!-- ===== SECTION: NĂNG SUẤT NV ===== -->
+        <section class="section" id="section-nangsuat">
+            <div class="section-filters" style="margin-bottom: 20px; display:flex; justify-content: space-between;">
+                <div class="filter-tabs" style="display:flex; gap: 10px;">
+                    <button class="btn btn-outline" id="btn-ns-day"
+                        style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700">Ngày
+                        gần nhất</button>
+                    <button class="btn btn-outline" id="btn-ns-week" onclick="switchNsPeriod('week')">Tuần</button>
+                    <button class="btn btn-outline" id="btn-ns-month" onclick="switchNsPeriod('month')">Tháng</button>
+                </div>
+                <select id="filter-ns-province" class="filter-select">
+                    <option value="">Tất cả khu vực</option>
+                </select>
+            </div>
+
+            <div class="tables-row">
+                <!-- Top 10 -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-trophy" style="color:var(--green)"></i> Top 10 NV Năng Suất Tốt Nhất
+                        </h3>
                     </div>
                     <div class="table-scroll">
                         <table class="data-table">
@@ -995,295 +1047,402 @@
                                     <th>Hạng</th>
                                     <th>Nhân Viên</th>
                                     <th>Khu Vực</th>
+                                    <th style="text-align:right">Đơn/Giờ</th>
                                     <th style="text-align:right">Tổng Đơn</th>
-                                    <th style="text-align:right">% GTC TB</th>
+                                    <th style="text-align:right">% GTC</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-productivity-warnings"></tbody>
+                            <tbody id="tbody-ns-top"></tbody>
                         </table>
                     </div>
                 </div>
-
-                <!-- Filter bar thông minh cho Chi Tiết Năng Suất -->
-                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <input type="text" id="filter-ns-driver" placeholder="🔍 Tìm kiếm nhân viên..." class="filter-input" style="width: 240px; height: 42px;">
-
-                    <div class="ghn-filter-container" id="multi-ns-prov">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-prov')">Chọn Khu vực...</div>
-                        <div class="ghn-filter-menu" id="menu-ns-prov"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-ns-day">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-day')">Chọn Ngày...</div>
-                        <div class="ghn-filter-menu" id="menu-ns-day"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-ns-week">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-week')">Chọn Tuần...</div>
-                        <div class="ghn-filter-menu" id="menu-ns-week"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-ns-month">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-month')">Chọn Tháng...</div>
-                        <div class="ghn-filter-menu" id="menu-ns-month"></div>
-                    </div>
-                </div>
-
-                <!-- ALL DRIVERS TABLE -->
-                <div class="table-card" style="margin-top: 20px;">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-list" style="color:var(--blue)"></i> Chi Tiết Năng Suất Toàn Bộ Nhân Viên</h3>
-                    </div>
-                    <div class="table-scroll" style="max-height: 400px;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Ngày</th><th>Nhân Viên</th><th>Khu Vực</th>
-                                    <th style="text-align:right">Đơn/Giờ</th><th style="text-align:right">Tổng Đơn</th><th style="text-align:right">% GTC</th>
-                                    <th>3 Đơn Đầu</th><th>3 Đơn Cuối</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-ns-all"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-            <!-- ===== SECTION: XE GXT ===== -->
-            <section class="section" id="section-xegxt">
-                <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <input type="text" id="filter-xegxt-kho" placeholder="🔍 Tìm tên kho..." class="filter-input" style="flex: 1; min-width: 200px;">
-                    
-                    <select id="filter-xegxt-tinh" class="filter-select">
-                        <option value="">-- Tất cả Tỉnh --</option>
-                    </select>
-
-                    <select id="filter-xegxt-ncc" class="filter-select">
-                        <option value="">-- Tất cả NCC --</option>
-                    </select>
-
-                    <select id="filter-xegxt-loai" class="filter-select">
-                        <option value="">-- Tất cả Loại xe --</option>
-                    </select>
-                </div>
+                <!-- Bottom 10 -->
                 <div class="table-card">
                     <div class="table-header">
-                        <h3><i class="fa-solid fa-truck-fast"></i> Số Lượng Xe GXT Theo Kho</h3>
+                        <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Top 10 NV Năng
+                            Suất Thấp Nhất</h3>
                     </div>
                     <div class="table-scroll">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>STT</th>
-                                    <th>Tỉnh</th>
-                                    <th>Kho</th>
-                                    <th style="text-align:right">Tổng xe đang chạy</th>
+                                    <th>Hạng</th>
+                                    <th>Nhân Viên</th>
+                                    <th>Khu Vực</th>
+                                    <th style="text-align:right">Đơn/Giờ</th>
+                                    <th style="text-align:right">Tổng Đơn</th>
+                                    <th style="text-align:right">% GTC</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-xegxt">
-                                <tr><td colspan="4" style="text-align:center">Đang tải...</td></tr>
-                            </tbody>
-                            <tfoot id="tfoot-xegxt" style="background:#f8fafc; font-weight:700"></tfoot>
+                            <tbody id="tbody-ns-bottom"></tbody>
                         </table>
                     </div>
                 </div>
+            </div>
 
-                <div class="table-card" style="margin-top: 20px;">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-list-check"></i> Dữ Liệu Chi Tiết Xe GXT</h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tỉnh</th>
-                                    <th>Kho</th>
-                                    <th>Tên NCC</th>
-                                    <th>Loại Xe</th>
-                                    <th style="text-align:right">SL Xe</th>
-                                    <th>Ca làm việc</th>
-                                    <th style="text-align:right">Giá thuê xe</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-xegxt-detail">
-                                <tr><td colspan="8" style="text-align:center">Đang tải...</td></tr>
-                            </tbody>
-                        </table>
+            <div class="table-card" style="margin-top: 20px;">
+                <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Cảnh Báo NV Năng Suất
+                        Thấp</h3>
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchProdTab(this, 7)">Tuần</button>
+                        <button class="tab-btn" onclick="switchProdTab(this, 30)">Tháng</button>
                     </div>
                 </div>
-            </section>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Hạng</th>
+                                <th>Nhân Viên</th>
+                                <th>Khu Vực</th>
+                                <th style="text-align:right">Tổng Đơn</th>
+                                <th style="text-align:right">% GTC TB</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-productivity-warnings"></tbody>
+                    </table>
+                </div>
+            </div>
 
-            <!-- ===== SECTION: XE SỰ CỐ ===== -->
-            <section class="section" id="section-xesuco">
-                <div class="section-filters" style="display: grid; grid-template-columns: 1fr 200px 200px 200px 180px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
-                    <div>
-                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm kiếm thông tin</label>
-                        <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..." class="filter-input" style="width: 100%;">
-                    </div>
-                    <div class="filter-group">
-                        <label>Chọn nhiều Ngày</label>
-                        <div class="dropdown-multi" id="dropdown-xesuco-day">
-                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-day-list')">
-                                <span id="label-xesuco-day">Chọn Ngày...</span>
-                                <i class="fa-solid fa-chevron-down"></i>
-                            </div>
-                            <div class="dropdown-list" id="dropdown-xesuco-day-list">
-                                <div class="dropdown-items" id="filter-xesuco-day-container"></div>
-                            </div>
+            <!-- Filter bar thông minh cho Chi Tiết Năng Suất -->
+            <div class="section-filters ghn-filter-row"
+                style="display:flex; gap: 10px; align-items: center; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <input type="text" id="filter-ns-driver" placeholder="🔍 Tìm kiếm nhân viên..." class="filter-input"
+                    style="width: 240px; height: 42px;">
+
+                <div class="ghn-filter-container" id="multi-ns-prov">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-prov')">Chọn Khu vực...</div>
+                    <div class="ghn-filter-menu" id="menu-ns-prov"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-ns-day">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-day')">Chọn Ngày...</div>
+                    <div class="ghn-filter-menu" id="menu-ns-day"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-ns-week">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-week')">Chọn Tuần...</div>
+                    <div class="ghn-filter-menu" id="menu-ns-week"></div>
+                </div>
+
+                <div class="ghn-filter-container" id="multi-ns-month">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-month')">Chọn Tháng...</div>
+                    <div class="ghn-filter-menu" id="menu-ns-month"></div>
+                </div>
+            </div>
+
+            <!-- ALL DRIVERS TABLE -->
+            <div class="table-card" style="margin-top: 20px;">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-list" style="color:var(--blue)"></i> Chi Tiết Năng Suất Toàn Bộ Nhân Viên
+                    </h3>
+                </div>
+                <div class="table-scroll" style="max-height: 400px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Nhân Viên</th>
+                                <th>Khu Vực</th>
+                                <th style="text-align:right">Đơn/Giờ</th>
+                                <th style="text-align:right">Tổng Đơn</th>
+                                <th style="text-align:right">% GTC</th>
+                                <th>3 Đơn Đầu</th>
+                                <th>3 Đơn Cuối</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-ns-all"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <!-- ===== SECTION: XE GXT ===== -->
+        <section class="section" id="section-xegxt">
+            <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="filter-xegxt-kho" placeholder="🔍 Tìm tên kho..." class="filter-input"
+                    style="flex: 1; min-width: 200px;">
+
+                <select id="filter-xegxt-tinh" class="filter-select">
+                    <option value="">-- Tất cả Tỉnh --</option>
+                </select>
+
+                <select id="filter-xegxt-ncc" class="filter-select">
+                    <option value="">-- Tất cả NCC --</option>
+                </select>
+
+                <select id="filter-xegxt-loai" class="filter-select">
+                    <option value="">-- Tất cả Loại xe --</option>
+                </select>
+            </div>
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-truck-fast"></i> Số Lượng Xe GXT Theo Kho</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tỉnh</th>
+                                <th>Kho</th>
+                                <th style="text-align:right">Tổng xe đang chạy</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-xegxt">
+                            <tr>
+                                <td colspan="4" style="text-align:center">Đang tải...</td>
+                            </tr>
+                        </tbody>
+                        <tfoot id="tfoot-xegxt" style="background:#f8fafc; font-weight:700"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-card" style="margin-top: 20px;">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-list-check"></i> Dữ Liệu Chi Tiết Xe GXT</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tỉnh</th>
+                                <th>Kho</th>
+                                <th>Tên NCC</th>
+                                <th>Loại Xe</th>
+                                <th style="text-align:right">SL Xe</th>
+                                <th>Ca làm việc</th>
+                                <th style="text-align:right">Giá thuê xe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-xegxt-detail">
+                            <tr>
+                                <td colspan="8" style="text-align:center">Đang tải...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: XE SỰ CỐ ===== -->
+        <section class="section" id="section-xesuco">
+            <div class="section-filters"
+                style="display: grid; grid-template-columns: 1fr 200px 200px 200px 180px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+                <div>
+                    <label
+                        style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm
+                        kiếm thông tin</label>
+                    <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..."
+                        class="filter-input" style="width: 100%;">
+                </div>
+                <div class="filter-group">
+                    <label>Chọn nhiều Ngày</label>
+                    <div class="dropdown-multi" id="dropdown-xesuco-day">
+                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-day-list')">
+                            <span id="label-xesuco-day">Chọn Ngày...</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-list" id="dropdown-xesuco-day-list">
+                            <div class="dropdown-items" id="filter-xesuco-day-container"></div>
                         </div>
                     </div>
-                    <div class="filter-group">
-                        <label>Chọn nhiều Tuần</label>
-                        <div class="dropdown-multi" id="dropdown-xesuco-week">
-                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-week-list')">
-                                <span id="label-xesuco-week">Chọn Tuần...</span>
-                                <i class="fa-solid fa-chevron-down"></i>
-                            </div>
-                            <div class="dropdown-list" id="dropdown-xesuco-week-list">
-                                <div class="dropdown-items" id="filter-xesuco-week-container"></div>
-                            </div>
+                </div>
+                <div class="filter-group">
+                    <label>Chọn nhiều Tuần</label>
+                    <div class="dropdown-multi" id="dropdown-xesuco-week">
+                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-week-list')">
+                            <span id="label-xesuco-week">Chọn Tuần...</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-list" id="dropdown-xesuco-week-list">
+                            <div class="dropdown-items" id="filter-xesuco-week-container"></div>
                         </div>
                     </div>
-                    <div class="filter-group">
-                        <label>Chọn nhiều Tháng</label>
-                        <div class="dropdown-multi" id="dropdown-xesuco-month">
-                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-month-list')">
-                                <span id="label-xesuco-month">Chọn Tháng...</span>
-                                <i class="fa-solid fa-chevron-down"></i>
-                            </div>
-                            <div class="dropdown-list" id="dropdown-xesuco-month-list">
-                                <div class="dropdown-items" id="filter-xesuco-month-container"></div>
-                            </div>
+                </div>
+                <div class="filter-group">
+                    <label>Chọn nhiều Tháng</label>
+                    <div class="dropdown-multi" id="dropdown-xesuco-month">
+                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-month-list')">
+                            <span id="label-xesuco-month">Chọn Tháng...</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-list" id="dropdown-xesuco-month-list">
+                            <div class="dropdown-items" id="filter-xesuco-month-container"></div>
                         </div>
                     </div>
-                    <div>
-                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn Kho</label>
-                        <select id="filter-xesuco-kho" class="filter-select" style="width: 100%;">
-                            <option value="">-- Tất cả --</option>
-                        </select>
-                    </div>
+                </div>
+                <div>
+                    <label
+                        style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn
+                        Kho</label>
+                    <select id="filter-xesuco-kho" class="filter-select" style="width: 100%;">
+                        <option value="">-- Tất cả --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-card" style="margin-bottom: 20px;">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Chi Tiết Xe Sự Cố</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tỉnh</th>
+                                <th>ID</th>
+                                <th>Kho</th>
+                                <th>Ngày</th>
+                                <th>Lỗi</th>
+                                <th>Nội Dung Chi Tiết</th>
+                                <th>Biển Số</th>
+                                <th>NCC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-xesuco-raw">
+                            <tr>
+                                <td colspan="9" style="text-align:center">Đang tải dữ liệu...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: KHO GXT ===== -->
+        <section class="section" id="section-khogxt">
+            <div class="section-filters">
+                <input type="text" id="filter-khogxt-search" placeholder="🔍 Tìm tên kho, địa chỉ, tỉnh..."
+                    class="filter-input">
+            </div>
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-warehouse"></i> Danh Sách Kho GXT</h3>
+                </div>
+                <div class="table-scroll" style="max-height: 75vh;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tên Nhân Viên</th>
+                                <th>Số Điện Thoại</th>
+                                <th>ID Kho</th>
+                                <th>Tên kho GXT</th>
+                                <th>Tỉnh</th>
+                                <th>Diện Tích</th>
+                                <th>Tình Trạng</th>
+                                <th>Địa chỉ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-khogxt">
+                            <tr>
+                                <td colspan="8" style="text-align:center">Đang tải...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: ĐƠN TẠO N-1 ===== -->
+        <section class="section" id="section-dontao">
+
+            <!-- Biểu đồ -->
+            <div class="chart-card" style="margin-bottom:18px">
+                <div class="chart-header">
+                    <h3><i class="fa-solid fa-chart-column" style="color:#7B1FA2"></i> Biểu Đồ Đơn Tạo N-1 Theo Kho</h3>
+                </div>
+                <div style="position:relative;min-height:300px">
+                    <canvas id="chart-dontao"></canvas>
+                </div>
+            </div>
+
+            <!-- Filter bar giống GTC -->
+            <div class="section-filters ghn-filter-row"
+                style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <input type="text" id="filter-kho-dontao" placeholder="🔍 Tìm kiếm kho..." class="filter-input"
+                    style="width: 240px; height: 42px;">
+
+                <div class="ghn-filter-container" id="multi-dt-day">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-day')">Chọn Ngày...</div>
+                    <div class="ghn-filter-menu" id="menu-dt-day"></div>
                 </div>
 
-                <div class="table-card" style="margin-bottom: 20px;">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Chi Tiết Xe Sự Cố</h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tỉnh</th>
-                                    <th>ID</th>
-                                    <th>Kho</th>
-                                    <th>Ngày</th>
-                                    <th>Lỗi</th>
-                                    <th>Nội Dung Chi Tiết</th>
-                                    <th>Biển Số</th>
-                                    <th>NCC</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-xesuco-raw">
-                                <tr><td colspan="9" style="text-align:center">Đang tải dữ liệu...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: KHO GXT ===== -->
-            <section class="section" id="section-khogxt">
-                <div class="section-filters">
-                    <input type="text" id="filter-khogxt-search" placeholder="🔍 Tìm tên kho, địa chỉ, tỉnh..." class="filter-input">
-                </div>
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-warehouse"></i> Danh Sách Kho GXT</h3>
-                    </div>
-                    <div class="table-scroll" style="max-height: 75vh;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Tên Nhân Viên</th>
-                                    <th>Số Điện Thoại</th>
-                                    <th>ID Kho</th>
-                                    <th>Tên kho GXT</th>
-                                    <th>Tỉnh</th>
-                                    <th>Diện Tích</th>
-                                    <th>Tình Trạng</th>
-                                    <th>Địa chỉ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-khogxt">
-                                <tr><td colspan="8" style="text-align:center">Đang tải...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== SECTION: ĐƠN TẠO N-1 ===== -->
-            <section class="section" id="section-dontao">
-
-                <!-- Biểu đồ -->
-                <div class="chart-card" style="margin-bottom:18px">
-                    <div class="chart-header">
-                        <h3><i class="fa-solid fa-chart-column" style="color:#7B1FA2"></i> Biểu Đồ Đơn Tạo N-1 Theo Kho</h3>
-                    </div>
-                    <div style="position:relative;min-height:300px">
-                        <canvas id="chart-dontao"></canvas>
-                    </div>
+                <div class="ghn-filter-container" id="multi-dt-week">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-week')">Chọn Tuần...</div>
+                    <div class="ghn-filter-menu" id="menu-dt-week"></div>
                 </div>
 
-                <!-- Filter bar giống GTC -->
-                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <input type="text" id="filter-kho-dontao" placeholder="🔍 Tìm kiếm kho..." class="filter-input" style="width: 240px; height: 42px;">
-
-                    <div class="ghn-filter-container" id="multi-dt-day">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-day')">Chọn Ngày...</div>
-                        <div class="ghn-filter-menu" id="menu-dt-day"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-dt-week">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-week')">Chọn Tuần...</div>
-                        <div class="ghn-filter-menu" id="menu-dt-week"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-dt-month">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-month')">Chọn Tháng...</div>
-                        <div class="ghn-filter-menu" id="menu-dt-month"></div>
-                    </div>
-
-                    <div class="ghn-filter-container" id="multi-dt-kho">
-                        <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-kho')">Chọn Kho...</div>
-                        <div class="ghn-filter-menu" id="menu-dt-kho"></div>
-                    </div>
+                <div class="ghn-filter-container" id="multi-dt-month">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-month')">Chọn Tháng...</div>
+                    <div class="ghn-filter-menu" id="menu-dt-month"></div>
                 </div>
 
-                <!-- Bảng chi tiết -->
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-table"></i> Chi Tiết Đơn Tạo Toàn Bộ</h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Kho Giao</th>
-                                    <th>Thời Gian</th>
-                                    <th>Tổng Đơn Tạo</th>
-                                    <th>Tổng Khối Lượng (KG)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-dontao"></tbody>
-                        </table>
-                    </div>
+                <div class="ghn-filter-container" id="multi-dt-kho">
+                    <div class="ghn-filter-selected" onclick="toggleMultiselect('dt-kho')">Chọn Kho...</div>
+                    <div class="ghn-filter-menu" id="menu-dt-kho"></div>
                 </div>
-            </section>
-        </main>
+            </div>
+
+            <!-- Bảng chi tiết -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-table"></i> Chi Tiết Đơn Tạo Toàn Bộ</h3>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Kho Giao</th>
+                                <th>Thời Gian</th>
+                                <th>Tổng Đơn Tạo</th>
+                                <th>Tổng Khối Lượng (KG)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-dontao"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- ===== TELEGRAM BOT CHAT MODAL ===== -->
+<div class="modal-overlay" id="telegram-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="modal-card" style="background: white; border-radius: 16px; width: 500px; max-width: 90%; padding: 24px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--border); animation: login-fade-in 0.3s ease;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: var(--text1);">
+                <i class="fa-brands fa-telegram" style="color: #0088cc; font-size: 1.4rem;"></i> Chat với Nhóm qua Bot
+            </h3>
+            <button id="close-telegram-modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text3); line-height: 1; outline: none;">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px;">
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text2);">
+                Nhập nội dung tin nhắn để gửi trực tiếp vào Group Telegram dưới danh nghĩa của Bot.
+            </p>
+            <div class="input-group">
+                <textarea id="telegram-custom-msg" rows="6" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none; box-sizing: border-box;" placeholder="Nhập tin nhắn tại đây... (Hỗ trợ Markdown)"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; flex-wrap: wrap; align-items: center;">
+            <button class="btn btn-outline" id="telegram-btn-compile" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
+                <i class="fa-solid fa-list-check"></i> Chèn Báo Cáo Nhanh
+            </button>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-outline" id="cancel-telegram-modal" style="font-size: 0.85rem; padding: 8px 14px; border-radius: 6px; cursor: pointer;">Hủy</button>
+                <button class="btn btn-primary" id="telegram-btn-send-custom" style="background: #0088cc; border: none; color: white; font-size: 0.85rem; padding: 8px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-paper-plane"></i> Gửi ngay
+                </button>
+            </div>
+        </div>
     </div>
+</div>
 
-    <script src="app.js?v=4.2"></script>
+<script src="app.js?v=4.2"></script>
 </body>
+
 </html>

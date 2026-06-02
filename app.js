@@ -2,9 +2,9 @@ const API = window.location.origin + '/api';
 
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
-const C_BLUE   = '#0076BE';
-const C_GREEN  = '#0CA678';
-const C_RED    = '#F5365C';
+const C_BLUE = '#0076BE';
+const C_GREEN = '#0CA678';
+const C_RED = '#F5365C';
 const C_PURPLE = '#5E72E4';
 const C_YELLOW = '#FB6340';
 
@@ -26,7 +26,7 @@ let charts = {};
 
 // ---- UTILS ----
 function pctClass(v) {
-    const n = parseFloat((v||'0').replace('%','').replace(',','.'));
+    const n = parseFloat((v || '0').replace('%', '').replace(',', '.'));
     if (n >= 90) return 'pct-high';
     if (n >= 80) return 'pct-mid';
     return 'pct-low';
@@ -52,13 +52,13 @@ function shortKho(k) {
 }
 
 function parsePct(str) {
-    return parseFloat((str||'0').replace('%','').replace(',','.')) || 0;
+    return parseFloat((str || '0').replace('%', '').replace(',', '.')) || 0;
 }
 
 function parseVN(s) {
     if (!s) return 0;
     if (typeof s !== 'string') s = s.toString();
-    
+
     // Format: "2026-05-05 - Thứ 3" hoặc "2026-05-05"
     let m0 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m0) return new Date(parseInt(m0[1]), parseInt(m0[2]) - 1, parseInt(m0[3])).getTime();
@@ -66,7 +66,7 @@ function parseVN(s) {
     // Format: "5 thg 5, 2026"
     let m = s.match(/(\d+) thg (\d+), (\d+)/);
     if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1])).getTime();
-    
+
     // Format: "DD/MM/YYYY" hoặc "D/M/YYYY"
     let m2 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (m2) return new Date(parseInt(m2[3]), parseInt(m2[2]) - 1, parseInt(m2[1])).getTime();
@@ -90,30 +90,30 @@ async function fetchAll(force = false) {
         const query = force ? '?force=true' : '';
         const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt, dontao] = await Promise.all([
             fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
-            fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/returns${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/backlog/critical${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/backlog/b2b${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/personnel${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/nang-suat${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/xe-su-co${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/kho-gxt${query}`).then(r => r.json()).catch(e => ({data:[]})),
-            fetch(`${API}/don-tao${query}`).then(r => r.json()).catch(e => ({data:[]})),
+            fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/returns${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/backlog/critical${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/backlog/b2b${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/personnel${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/nang-suat${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/xe-su-co${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/kho-gxt${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/don-tao${query}`).then(r => r.json()).catch(e => ({ data: [] })),
         ]);
 
-        state = { 
-            overview: ov || {}, 
-            gtcData: gtc.data || [], 
-            ontimeData: ontime.data || [], 
-            returnsData: ret.data || [], 
-            backlogData: bl.data || [], 
-            b2bData: b2b.data || [], 
-            personnelData: pers.data || [], 
-            nangSuatData: ns.data || [], 
+        state = {
+            overview: ov || {},
+            gtcData: gtc.data || [],
+            ontimeData: ontime.data || [],
+            returnsData: ret.data || [],
+            backlogData: bl.data || [],
+            b2bData: b2b.data || [],
+            personnelData: pers.data || [],
+            nangSuatData: ns.data || [],
             warningsData: warn.data || [],
             returnsByClientData: retC.data || [],
             xeGxtData: xegxt.data || [],
@@ -122,16 +122,16 @@ async function fetchAll(force = false) {
             donTaoData: dontao.data || []
         };
         filtersPopulated = false; // Reset filters on fresh data
-        
+
         // Reset countdown
         nextSyncTime = Date.now() + 5 * 60 * 1000;
         renderAll();
-        
+
         if (force) {
             btn.classList.remove('loading');
             btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
         }
-    } catch(e) {
+    } catch (e) {
         console.error('Fetch error:', e);
         if (force) {
             btn.classList.remove('loading');
@@ -145,16 +145,16 @@ function startSyncTimer() {
     syncTimerInterval = setInterval(() => {
         const now = Date.now();
         const diff = Math.max(0, nextSyncTime - now);
-        
+
         if (diff <= 0) {
             fetchAll(); // Auto refresh
             return;
         }
-        
+
         const mins = Math.floor(diff / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
         document.getElementById('sync-timer').textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        
+
         const progress = (diff / (5 * 60 * 1000)) * 100;
         document.getElementById('sync-progress').style.width = progress + '%';
     }, 1000);
@@ -206,18 +206,18 @@ function updateMeta() {
     document.getElementById('last-update-time').textContent =
         'Cập nhật: ' + now.toLocaleTimeString('vi-VN');
     document.getElementById('current-date').textContent =
-        now.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+        now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 // ---- OVERVIEW CARDS ----
 function renderOverviewCards() {
     const ov = state.overview;
-    document.getElementById('val-gtc').textContent    = (ov.avg_gtc || 0) + '%';
+    document.getElementById('val-gtc').textContent = (ov.avg_gtc || 0) + '%';
     const ontimeEl = document.getElementById('val-ontime');
     if (ontimeEl) ontimeEl.textContent = (ov.avg_ontime || 0) + '%';
     document.getElementById('val-backlog').textContent = ov.total_backlog_7n || 0;
-    document.getElementById('val-b2b').textContent    = ov.total_b2b_priority || 0;
-    document.getElementById('val-fd').textContent     = (ov.avg_fd_return || 0) + '%';
+    document.getElementById('val-b2b').textContent = ov.total_b2b_priority || 0;
+    document.getElementById('val-fd').textContent = (ov.avg_fd_return || 0) + '%';
     const valNangSuatEl = document.getElementById('val-nangsuat');
     if (valNangSuatEl) valNangSuatEl.textContent = (ov.avg_nang_suat || 0);
 
@@ -234,7 +234,7 @@ function renderOverviewCards() {
         let pCount = ov.total_personnel || 0;
         // Fallback to frontend calculation if available and server returns 0
         if (pCount === 0 && state.personnelData && state.personnelData.length) {
-            pCount = state.personnelData.filter(r => (r['Tên vị trí']||'').trim().toLowerCase() === 'delivery staff').length;
+            pCount = state.personnelData.filter(r => (r['Tên vị trí'] || '').trim().toLowerCase() === 'delivery staff').length;
         }
         xeTotalEl.textContent = `${ov.total_xe_gxt || 0}/${pCount}`;
     }
@@ -246,7 +246,7 @@ function renderOverviewCards() {
     const donTaoEl = document.getElementById('val-dontao');
     if (donTaoEl) {
         const d = (ov.total_don_tao || 0).toLocaleString('vi-VN');
-        const kg = (ov.total_kg_tao || 0).toLocaleString('vi-VN', {minimumFractionDigits:3, maximumFractionDigits:3});
+        const kg = (ov.total_kg_tao || 0).toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
         donTaoEl.textContent = `${d} / ${kg} KG`;
     }
 
@@ -259,9 +259,9 @@ function renderOverviewCards() {
     if (ovWarnUp) ovWarnUp.textContent = (ov.upcoming_warnings || 0);
     const ovWarnDays = document.getElementById('ov-warn-avg-days');
     if (ovWarnDays) ovWarnDays.textContent = (ov.avg_days_to_normal || 0);
-    
+
     const syncTime = ov.last_sync ? new Date(ov.last_sync * 1000).toLocaleTimeString('vi-VN') : '--';
-    document.getElementById('sub-gtc').textContent    = 'Đã đồng bộ: ' + syncTime;
+    document.getElementById('sub-gtc').textContent = 'Đã đồng bộ: ' + syncTime;
 
     // Sync warning cards from frontend state if available
     syncOverviewWarningCards();
@@ -289,7 +289,7 @@ function syncOverviewWarningCards() {
     });
 
     const criticalCount = processedData.filter(r => r.soNgayVal > 6).length;
-    const warningCount  = processedData.filter(r => r.sheetStatus === 'Bất ổn').length;
+    const warningCount = processedData.filter(r => r.sheetStatus === 'Bất ổn').length;
     const upcomingCount = processedData.filter(r => {
         const next = (r['Tình hình sắp tới'] || r['Dự báo sắp tới'] || '').toLowerCase();
         return next.includes('cảnh báo') || next.includes('nghiêm trọng');
@@ -311,7 +311,7 @@ function syncOverviewWarningCards() {
     }
 }
 
-window.toggleDropdown = function(id) {
+window.toggleDropdown = function (id) {
     document.getElementById(id).classList.toggle('active');
     // Close other dropdowns
     document.querySelectorAll('.dropdown-list').forEach(list => {
@@ -328,9 +328,9 @@ document.addEventListener('click', (e) => {
 
 function updateNavBadges() {
     document.getElementById('nav-backlog-count').textContent = state.backlogData.length;
-    const critB2b = state.b2bData.filter(r => (r['Mức độ ưu tiên']||'').startsWith('1:'));
+    const critB2b = state.b2bData.filter(r => (r['Mức độ ưu tiên'] || '').startsWith('1:'));
     document.getElementById('nav-b2b-count').textContent = critB2b.length;
-    
+
     const critWarn = state.warningsData.filter(r => r['Tình hình hiện tại'] === 'Nghiêm trọng');
     const warnBadge = document.getElementById('nav-warnings-count');
     if (warnBadge) {
@@ -341,7 +341,7 @@ function updateNavBadges() {
 
 let currentOverviewGtcPeriod = 'day';
 
-window.switchOverviewGtcPeriod = function(p) {
+window.switchOverviewGtcPeriod = function (p) {
     currentOverviewGtcPeriod = p;
     document.querySelectorAll('#btn-ov-day, #btn-ov-week, #btn-ov-month').forEach(b => b.classList.remove('active'));
     document.getElementById('btn-ov-' + p)?.classList.add('active');
@@ -356,7 +356,7 @@ function renderGtcTrendChart() {
         if (!ts) return;
         const dObj = new Date(ts);
         let key = (r['Ngày'] || '').split(' - ')[0]; // Day default
-        
+
         if (currentOverviewGtcPeriod === 'week') {
             key = getWeekNumber(dObj);
         } else if (currentOverviewGtcPeriod === 'month') {
@@ -365,7 +365,7 @@ function renderGtcTrendChart() {
 
         if (!dateMap[key]) dateMap[key] = { total: 0, gtc: 0 };
         dateMap[key].total += parseInt(r['Số đơn gán'] || 0);
-        dateMap[key].gtc   += parseInt(r['Số đơn GTC'] || 0);
+        dateMap[key].gtc += parseInt(r['Số đơn GTC'] || 0);
     });
 
     const allKeys = Object.keys(dateMap).sort();
@@ -421,10 +421,10 @@ function renderReturnsPieChart() {
     state.returnsData.forEach(r => {
         const n = parseInt(r['Số đơn trả'] || 0);
         reasonMap['Không liên lạc được'] += Math.round(n * 0.30);
-        reasonMap['Đổi ý không mua']     += Math.round(n * 0.25);
-        reasonMap['Hẹn lại ngày giao']   += Math.round(n * 0.20);
-        reasonMap['Sai địa chỉ']         += Math.round(n * 0.15);
-        reasonMap['Khác']                += Math.round(n * 0.10);
+        reasonMap['Đổi ý không mua'] += Math.round(n * 0.25);
+        reasonMap['Hẹn lại ngày giao'] += Math.round(n * 0.20);
+        reasonMap['Sai địa chỉ'] += Math.round(n * 0.15);
+        reasonMap['Khác'] += Math.round(n * 0.10);
     });
 
     destroyChart('returnsPie');
@@ -517,7 +517,7 @@ function renderB2bOverviewTable() {
 function renderCriticalWarningsOverview() {
     const tbody = document.getElementById('tbody-critical-overview');
     if (!tbody) return;
-    
+
     // Lọc và chuẩn bị dữ liệu
     const processedData = state.warningsData.map(r => {
         const getV = (keys, defaultVal = 0) => {
@@ -539,12 +539,12 @@ function renderCriticalWarningsOverview() {
     });
 
     const critical = processedData.filter(r => r.soNgayVal > 5);
-    
+
     if (critical.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--green);font-weight:600"><i class="fa-solid fa-circle-check"></i> Toàn mạng lưới bình thường</td></tr>';
         return;
     }
-    
+
     // Sắp xếp theo số ngày giảm dần
     const sorted = [...critical].sort((a, b) => b.soNgayVal - a.soNgayVal);
 
@@ -578,7 +578,7 @@ let gtcTimeMode = 'day';
 let selectedGtcVals = [];
 let selectedGtcKhos = [];
 
-window.toggleMultiselect = function(mode) {
+window.toggleMultiselect = function (mode) {
     const allMenus = document.querySelectorAll('.ghn-filter-menu');
     let targetId = 'menu-gtc-' + mode;
     if (mode.startsWith('dt-') || mode.startsWith('ns-')) {
@@ -596,7 +596,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-window.updateGtcTimeMode = function(mode) {
+window.updateGtcTimeMode = function (mode) {
     const menu = document.getElementById('menu-gtc-' + mode);
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
     const vals = Array.from(checks).map(c => c.value);
@@ -630,7 +630,7 @@ function updateMultiselectLabel(mode) {
     if (!menu) return;
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
     const label = document.querySelector(`#multi-gtc-${mode} .ghn-filter-selected`);
-    
+
     if (checks.length === 0) {
         if (mode === 'kho') label.innerText = 'Chọn Kho...';
         else if (mode === 'day') label.innerText = 'Chọn Ngày...';
@@ -639,7 +639,7 @@ function updateMultiselectLabel(mode) {
     } else {
         label.innerText = `${checks.length} mục đã chọn`;
     }
-    
+
     const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
     items.sort((a, b) => {
         const chkA = a.querySelector('input').checked;
@@ -653,20 +653,20 @@ function populateGtcTimeSelects() {
     const dayMenu = document.getElementById('menu-gtc-day');
     if (!dayMenu || dayMenu.children.length > 0) return;
 
-    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const days = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     renderMultiselectItems('day', days);
 
     const weeks = [...new Set(state.gtcData.map(r => {
         const ts = parseVN(r['Ngày']);
         return ts ? getWeekNumber(new Date(ts)) : null;
-    }).filter(Boolean))].sort((a,b) => b - a);
+    }).filter(Boolean))].sort((a, b) => b - a);
     renderMultiselectItems('week', weeks);
 
     const months = [...new Set(state.gtcData.map(r => {
         const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
-        return d.getFullYear() + '-' + ((d.getMonth()+1)<10?'0':'') + (d.getMonth()+1);
+        return d.getFullYear() + '-' + ((d.getMonth() + 1) < 10 ? '0' : '') + (d.getMonth() + 1);
     }).filter(Boolean))].sort().reverse();
     renderMultiselectItems('month', months);
 
@@ -700,13 +700,13 @@ function renderGtcSection(searchFilter = '') {
             if (gtcTimeMode === 'day') return selectedGtcVals.includes(r['Ngày']);
             if (gtcTimeMode === 'week') return selectedGtcVals.includes(getWeekNumber(dObj));
             if (gtcTimeMode === 'month') {
-                const m = dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1);
+                const m = dObj.getFullYear() + '-' + ((dObj.getMonth() + 1) < 10 ? '0' : '') + (dObj.getMonth() + 1);
                 return selectedGtcVals.includes(m);
             }
             return true;
         });
     } else {
-        const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
         filteredData = filteredData.filter(r => r['Ngày'] === allDates[0]);
     }
 
@@ -721,14 +721,14 @@ function renderGtcSection(searchFilter = '') {
             const k = shortKho(r['Kho']);
             const ts = parseVN(r['Ngày']);
             const dObj = new Date(ts);
-            let periodKey = gtcTimeMode === 'week' ? getWeekNumber(dObj) : 
-                            (dObj.getFullYear() + '-' + ((dObj.getMonth()+1)<10?'0':'') + (dObj.getMonth()+1));
-            
+            let periodKey = gtcTimeMode === 'week' ? getWeekNumber(dObj) :
+                (dObj.getFullYear() + '-' + ((dObj.getMonth() + 1) < 10 ? '0' : '') + (dObj.getMonth() + 1));
+
             const groupKey = k + '|' + periodKey;
             if (!aggMap[groupKey]) {
-                aggMap[groupKey] = { kho: k, period: (gtcTimeMode==='week'?'Tuần ':'Tháng ') + periodKey, kl: 0, gan: 0, gtc: 0, ts: ts };
+                aggMap[groupKey] = { kho: k, period: (gtcTimeMode === 'week' ? 'Tuần ' : 'Tháng ') + periodKey, kl: 0, gan: 0, gtc: 0, ts: ts };
             }
-            
+
             const parseVal = (v) => parseFloat((v || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
             const parseCount = (v) => parseInt((v || '0').toString().replace(/\./g, '')) || 0;
 
@@ -737,7 +737,7 @@ function renderGtcSection(searchFilter = '') {
             aggMap[groupKey].gtc += parseCount(r['Số đơn GTC']);
         });
         displayData = Object.values(aggMap)
-            .sort((a,b) => b.ts - a.ts)
+            .sort((a, b) => b.ts - a.ts)
             .map((r, idx) => ({
                 stt: idx + 1,
                 kho: r.kho,
@@ -748,7 +748,7 @@ function renderGtcSection(searchFilter = '') {
                 pct: r.gan > 0 ? (r.gtc / r.gan * 100).toFixed(2) + '%' : '0%'
             }));
     } else {
-        displayData = filteredData.sort((a,b) => parseVN(b['Ngày']) - parseVN(a['Ngày'])).map((r, idx) => ({
+        displayData = filteredData.sort((a, b) => parseVN(b['Ngày']) - parseVN(a['Ngày'])).map((r, idx) => ({
             stt: idx + 1,
             kho: shortKho(r['Kho']),
             ngay: r['Ngày'],
@@ -779,22 +779,22 @@ function renderGtcByRegionChart() { /* Removed per user request */ }
 
 // ---- GTC BY KHO BAR CHART ----
 function renderGtcByKhoChart() {
-    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     let referenceDate = allDates[0];
-    
+
     if (gtcTimeMode === 'day' && selectedGtcVals.length > 0) {
         // Use the latest among selected dates
-        const sortedSelected = [...selectedGtcVals].sort((a,b) => parseVN(b) - parseVN(a));
+        const sortedSelected = [...selectedGtcVals].sort((a, b) => parseVN(b) - parseVN(a));
         referenceDate = sortedSelected[0];
     }
 
     const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
-    
+
     // Filter active warehouses to keep chart output strictly equal to multi-selection lists
     let chartRows = dayRows;
     if (selectedGtcKhos.length > 0) chartRows = chartRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
 
-    const sorted = [...chartRows].sort((a,b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
+    const sorted = [...chartRows].sort((a, b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
 
     const labels = sorted.map(r => shortKho(r['Kho']));
     const values = sorted.map(r => parsePct(r['% GTC']));
@@ -822,10 +822,10 @@ function renderGtcByKhoChart() {
         data: {
             labels,
             datasets: [
-                { 
-                    label: `GTC: ${sumGtc.toLocaleString('vi-VN')} (${totalPctStr})`, 
-                    data: values, 
-                    backgroundColor: colors, 
+                {
+                    label: `GTC: ${sumGtc.toLocaleString('vi-VN')} (${totalPctStr})`,
+                    data: values,
+                    backgroundColor: colors,
                     borderRadius: 4,
                     datalabels: { anchor: 'end', align: 'right', color: ctx2 => colors[ctx2.dataIndex], font: { weight: 'bold' }, formatter: v => v + '%' }
                 },
@@ -840,13 +840,13 @@ function renderGtcByKhoChart() {
         options: {
             responsive: true, maintainAspectRatio: false,
             indexAxis: 'y',
-            plugins: { 
-                legend: { 
-                    display: true, 
-                    position: 'top', 
-                    labels: { color: '#525F7F', padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 } 
-                }, 
-                datalabels: { display: true } 
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { color: '#525F7F', padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 }
+                },
+                datalabels: { display: true }
             },
             scales: {
                 x: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
@@ -868,22 +868,22 @@ function renderGtcTopBottom() {
     const el = document.getElementById('gtc-top-bottom');
     if (!el) return;
 
-    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
     const latestTs = parseVN(latestDate);
-    
+
     // Calendar Week
     const d = new Date(latestTs);
     const day = d.getDay() || 7;
     const startOfWeek = new Date(d);
-    startOfWeek.setHours(0,0,0,0);
+    startOfWeek.setHours(0, 0, 0, 0);
     startOfWeek.setDate(d.getDate() - day + 1);
-    
+
     // Calendar Month
     const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-    startOfMonth.setHours(0,0,0,0);
+    startOfMonth.setHours(0, 0, 0, 0);
 
     function computeKhoRanking(rows) {
         const khoMap = {};
@@ -895,17 +895,17 @@ function renderGtcTopBottom() {
             khoMap[k].gtc += parseInt(r['Số đơn GTC'] || 0);
         });
         return Object.entries(khoMap)
-            .filter(([,v]) => v.gan >= 10)
+            .filter(([, v]) => v.gan >= 10)
             .map(([k, v]) => ({ kho: k, pct: +(v.gtc / v.gan * 100).toFixed(2), gtc: v.gtc, gan: v.gan }))
             .sort((a, b) => b.pct - a.pct);
     }
 
-    const rowsDay   = state.gtcData.filter(r => r['Ngày'] === latestDate);
-    const rowsWeek  = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
+    const rowsDay = state.gtcData.filter(r => r['Ngày'] === latestDate);
+    const rowsWeek = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfWeek.getTime());
     const rowsMonth = state.gtcData.filter(r => parseVN(r['Ngày']) >= startOfMonth.getTime());
 
-    const rankDay   = computeKhoRanking(rowsDay);
-    const rankWeek  = computeKhoRanking(rowsWeek);
+    const rankDay = computeKhoRanking(rowsDay);
+    const rankWeek = computeKhoRanking(rowsWeek);
     const rankMonth = computeKhoRanking(rowsMonth);
 
     function renderPanel(title, icon, ranking) {
@@ -949,10 +949,10 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
     const getAging = r => parseInt(r['backlog_aging'] || r['Số ngày tồn'] || 0);
     if (khoFilter) data = data.filter(r =>
         shortKho(getKho(r)).toLowerCase().includes(khoFilter.toLowerCase()) ||
-        (r['order_code']||'').toLowerCase().includes(khoFilter.toLowerCase())
+        (r['order_code'] || '').toLowerCase().includes(khoFilter.toLowerCase())
     );
-    if (luongFilter) data = data.filter(r => (r['client_type']||'').toLowerCase().includes(luongFilter.toLowerCase()));
-    data.sort((a,b) => getAging(b) - getAging(a));
+    if (luongFilter) data = data.filter(r => (r['client_type'] || '').toLowerCase().includes(luongFilter.toLowerCase()));
+    data.sort((a, b) => getAging(b) - getAging(a));
 
     document.getElementById('backlog-count-label').textContent = data.length + ' đơn';
     document.getElementById('tbody-backlog').innerHTML = data.map(r => `
@@ -961,10 +961,10 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
             <td>${r['vung_giao'] || '--'}</td>
             <td>${shortKho(getKho(r))}</td>
             <td>${r['PIC'] || '--'}</td>
-            <td class="order-code">${r['order_code']||''}</td>
-            <td>${r['client_type']||''}</td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Lý do giao thất bại gần nhất']||''}</td>
-            <td>${r['time_nhap_kho_giao']||''}</td>
+            <td class="order-code">${r['order_code'] || ''}</td>
+            <td>${r['client_type'] || ''}</td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Lý do giao thất bại gần nhất'] || ''}</td>
+            <td>${r['time_nhap_kho_giao'] || ''}</td>
             <td>${agingChip(getAging(r))}</td>
         </tr>
     `).join('');
@@ -977,7 +977,7 @@ function renderBacklogByKhoChart() {
         const k = shortKho(r['kho_giao'] || r['Kho'] || 'N/A');
         khoMap[k] = (khoMap[k] || 0) + 1;
     });
-    const sorted = Object.entries(khoMap).sort((a,b) => b[1]-a[1]);
+    const sorted = Object.entries(khoMap).sort((a, b) => b[1] - a[1]);
 
     destroyChart('backlogByKho');
     const ctx = document.getElementById('chart-backlog-by-kho').getContext('2d');
@@ -1003,14 +1003,14 @@ function renderBacklogByKhoChart() {
 // ---- B2B SECTION ----
 function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', typeFilter = '') {
     let data = [...state.b2bData];
-    
+
     // POPULATE FILTERS
     const clients = [...new Set(state.b2bData.map(r => r['Khách']).filter(Boolean))].sort();
     const types = [...new Set(state.b2bData.map(r => r['Loại']).filter(Boolean))].sort();
-    
+
     const clientSelect = document.getElementById('filter-b2b-client');
     const typeSelect = document.getElementById('filter-b2b-type');
-    
+
     if (clientSelect && clientSelect.options.length <= 1) {
         clients.forEach(c => clientSelect.add(new Option(c, c)));
     }
@@ -1019,28 +1019,28 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     }
 
     if (khoFilter) data = data.filter(r =>
-        (shortKho(r['Kho hiện tại'])||'').toLowerCase().includes(khoFilter.toLowerCase()) ||
-        (r['Order code']||'').toLowerCase().includes(khoFilter.toLowerCase())
+        (shortKho(r['Kho hiện tại']) || '').toLowerCase().includes(khoFilter.toLowerCase()) ||
+        (r['Order code'] || '').toLowerCase().includes(khoFilter.toLowerCase())
     );
-    if (prioFilter) data = data.filter(r => (r['Mức độ ưu tiên']||'') === prioFilter);
-    if (clientFilter) data = data.filter(r => (r['Khách']||'') === clientFilter);
-    if (typeFilter) data = data.filter(r => (r['Loại']||'') === typeFilter);
+    if (prioFilter) data = data.filter(r => (r['Mức độ ưu tiên'] || '') === prioFilter);
+    if (clientFilter) data = data.filter(r => (r['Khách'] || '') === clientFilter);
+    if (typeFilter) data = data.filter(r => (r['Loại'] || '') === typeFilter);
 
-    const prio = ['1: trong hôm nay','2: trong ngày mai','3: trong ngày mốt'];
-    data.sort((a,b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']));
+    const prio = ['1: trong hôm nay', '2: trong ngày mai', '3: trong ngày mốt'];
+    data.sort((a, b) => prio.indexOf(a['Mức độ ưu tiên']) - prio.indexOf(b['Mức độ ưu tiên']));
 
     document.getElementById('b2b-count-label').textContent = data.length + ' đơn';
     document.getElementById('tbody-b2b').innerHTML = data.map(r => `
         <tr>
             <td>${priorityBadge(r['Mức độ ưu tiên'])}</td>
             <td>${shortKho(r['Kho hiện tại'])}</td>
-            <td>${r['PIC']||''}</td>
-            <td class="order-code">${r['Order code']||''}</td>
-            <td><span class="badge ${r['Loại']==='Giao'?'storing':'waiting'}">${r['Loại']||''}</span></td>
-            <td>${r['Khách']||''}</td>
-            <td>${r['Ngày nhập kho']||''}</td>
+            <td>${r['PIC'] || ''}</td>
+            <td class="order-code">${r['Order code'] || ''}</td>
+            <td><span class="badge ${r['Loại'] === 'Giao' ? 'storing' : 'waiting'}">${r['Loại'] || ''}</span></td>
+            <td>${r['Khách'] || ''}</td>
+            <td>${r['Ngày nhập kho'] || ''}</td>
             <td>${agingChip(r['Đã lưu kho (ngày)'] || 0)}</td>
-            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Địa chỉ giao']||''}</td>
+            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Địa chỉ giao'] || ''}</td>
         </tr>
     `).join('');
 }
@@ -1048,18 +1048,18 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
 // ---- RETURNS SECTION ----
 function renderReturnsSection(clientFilter = '') {
     renderReturnsByClient(clientFilter);
-    
-    const sorted = [...state.returnsData].sort((a,b) => {
-        const da = (a['Ngày']||'').split(' - ')[0];
-        const db = (b['Ngày']||'').split(' - ')[0];
+
+    const sorted = [...state.returnsData].sort((a, b) => {
+        const da = (a['Ngày'] || '').split(' - ')[0];
+        const db = (b['Ngày'] || '').split(' - ')[0];
         return db.localeCompare(da);
     });
     document.getElementById('tbody-returns').innerHTML = sorted.map(r => `
         <tr>
             <td>${shortKho(r['Kho'])}</td>
-            <td>${r['Ngày']||''}</td>
-            <td style="text-align:center;font-weight:700">${r['Số đơn trả']||0}</td>
-            <td style="text-align:right;font-weight:800;color:var(--red)">${r['% FD']||''}</td>
+            <td>${r['Ngày'] || ''}</td>
+            <td style="text-align:center;font-weight:700">${r['Số đơn trả'] || 0}</td>
+            <td style="text-align:right;font-weight:800;color:var(--red)">${r['% FD'] || ''}</td>
         </tr>
     `).join('');
 }
@@ -1076,7 +1076,7 @@ function renderReturnsByClient(filter = '') {
         return;
     }
 
-    const sorted = [...data].sort((a,b) => {
+    const sorted = [...data].sort((a, b) => {
         const da = (a['Thời gian'] || '').split(' - ')[0];
         const db = (b['Thời gian'] || '').split(' - ')[0];
         return db.localeCompare(da);
@@ -1102,13 +1102,13 @@ function renderReturnsFDChart() {
     if (!data || !data.length) return;
 
     // Get last 20 days
-    const sortedData = [...data].sort((a,b) => {
-        const da = (a['Thời gian']||'').split(' - ')[0];
-        const db = (b['Thời gian']||'').split(' - ')[0];
+    const sortedData = [...data].sort((a, b) => {
+        const da = (a['Thời gian'] || '').split(' - ')[0];
+        const db = (b['Thời gian'] || '').split(' - ')[0];
         return da.localeCompare(db); // Oldest to newest
     }).slice(-20);
 
-    const labels = sortedData.map(r => (r['Thời gian']||'').split(' - ')[0]);
+    const labels = sortedData.map(r => (r['Thời gian'] || '').split(' - ')[0]);
     const values = sortedData.map(r => parsePct(r['Trả hàng tổng']));
 
     destroyChart('fdTrend');
@@ -1150,8 +1150,8 @@ function renderReturnsFDChart() {
                 datalabels: { display: true }
             },
             scales: {
-                y: { min: 0, max: 15, grid: { color: '#F0F3F8', drawBorder: false }, ticks: { callback: v => v+'%', font:{size:10} } },
-                x: { grid: { display: false }, ticks: { font: {size:10}, maxRotation: 45, minRotation: 45 } }
+                y: { min: 0, max: 15, grid: { color: '#F0F3F8', drawBorder: false }, ticks: { callback: v => v + '%', font: { size: 10 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } }
             }
         }
     });
@@ -1168,7 +1168,7 @@ function renderPersonnelOverview() {
         const pos = r['Tên vị trí'] || 'Khác';
         posMap[pos] = (posMap[pos] || 0) + 1;
     });
-    const posSorted = Object.entries(posMap).sort((a,b) => b[1]-a[1]);
+    const posSorted = Object.entries(posMap).sort((a, b) => b[1] - a[1]);
 
     // Count by thâm niên group
     const tenureMap = {};
@@ -1181,9 +1181,9 @@ function renderPersonnelOverview() {
     });
     // Sort by G-group order
     const tenureOrder = [
-        'Dưới 1 tháng','Trên 1 - 3 tháng','Trên 3 - 6 tháng',
-        'Trên 6 tháng - 1 năm','Trên 1 - 1,5 năm','Trên 1,5 -2 năm',
-        'Trên 2 - 3 năm','Trên 3 - 4 năm','Trên 4 - 5 năm','Trên 5 năm'
+        'Dưới 1 tháng', 'Trên 1 - 3 tháng', 'Trên 3 - 6 tháng',
+        'Trên 6 tháng - 1 năm', 'Trên 1 - 1,5 năm', 'Trên 1,5 -2 năm',
+        'Trên 2 - 3 năm', 'Trên 3 - 4 năm', 'Trên 4 - 5 năm', 'Trên 5 năm'
     ];
     const tenureSorted = tenureOrder.filter(k => tenureMap[k]).map(k => [k, tenureMap[k]]);
 
@@ -1238,13 +1238,13 @@ function renderPersonnelSection(filter = '', posFilter = '') {
         return `
         <tr>
             <td>${i + 1}</td>
-            <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID']||''}</td>
-            <td style="font-weight:600">${r['Họ tên']||''}</td>
+            <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID'] || ''}</td>
+            <td style="font-weight:600">${r['Họ tên'] || ''}</td>
             <td>${r['Vị trí công việc'] || r['Tên vị trí'] || ''}</td>
             <td><span class="badge ${loaiHD.includes('Xác định') || loaiHD.includes('chính thức') ? 'storing' : 'p3'}">${loaiHD}</span></td>
-            <td>${r['Thâm niên']||''}</td>
+            <td>${r['Thâm niên'] || ''}</td>
             <td>${shortKho(r['Kho làm việc'] || r['Kho']) || ''}</td>
-            <td>${r['Phòng ban']||''}</td>
+            <td>${r['Phòng ban'] || ''}</td>
         </tr>
     `}).join('');
 }
@@ -1252,7 +1252,7 @@ function renderPersonnelSection(filter = '', posFilter = '') {
 let currentNsPeriod = 'day';
 
 let currentProdDays = 7;
-window.switchProdTab = function(btn, days) {
+window.switchProdTab = function (btn, days) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentProdDays = days;
@@ -1324,8 +1324,8 @@ function renderNsMultiItems(mode, values) {
     if (!menu) return;
     menu.innerHTML = values.map(v => `
         <div class="ghn-filter-item">
-            <input type="checkbox" id="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}" value="${v}" onchange="updateNsTimeMode('${mode}')">
-            <label for="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}">${mode==='day'?v:mode==='week'?'Tuần '+v:mode==='month'?'Tháng '+v:v}</label>
+            <input type="checkbox" id="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}" value="${v}" onchange="updateNsTimeMode('${mode}')">
+            <label for="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}">${mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v}</label>
         </div>
     `).join('');
 }
@@ -1334,7 +1334,7 @@ function updateNsLabel(mode) {
     const menu = document.getElementById('menu-ns-' + mode);
     if (!menu) return;
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
-    const label  = document.querySelector(`#multi-ns-${mode} .ghn-filter-selected`);
+    const label = document.querySelector(`#multi-ns-${mode} .ghn-filter-selected`);
     if (!label) return;
     if (checks.length === 0) {
         const map = { day: 'Chọn Ngày...', week: 'Chọn Tuần...', month: 'Chọn Tháng...', prov: 'Chọn Khu vực...' };
@@ -1343,7 +1343,7 @@ function updateNsLabel(mode) {
         label.innerText = `${checks.length} mục đã chọn`;
     }
     const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
-    items.sort((a,b) => { const ca=a.querySelector('input').checked, cb=b.querySelector('input').checked; return ca===cb?0:ca?-1:1; });
+    items.sort((a, b) => { const ca = a.querySelector('input').checked, cb = b.querySelector('input').checked; return ca === cb ? 0 : ca ? -1 : 1; });
     items.forEach(item => menu.appendChild(item));
 }
 
@@ -1357,7 +1357,7 @@ function clearNsOtherModes(modes) {
     });
 }
 
-window.updateNsTimeMode = function(mode) {
+window.updateNsTimeMode = function (mode) {
     const menu = document.getElementById('menu-ns-' + mode);
     if (!menu) return;
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
@@ -1368,8 +1368,8 @@ window.updateNsTimeMode = function(mode) {
     } else {
         nsTimeMode = mode;
         selectedNsVals = vals;
-        if (mode === 'day')   clearNsOtherModes(['week', 'month']);
-        else if (mode === 'week')  clearNsOtherModes(['day', 'month']);
+        if (mode === 'day') clearNsOtherModes(['week', 'month']);
+        else if (mode === 'week') clearNsOtherModes(['day', 'month']);
         else if (mode === 'month') clearNsOtherModes(['day', 'week']);
     }
     updateNsLabel(mode);
@@ -1381,20 +1381,20 @@ function populateNsSelects() {
     if (!dayMenu || dayMenu.children.length > 0) return;
 
     const allData = state.nangSuatData || [];
-    const days = [...new Set(allData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const days = [...new Set(allData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     renderNsMultiItems('day', days);
 
     const weeks = [...new Set(allData.map(r => {
         const ts = parseVN(r['Ngày']);
         return ts ? String(getWeekNumber(new Date(ts))) : null;
-    }).filter(Boolean))].sort((a,b) => parseInt(b) - parseInt(a));
+    }).filter(Boolean))].sort((a, b) => parseInt(b) - parseInt(a));
     renderNsMultiItems('week', weeks);
 
     const months = [...new Set(allData.map(r => {
         const ts = parseVN(r['Ngày']);
         if (!ts) return null;
         const d = new Date(ts);
-        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))].sort().reverse();
     renderNsMultiItems('month', months);
 
@@ -1402,7 +1402,7 @@ function populateNsSelects() {
     renderNsMultiItems('prov', provs);
 
     if (days.length > 0) {
-        const safeId = days[0].replace(/[^a-z0-9]/gi,'-');
+        const safeId = days[0].replace(/[^a-z0-9]/gi, '-');
         const firstChk = document.getElementById('chk-ns-day-' + safeId);
         if (firstChk) firstChk.checked = true;
         selectedNsVals = [days[0]];
@@ -1429,7 +1429,7 @@ function renderNangSuatSection() {
     renderProductivityWarnings();
     if (!state.nangSuatData || !state.nangSuatData.length) return;
 
-    const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     if (!allDates.length) return;
 
     const latestDate = allDates[0];
@@ -1437,16 +1437,16 @@ function renderNangSuatSection() {
 
     const latestTs = parseVN(latestDate);
     const d = new Date(latestTs);
-    
+
     // Calendar Week
     const day = d.getDay() || 7;
     const startOfWeek = new Date(d);
     startOfWeek.setDate(d.getDate() - day + 1);
-    startOfWeek.setHours(0,0,0,0);
-    
+    startOfWeek.setHours(0, 0, 0, 0);
+
     // Calendar Month
     const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-    startOfMonth.setHours(0,0,0,0);
+    startOfMonth.setHours(0, 0, 0, 0);
 
     let filteredData = [];
     if (currentNsPeriod === 'day') {
@@ -1458,7 +1458,7 @@ function renderNangSuatSection() {
     }
 
     const provSelect = document.getElementById('filter-ns-province');
-    
+
     // POPULATE PROVINCE FILTER
     if (provSelect && provSelect.options.length <= 1) {
         const provinces = [...new Set(state.nangSuatData.map(r => r['to_province_name']).filter(Boolean))].sort();
@@ -1475,37 +1475,37 @@ function renderNangSuatSection() {
         if (!driverMap[idName]) {
             driverMap[idName] = { name: idName, province: r['to_province_name'] || '', totalVol: 0, totalSuccess: 0, sumRate: 0, daysCount: 0 };
         }
-        driverMap[idName].totalVol += parseInt(r['volume']||0);
-        driverMap[idName].totalSuccess += (parsePct(r['Tỉ lệ GTC'])/100) * parseInt(r['volume']||0);
-        driverMap[idName].sumRate += parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.'));
+        driverMap[idName].totalVol += parseInt(r['volume'] || 0);
+        driverMap[idName].totalSuccess += (parsePct(r['Tỉ lệ GTC']) / 100) * parseInt(r['volume'] || 0);
+        driverMap[idName].sumRate += parseFloat((r['avg_delivery_volume_per_hour'] || '0').toString().replace(',', '.'));
         driverMap[idName].daysCount += 1;
     });
 
-    let drivers = Object.values(driverMap).map(d => ({ 
-        ...d, 
-        avgRate: d.daysCount > 0 ? (d.sumRate / d.daysCount) : 0, 
-        pctGtc: d.totalVol > 0 ? (d.totalSuccess / d.totalVol * 100) : 0 
+    let drivers = Object.values(driverMap).map(d => ({
+        ...d,
+        avgRate: d.daysCount > 0 ? (d.sumRate / d.daysCount) : 0,
+        pctGtc: d.totalVol > 0 ? (d.totalSuccess / d.totalVol * 100) : 0
     }));
-    
+
     const minVol = 30;
     const listToSort = drivers.filter(d => d.totalVol >= minVol);
-    listToSort.sort((a,b) => b.pctGtc - a.pctGtc);
+    listToSort.sort((a, b) => b.pctGtc - a.pctGtc);
 
     const formatRow = (r, idx, isTop) => `
         <tr>
-            <td><span class="badge ${isTop ? 'storing' : 'p1'}">#${idx+1}</span></td>
+            <td><span class="badge ${isTop ? 'storing' : 'p1'}">#${idx + 1}</span></td>
             <td style="font-weight:600">${r.name}</td>
             <td>${r.province}</td>
             <td style="text-align:right">${r.avgRate.toFixed(1)}</td>
             <td style="text-align:right">${r.totalVol.toLocaleString()}</td>
-            <td style="text-align:right;font-weight:700;color:${isTop?'var(--green)':'var(--red)'}">${r.pctGtc.toFixed(1)}%</td>
+            <td style="text-align:right;font-weight:700;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pctGtc.toFixed(1)}%</td>
         </tr>`;
 
-    const top10 = listToSort.slice(0, 10).sort((a,b) => b.totalVol - a.totalVol);
-    document.getElementById('tbody-ns-top').innerHTML = top10.map((r,i) => formatRow(r, i, true)).join('');
-    
-    const bottom10 = [...listToSort].sort((a,b) => a.pctGtc - b.pctGtc).slice(0, 10).sort((a,b) => b.totalVol - a.totalVol);
-    document.getElementById('tbody-ns-bottom').innerHTML = bottom10.map((r,i) => formatRow(r, i, false)).join('');
+    const top10 = listToSort.slice(0, 10).sort((a, b) => b.totalVol - a.totalVol);
+    document.getElementById('tbody-ns-top').innerHTML = top10.map((r, i) => formatRow(r, i, true)).join('');
+
+    const bottom10 = [...listToSort].sort((a, b) => a.pctGtc - b.pctGtc).slice(0, 10).sort((a, b) => b.totalVol - a.totalVol);
+    document.getElementById('tbody-ns-bottom').innerHTML = bottom10.map((r, i) => formatRow(r, i, false)).join('');
 
     // RENDER ALL DRIVERS TABLE
     const allTbody = document.getElementById('tbody-ns-all');
@@ -1519,9 +1519,9 @@ function renderNangSuatSection() {
                 const ts = parseVN(r['Ngày']);
                 if (!ts) return false;
                 const d = new Date(ts);
-                if (nsTimeMode === 'week')  return selectedNsVals.includes(String(getWeekNumber(d)));
+                if (nsTimeMode === 'week') return selectedNsVals.includes(String(getWeekNumber(d)));
                 if (nsTimeMode === 'month') {
-                    const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                    const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                     return selectedNsVals.includes(m);
                 }
                 return true;
@@ -1537,8 +1537,8 @@ function renderNangSuatSection() {
             const groupMap = {};
             filtered.forEach(r => {
                 const driver = r['driver'] || '--';
-                const prov   = r['to_province_name'] || '--';
-                const ts     = parseVN(r['Ngày']);
+                const prov = r['to_province_name'] || '--';
+                const ts = parseVN(r['Ngày']);
                 if (!ts) return;
                 const d = new Date(ts);
 
@@ -1549,7 +1549,7 @@ function renderNangSuatSection() {
                     tKey = 'W_' + w;
                     tLabel = 'Tuần ' + (w.includes('-W') ? w.split('-W')[1] : w);
                 } else {
-                    const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                    const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                     tKey = 'M_' + m;
                     tLabel = 'Tháng ' + m;
                 }
@@ -1566,10 +1566,10 @@ function renderNangSuatSection() {
                         daysCount: 0
                     };
                 }
-                const vol = parseInt(r['volume']||0);
+                const vol = parseInt(r['volume'] || 0);
                 groupMap[compKey].totalVol += vol;
-                groupMap[compKey].totalSuccess += (parsePct(r['Tỉ lệ GTC'])/100) * vol;
-                groupMap[compKey].sumRate += parseFloat((r['avg_delivery_volume_per_hour']||'0').toString().replace(',','.'));
+                groupMap[compKey].totalSuccess += (parsePct(r['Tỉ lệ GTC']) / 100) * vol;
+                groupMap[compKey].sumRate += parseFloat((r['avg_delivery_volume_per_hour'] || '0').toString().replace(',', '.'));
                 groupMap[compKey].daysCount += 1;
             });
 
@@ -1579,7 +1579,7 @@ function renderNangSuatSection() {
                 return { ...g, pctGtc, avgRate };
             });
 
-            aggregatedList.sort((a,b) => b.pctGtc - a.pctGtc || b.totalVol - a.totalVol);
+            aggregatedList.sort((a, b) => b.pctGtc - a.pctGtc || b.totalVol - a.totalVol);
 
             allTbody.innerHTML = aggregatedList.map(g => `
                 <tr>
@@ -1605,13 +1605,13 @@ function renderNangSuatSection() {
                 allTableData = allTableData.filter(r => (r['driver'] || '').toLowerCase().includes(searchVal));
             }
 
-            allTbody.innerHTML = allTableData.sort((a,b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if(rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
+            allTbody.innerHTML = allTableData.sort((a, b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if (rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
                 <tr>
                     <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
                     <td style="font-weight:600">${r['driver'] || '--'}</td>
                     <td>${r['to_province_name'] || '--'}</td>
-                    <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour']||0).toFixed(1)}</td>
-                    <td style="text-align:right;font-weight:600">${parseInt(r['volume']||0).toLocaleString()}</td>
+                    <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour'] || 0).toFixed(1)}</td>
+                    <td style="text-align:right;font-weight:600">${parseInt(r['volume'] || 0).toLocaleString()}</td>
                     <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
                     <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
                     <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
@@ -1645,11 +1645,11 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
 
         const soNgay = parseFloat(getV(['Số ngày trở về ngày thường', 'Total ngày', 'so ngay'], 0));
         const sheetStatus = getV(['Tình hình hiện tại', 'trạng thái hiện tại'], 'Bình thường');
-        
-        return { 
-            ...r, 
-            soNgayVal: soNgay, 
-            sheetStatus: sheetStatus 
+
+        return {
+            ...r,
+            soNgayVal: soNgay,
+            sheetStatus: sheetStatus
         };
     });
 
@@ -1657,7 +1657,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
     // 1. Kho Nghiêm trọng: tính theo số ngày > 6
     const criticalList = processedData.filter(r => r.soNgayVal > 6);
     // 2. Kho Bất ổn: đếm theo cột trạng thái hiện tại của sheet
-    const warningList  = processedData.filter(r => r.sheetStatus === 'Bất ổn');
+    const warningList = processedData.filter(r => r.sheetStatus === 'Bất ổn');
 
     const critEl = document.getElementById('warn-critical-count');
     if (critEl) critEl.textContent = criticalList.length;
@@ -1713,14 +1713,14 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
             const backlogLM = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
             const backlogKTC = parseInt(r['backlog ktc'] || 0);
             const totalBL = backlogLM + backlogKTC;
-            
+
             const donTao = r['đơn tạo N-1'] || r['??n t?o N-1'] || 0;
             const donGtc = r['đơn gtc N-1'] || r['??n gtc N-1'] || 0;
 
             // Truy xuất từ Map đã nhóm sẵn
             const warehouseName = shortKho(r['kho gxt'] || r['Kho'] || '');
             const warehouseGtcData = gtcMap.get(warehouseName) || [];
-            
+
             // Sắp xếp ngày giảm dần và lấy 7 bản ghi gần nhất
             const latestGtc = warehouseGtcData.sort((a, b) => {
                 const dateA = a['Ngày'] || '';
@@ -1774,17 +1774,17 @@ function renderXeGxtSection() {
     // Populate dropdowns if they are empty
     populateXeGxtFilters();
 
-    const f_kho  = (document.getElementById('filter-xegxt-kho')?.value || '').toLowerCase();
+    const f_kho = (document.getElementById('filter-xegxt-kho')?.value || '').toLowerCase();
     const f_tinh = (document.getElementById('filter-xegxt-tinh')?.value || '').toLowerCase();
-    const f_ncc  = (document.getElementById('filter-xegxt-ncc')?.value || '').toLowerCase();
+    const f_ncc = (document.getElementById('filter-xegxt-ncc')?.value || '').toLowerCase();
     const f_loai = (document.getElementById('filter-xegxt-loai')?.value || '').toLowerCase();
 
     // Filter the raw data first
     const filteredRaw = state.xeGxtData.filter(r => {
-        const matchKho  = !f_kho  || (r['Kho']||'').toLowerCase().includes(f_kho);
-        const matchTinh = !f_tinh || (r['Tỉnh']||'').toLowerCase() === f_tinh;
-        const matchNcc  = !f_ncc  || (r['Tên NCC']||'').toLowerCase() === f_ncc;
-        const matchLoai = !f_loai || (r['Loại xe']||'').toLowerCase() === f_loai;
+        const matchKho = !f_kho || (r['Kho'] || '').toLowerCase().includes(f_kho);
+        const matchTinh = !f_tinh || (r['Tỉnh'] || '').toLowerCase() === f_tinh;
+        const matchNcc = !f_ncc || (r['Tên NCC'] || '').toLowerCase() === f_ncc;
+        const matchLoai = !f_loai || (r['Loại xe'] || '').toLowerCase() === f_loai;
         return matchKho && matchTinh && matchNcc && matchLoai;
     });
 
@@ -1802,7 +1802,7 @@ function renderXeGxtSection() {
         summary[key].total += count;
     });
 
-    let list = Object.values(summary).sort((a,b) => b.total - a.total);
+    let list = Object.values(summary).sort((a, b) => b.total - a.total);
 
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Không tìm thấy kết quả</td></tr>';
@@ -1851,9 +1851,9 @@ function renderXeGxtSection() {
 let filtersPopulated = false;
 function populateXeGxtFilters() {
     if (filtersPopulated) return;
-    
+
     const tinhSet = new Set();
-    const nccSet  = new Set();
+    const nccSet = new Set();
     const loaiSet = new Set();
 
     state.xeGxtData.forEach(r => {
@@ -1866,7 +1866,7 @@ function populateXeGxtFilters() {
         const el = document.getElementById(id);
         if (!el) return;
         const currentVal = el.value;
-        el.innerHTML = `<option value="">-- Tất cả ${id.split('-').pop()} --</option>` + 
+        el.innerHTML = `<option value="">-- Tất cả ${id.split('-').pop()} --</option>` +
             Array.from(items).sort().map(i => `<option value="${i}">${i}</option>`).join('');
         el.value = currentVal;
     };
@@ -1899,10 +1899,10 @@ function renderXeSuCoSection() {
 
     // Populate Filters
     const dayCont = document.getElementById('filter-xesuco-day-container');
-    const weekCont  = document.getElementById('filter-xesuco-week-container');
+    const weekCont = document.getElementById('filter-xesuco-week-container');
     const monthCont = document.getElementById('filter-xesuco-month-container');
 
-    const days = [...new Set(data.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const days = [...new Set(data.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     if (dayCont && dayCont.children.length === 0) {
         days.forEach(d => {
             const lbl = document.createElement('label');
@@ -1921,7 +1921,7 @@ function renderXeSuCoSection() {
         if (!ts) return null;
         const d = new Date(ts);
         const w = getWeek(d);
-        return `Tuần ${d.getFullYear()}-W${w < 10 ? '0'+w : w}`;
+        return `Tuần ${d.getFullYear()}-W${w < 10 ? '0' + w : w}`;
     }).filter(Boolean))].sort().reverse();
 
     if (weekCont && weekCont.children.length === 0) {
@@ -1942,9 +1942,9 @@ function renderXeSuCoSection() {
         if (!ts) return null;
         const d = new Date(ts);
         return `${d.getMonth() + 1}/${d.getFullYear()}`;
-    }).filter(Boolean))].sort((a,b) => {
-        const [m1,y1] = a.split('/');
-        const [m2,y2] = b.split('/');
+    }).filter(Boolean))].sort((a, b) => {
+        const [m1, y1] = a.split('/');
+        const [m2, y2] = b.split('/');
         return y2 - y1 || m2 - m1;
     });
 
@@ -1963,10 +1963,10 @@ function renderXeSuCoSection() {
 
     // Apply Filters
     const f_search = (document.getElementById('filter-xesuco-search')?.value || '').toLowerCase();
-    const f_days   = Array.from(document.querySelectorAll('.filter-xesuco-day:checked')).map(i => i.value);
-    const f_weeks  = Array.from(document.querySelectorAll('.filter-xesuco-week:checked')).map(i => i.value);
+    const f_days = Array.from(document.querySelectorAll('.filter-xesuco-day:checked')).map(i => i.value);
+    const f_weeks = Array.from(document.querySelectorAll('.filter-xesuco-week:checked')).map(i => i.value);
     const f_months = Array.from(document.querySelectorAll('.filter-xesuco-month:checked')).map(i => i.value);
-    const f_kho    = (document.getElementById('filter-xesuco-kho')?.value || '').toLowerCase();
+    const f_kho = (document.getElementById('filter-xesuco-kho')?.value || '').toLowerCase();
 
     const filtered = data.filter(r => {
         const ts = parseVN(r['Ngày']);
@@ -1974,16 +1974,16 @@ function renderXeSuCoSection() {
         const w_str = `Tuần ${d_obj.getFullYear()}-W${String(getWeek(d_obj)).padStart(2, '0')}`;
         const m_str = `${d_obj.getMonth() + 1}/${d_obj.getFullYear()}`;
 
-        const matchSearch = !f_search || 
-            (r['Kho']||'').toLowerCase().includes(f_search) || 
-            (r['NCC']||'').toLowerCase().includes(f_search) || 
-            (r['Biển Số']||'').toLowerCase().includes(f_search) || 
-            (r['ID']||'').toLowerCase().includes(f_search);
-        
-        const matchDay   = f_days.length === 0 || f_days.includes(r['Ngày']);
-        const matchWeek  = f_weeks.length === 0 || f_weeks.includes(w_str);
+        const matchSearch = !f_search ||
+            (r['Kho'] || '').toLowerCase().includes(f_search) ||
+            (r['NCC'] || '').toLowerCase().includes(f_search) ||
+            (r['Biển Số'] || '').toLowerCase().includes(f_search) ||
+            (r['ID'] || '').toLowerCase().includes(f_search);
+
+        const matchDay = f_days.length === 0 || f_days.includes(r['Ngày']);
+        const matchWeek = f_weeks.length === 0 || f_weeks.includes(w_str);
         const matchMonth = f_months.length === 0 || f_months.includes(m_str);
-        const matchKho   = !f_kho || (r['Kho']||'').toLowerCase().includes(f_kho);
+        const matchKho = !f_kho || (r['Kho'] || '').toLowerCase().includes(f_kho);
 
         return matchSearch && matchDay && matchWeek && matchMonth && matchKho;
     });
@@ -1992,7 +1992,7 @@ function renderXeSuCoSection() {
     // Tỉnh, ID, Kho, Ngày, Lỗi, Nội Dung Chi Tiết, Biển Số Xe, NCC
     tbodyRaw.innerHTML = filtered.map((r, i) => `
         <tr>
-            <td style="color:var(--text3)">${i+1}</td>
+            <td style="color:var(--text3)">${i + 1}</td>
             <td>${r['Tỉnh'] || ''}</td>
             <td>${r['ID'] || ''}</td>
             <td style="font-weight:600">${r['Kho'] || ''}</td>
@@ -2057,11 +2057,11 @@ function assembleTelegramReport() {
         if (warnCount >= 10) return;
         const tds = tr.querySelectorAll('td');
         if (tds.length < 9) return;
-        
+
         const kho = tds[0].innerText.trim();
         const status = tds[1].innerText.trim();
         const days = tds[8].innerText.trim(); // Số ngày về bình thường
-        
+
         if (parseInt(days) > 5 || status.includes('Nghiêm trọng')) {
             msg += `${warnCount + 1}. *${kho}*: ${status} (${days})\n`;
             warnCount++;
@@ -2072,36 +2072,36 @@ function assembleTelegramReport() {
 
     // 2. CẢNH BÁO NV NĂNG SUẤT TỆ
     msg += `👤 *2. CẢNH BÁO NV NĂNG SUẤT TỆ:*\n`;
-    
+
     function getNsWorst(days, label, minVol) {
-        const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
         if (!allDates.length) return `*${label}:*\n_Trống_\n`;
-        
+
         const latestTs = parseVN(allDates[0]);
         let filtered = [];
-        
+
         if (days === 1) {
             filtered = state.nangSuatData.filter(r => r['Ngày'] === allDates[0]);
         } else {
             const cutoff = latestTs - (days * 24 * 60 * 60 * 1000);
             filtered = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= cutoff);
         }
-        
+
         const map = {};
         filtered.forEach(r => {
             const id = r['driver']; if (!id) return;
             if (!map[id]) map[id] = { name: id, prov: r['to_province_name'], vol: 0, succ: 0 };
-            const v = parseInt(r['volume']||0);
+            const v = parseInt(r['volume'] || 0);
             map[id].vol += v;
-            map[id].succ += (parsePct(r['Tỉ lệ GTC'])/100) * v;
+            map[id].succ += (parsePct(r['Tỉ lệ GTC']) / 100) * v;
         });
-        
+
         const list = Object.values(map)
-            .map(d => ({ ...d, pct: d.vol > 0 ? (d.succ/d.vol*100) : 0 }))
+            .map(d => ({ ...d, pct: d.vol > 0 ? (d.succ / d.vol * 100) : 0 }))
             .filter(d => d.vol >= minVol)
-            .sort((a,b) => a.pct - b.pct)
+            .sort((a, b) => a.pct - b.pct)
             .slice(0, 5);
-            
+
         let res = `*${label}:*\n`;
         list.forEach(d => res += `• ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)\n`);
         if (list.length === 0) res += `_Trống_\n`;
@@ -2120,7 +2120,7 @@ function assembleTelegramReport() {
         const title = panel.querySelector('h3')?.innerText.trim() || 'GTC';
         msg += `*${title}:*\n`;
         const rows = Array.from(panel.querySelectorAll('tbody tr'));
-        
+
         const tops = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tốt')).slice(0, 3);
         const bottoms = rows.filter(tr => tr.querySelector('.badge')?.innerText.includes('Tệ')).slice(-3).reverse();
 
@@ -2143,20 +2143,20 @@ function assembleTelegramReport() {
     b2bRows.forEach(tr => {
         const tds = tr.querySelectorAll('td');
         if (tds.length < 5) return;
-        
+
         const priority = tds[0].innerText.toLowerCase();
         const kho = tds[1].innerText.trim();
         const loai = tds[4].innerText.toLowerCase();
-        
+
         // Điều kiện: Loại có chữ 'giao' và Ưu tiên có mã '1:'
         if (loai.includes('giao') && priority.includes('1:')) {
             b2bSummary.set(kho, (b2bSummary.get(kho) || 0) + 1);
             b2bTotal++;
         }
     });
-    
+
     if (b2bTotal > 0) {
-        const sortedB2B = Array.from(b2bSummary.entries()).sort((a,b) => b[1] - a[1]);
+        const sortedB2B = Array.from(b2bSummary.entries()).sort((a, b) => b[1] - a[1]);
         sortedB2B.forEach(([k, v]) => msg += `• *${k}*: ${v} đơn\n`);
     } else {
         msg += `_Không có đơn B2B đến hạn_\n`;
@@ -2166,56 +2166,85 @@ function assembleTelegramReport() {
     return msg;
 }
 
-async function sendTelegramReport() {
-    const btn = document.getElementById('telegram-btn');
-    if (!btn) return;
-    
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang chuẩn bị...';
-    btn.disabled = true;
+// ---- TELEGRAM BOT MODAL AND CHAT SYSTEM ----
+function openTelegramModal() {
+    const modal = document.getElementById('telegram-modal');
+    const textarea = document.getElementById('telegram-custom-msg');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+    if (textarea) {
+        textarea.value = '';
+        textarea.focus();
+    }
+}
+
+function closeTelegramModal() {
+    const modal = document.getElementById('telegram-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function sendCustomTelegramMessage() {
+    const textarea = document.getElementById('telegram-custom-msg');
+    const sendBtn = document.getElementById('telegram-btn-send-custom');
+    if (!textarea || !sendBtn) return;
+
+    const message = textarea.value.trim();
+    if (!message) {
+        alert('⚠️ Vui lòng nhập nội dung tin nhắn!');
+        return;
+    }
+
+    const originalText = sendBtn.innerHTML;
+    sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...';
+    sendBtn.disabled = true;
 
     try {
-        const message = assembleTelegramReport();
         const adminKey = localStorage.getItem('ghn_admin_key') || '';
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...';
-
-        const resp = await fetch('/api/telegram/report', { 
+        const resp = await fetch('/api/telegram/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: message, key: adminKey })
         });
         const result = await resp.json();
-        
+
         if (result.status === 'success') {
-            alert('✅ Báo cáo chi tiết đã được gửi!');
+            alert('✅ Tin nhắn đã được gửi thành công!');
+            closeTelegramModal();
         } else {
             alert('❌ Lỗi: ' + result.message);
         }
     } catch (e) {
         alert('❌ Không thể kết nối với server.');
     } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        sendBtn.innerHTML = originalText;
+        sendBtn.disabled = false;
     }
 }
 
-document.getElementById('telegram-btn')?.addEventListener('click', sendTelegramReport);
+function compileQuickReport() {
+    const textarea = document.getElementById('telegram-custom-msg');
+    if (textarea) {
+        const report = assembleTelegramReport();
+        textarea.value = report;
+        textarea.focus();
+    }
+}
+
+// Wire up events
+document.getElementById('telegram-btn')?.addEventListener('click', openTelegramModal);
+document.getElementById('close-telegram-modal')?.addEventListener('click', closeTelegramModal);
+document.getElementById('cancel-telegram-modal')?.addEventListener('click', closeTelegramModal);
+document.getElementById('telegram-btn-compile')?.addEventListener('click', compileQuickReport);
+document.getElementById('telegram-btn-send-custom')?.addEventListener('click', sendCustomTelegramMessage);
 
 // ---- NAVIGATION ----
 const SECTION_META = {
-    overview:  ['Báo Cáo Tổng Quan', 'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
-    gtc:       ['GTC & Năng Suất', 'Tỷ lệ giao thành công và năng suất theo từng kho'],
-    backlog:   ['Danh Sách Backlog > 7 Ngày', 'Các đơn hàng tồn đọng lâu hơn 7 ngày cần xử lý khẩn'],
-    b2b:       ['Đơn Hàng B2B & SLA', 'Theo dõi đơn B2B theo mức độ ưu tiên xử lý'],
-    returns:   ['Báo Cáo Trả Hàng & FD', 'Tỷ lệ phân phối và trả hàng theo kho'],
-    personnel: ['Danh Sách Nhân Sự', 'Thông tin nhân viên giao nhận và xử lý'],
-    nangsuat:  ['Năng Suất Nhân Viên', 'Bảng xếp hạng năng suất giao hàng của nhân viên'],
-    warnings:  ['Hệ Thống Cảnh Báo Vận Hành', 'Theo dõi sức khỏe mạng lưới và dự báo giải tỏa hàng'],
-    xegxt:     ['Quản Lý Xe GXT', 'Theo dõi số lượng xe đang vận hành tại các kho Miền Trung'],
-    xesuco:    ['Xe Sự Cố', 'Theo dõi và thống kê các sự cố xe GXT theo nhà cung cấp'],
-    khogxt:    ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
-    forecast:  ['Dự Báo Rủi Ro Kho', 'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
-    dontao:    ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
+    khogxt: ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    forecast: ['Dự Báo Rủi Ro Kho', 'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
+    dontao: ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 
 function showSection(name) {
@@ -2223,7 +2252,7 @@ function showSection(name) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('section-' + name).classList.add('active');
     document.getElementById('nav-' + name).classList.add('active');
-    const [title, sub] = SECTION_META[name] || ['--','--'];
+    const [title, sub] = SECTION_META[name] || ['--', '--'];
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;
 }
@@ -2268,9 +2297,9 @@ document.getElementById('filter-position').addEventListener('change', e =>
     renderPersonnelSection(document.getElementById('filter-personnel').value, e.target.value));
 
 // Warning Filters
-document.getElementById('filter-kho-warnings').addEventListener('input', e => 
+document.getElementById('filter-kho-warnings').addEventListener('input', e =>
     renderWarningsSection(e.target.value, document.getElementById('filter-status-warnings').value));
-document.getElementById('filter-status-warnings').addEventListener('change', e => 
+document.getElementById('filter-status-warnings').addEventListener('change', e =>
     renderWarningsSection(document.getElementById('filter-kho-warnings').value, e.target.value));
 
 // Return Filters
@@ -2295,13 +2324,13 @@ document.body.addEventListener('change', e => {
 // Kho GXT Filters
 document.getElementById('filter-khogxt-search')?.addEventListener('input', () => renderKhoGxtSection());
 
-window.switchNsPeriod = function(period, btnId) {
+window.switchNsPeriod = function (period, btnId) {
     document.querySelectorAll('#section-nangsuat .filter-tabs button').forEach(b => {
         b.classList.remove('active');
         b.style.cssText = '';
     });
     const btn = document.getElementById(btnId || ('btn-ns-' + period));
-    if(btn) {
+    if (btn) {
         btn.classList.add('active');
         btn.style.cssText = 'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700';
     }
@@ -2331,7 +2360,7 @@ function checkAdminAccess() {
 
     const savedKey = localStorage.getItem('ghn_admin_key');
     const telegramBtn = document.getElementById('telegram-btn');
-    
+
     if (telegramBtn) {
         if (savedKey === secretKey) {
             telegramBtn.style.display = 'flex';
@@ -2349,7 +2378,7 @@ let selectedDtVals = [];
 let selectedDtKhos = [];
 let dtFiltersInit = false;
 
-window.updateDtTimeMode = function(mode) {
+window.updateDtTimeMode = function (mode) {
     const menu = document.getElementById('menu-dt-' + mode);
     if (!menu) return;
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
@@ -2360,8 +2389,8 @@ window.updateDtTimeMode = function(mode) {
     } else {
         dtTimeMode = mode;
         selectedDtVals = vals;
-        if (mode === 'day')   clearDtOtherModes(['week', 'month']);
-        else if (mode === 'week')  clearDtOtherModes(['day', 'month']);
+        if (mode === 'day') clearDtOtherModes(['week', 'month']);
+        else if (mode === 'week') clearDtOtherModes(['day', 'month']);
         else if (mode === 'month') clearDtOtherModes(['day', 'week']);
     }
     updateDtLabel(mode);
@@ -2382,7 +2411,7 @@ function updateDtLabel(mode) {
     const menu = document.getElementById('menu-dt-' + mode);
     if (!menu) return;
     const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
-    const label  = document.querySelector(`#multi-dt-${mode} .ghn-filter-selected`);
+    const label = document.querySelector(`#multi-dt-${mode} .ghn-filter-selected`);
     if (!label) return;
     if (checks.length === 0) {
         const map = { day: 'Chọn Ngày...', week: 'Chọn Tuần...', month: 'Chọn Tháng...', kho: 'Chọn Kho...' };
@@ -2391,7 +2420,7 @@ function updateDtLabel(mode) {
         label.innerText = `${checks.length} mục đã chọn`;
     }
     const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
-    items.sort((a,b) => { const ca=a.querySelector('input').checked, cb=b.querySelector('input').checked; return ca===cb?0:ca?-1:1; });
+    items.sort((a, b) => { const ca = a.querySelector('input').checked, cb = b.querySelector('input').checked; return ca === cb ? 0 : ca ? -1 : 1; });
     items.forEach(item => menu.appendChild(item));
 }
 
@@ -2400,8 +2429,8 @@ function renderDtMultiItems(mode, values) {
     if (!menu) return;
     menu.innerHTML = values.map(v => `
         <div class="ghn-filter-item">
-            <input type="checkbox" id="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}" value="${v}" onchange="updateDtTimeMode('${mode}')">
-            <label for="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi,'-')}">${mode==='day'?v:mode==='week'?'Tuần '+v:mode==='month'?'Tháng '+v:v}</label>
+            <input type="checkbox" id="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}" value="${v}" onchange="updateDtTimeMode('${mode}')">
+            <label for="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}">${mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v}</label>
         </div>
     `).join('');
 }
@@ -2411,7 +2440,7 @@ function populateDtSelects() {
     if (!dayMenu || dayMenu.children.length > 0) return;
 
     const allData = state.donTaoData;
-    const days = [...new Set(allData.map(r => (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+    const days = [...new Set(allData.map(r => (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     renderDtMultiItems('day', days);
 
     const weeks = [...new Set(allData.map(r => {
@@ -2419,7 +2448,7 @@ function populateDtSelects() {
         if (!dStr) return null;
         const d = new Date(dStr);
         return isNaN(d) ? null : String(getWeekNumber(d));
-    }).filter(Boolean))].sort((a,b) => parseInt(b) - parseInt(a));
+    }).filter(Boolean))].sort((a, b) => parseInt(b) - parseInt(a));
     renderDtMultiItems('week', weeks);
 
     const months = [...new Set(allData.map(r => {
@@ -2427,7 +2456,7 @@ function populateDtSelects() {
         if (!dStr) return null;
         const d = new Date(dStr);
         if (isNaN(d)) return null;
-        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))].sort().reverse();
     renderDtMultiItems('month', months);
 
@@ -2436,7 +2465,7 @@ function populateDtSelects() {
 
     // Auto-select latest day
     if (days.length > 0) {
-        const safeId = days[0].replace(/[^a-z0-9]/gi,'-');
+        const safeId = days[0].replace(/[^a-z0-9]/gi, '-');
         const firstChk = document.getElementById('chk-dt-day-' + safeId);
         if (firstChk) firstChk.checked = true;
         selectedDtVals = [days[0]];
@@ -2464,11 +2493,11 @@ function renderDonTaoSection() {
             const fullT = r['Thời gian'] || r['time_view'] || '';
             const dateStr = fullT.split(' - ')[0];
             const d = new Date(dateStr);
-            if (dtTimeMode === 'day')   return selectedDtVals.includes(dateStr);
-            if (dtTimeMode === 'week')  return selectedDtVals.includes(String(getWeekNumber(d)));
+            if (dtTimeMode === 'day') return selectedDtVals.includes(dateStr);
+            if (dtTimeMode === 'week') return selectedDtVals.includes(String(getWeekNumber(d)));
             if (dtTimeMode === 'month') {
                 if (isNaN(d)) return false;
-                const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                 return selectedDtVals.includes(m);
             }
             return true;
@@ -2493,22 +2522,22 @@ function renderDonTaoSection() {
     data.forEach(r => {
         const k = shortKho(r['Kho giao'] || r['kho_giao'] || '--');
         if (!khoMap[k]) khoMap[k] = { don: 0, kg: 0 };
-        
-        const dVal  = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-        const kgVal = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
+
+        const dVal = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+        const kgVal = parseFloat(String(r['Tổng khối lượng (KG)'] || '0').replace(/,/g, '.')) || 0;
 
         khoMap[k].don += dVal;
-        khoMap[k].kg  += kgVal;
-        
+        khoMap[k].kg += kgVal;
+
         totalDonChart += dVal;
-        totalKgChart  += kgVal;
+        totalKgChart += kgVal;
     });
 
     // Sort descending by number of orders (largest left)
-    const khoEntries = Object.entries(khoMap).sort((a,b) => b[1].don - a[1].don);
+    const khoEntries = Object.entries(khoMap).sort((a, b) => b[1].don - a[1].don);
     const khoNames = khoEntries.map(e => e[0]);
-    const donVals  = khoEntries.map(e => e[1].don);
-    const kgVals   = khoEntries.map(e => Math.round(e[1].kg));
+    const donVals = khoEntries.map(e => e[1].don);
+    const kgVals = khoEntries.map(e => Math.round(e[1].kg));
 
     // Chart
     destroyChart('donTao');
@@ -2527,7 +2556,7 @@ function renderDonTaoSection() {
                         datalabels: { display: true, anchor: 'end', align: 'end', color: C_RED, font: { size: 9, weight: 'bold' }, formatter: v => v.toLocaleString('vi-VN') }
                     },
                     {
-                        label: `Tổng KG: ${totalKgChart.toLocaleString('vi-VN', {minimumFractionDigits:3, maximumFractionDigits:3})}`, data: kgVals,
+                        label: `Tổng KG: ${totalKgChart.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`, data: kgVals,
                         backgroundColor: 'rgba(251,192,45,0.75)', borderColor: '#FBC02D', borderWidth: 1,
                         yAxisID: 'y1',
                         datalabels: { display: true, anchor: 'end', align: 'end', color: '#FBC02D', font: { size: 9 }, formatter: v => v.toLocaleString('vi-VN') }
@@ -2543,8 +2572,8 @@ function renderDonTaoSection() {
                 },
                 scales: {
                     x: { ticks: { maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
-                    y:  { type:'linear', position:'left',  beginAtZero:true, grid:{borderDash:[2,4],color:'#E8EDF5'}, ticks:{color:C_RED,font:{size:10}}, title:{display:true,text:'Tổng Đơn',color:C_RED,font:{size:11}} },
-                    y1: { type:'linear', position:'right', beginAtZero:true, grid:{drawOnChartArea:false},            ticks:{color:'#FBC02D',font:{size:10}}, title:{display:true,text:'Tổng KG',  color:'#FBC02D',font:{size:11}} }
+                    y: { type: 'linear', position: 'left', beginAtZero: true, grid: { borderDash: [2, 4], color: '#E8EDF5' }, ticks: { color: C_RED, font: { size: 10 } }, title: { display: true, text: 'Tổng Đơn', color: C_RED, font: { size: 11 } } },
+                    y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { color: '#FBC02D', font: { size: 10 } }, title: { display: true, text: 'Tổng KG', color: '#FBC02D', font: { size: 11 } } }
                 }
             }
         });
@@ -2567,7 +2596,7 @@ function renderDonTaoSection() {
             const fullT = r['Thời gian'] || r['time_view'] || '';
             const dateStr = fullT.split(' - ')[0];
             const d = new Date(dateStr);
-            
+
             let tKey = '';
             let tLabel = '';
             if (dtTimeMode === 'week') {
@@ -2576,7 +2605,7 @@ function renderDonTaoSection() {
                 tLabel = 'Tuần ' + w;
             } else {
                 if (isNaN(d)) return;
-                const m = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                 tKey = 'M_' + m;
                 tLabel = 'Tháng ' + m;
             }
@@ -2585,49 +2614,49 @@ function renderDonTaoSection() {
             if (!tableMap[compKey]) {
                 tableMap[compKey] = { khoName: fullK, tLabel: tLabel, sortTime: tKey, don: 0, kg: 0 };
             }
-            
-            const donVal = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-            const kgVal  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
+
+            const donVal = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+            const kgVal = parseFloat(String(r['Tổng khối lượng (KG)'] || '0').replace(/,/g, '.')) || 0;
 
             tableMap[compKey].don += donVal;
-            tableMap[compKey].kg  += kgVal;
+            tableMap[compKey].kg += kgVal;
         });
 
-        const sortedGroup = Object.values(tableMap).sort((a,b) => {
+        const sortedGroup = Object.values(tableMap).sort((a, b) => {
             if (b.sortTime !== a.sortTime) return b.sortTime.localeCompare(a.sortTime);
             return b.don - a.don;
         });
 
         tbody.innerHTML = sortedGroup.map((g, i) => `
             <tr>
-                <td>${i+1}</td>
+                <td>${i + 1}</td>
                 <td>${shortKho(g.khoName)}</td>
                 <td style="font-weight:600;color:var(--blue)">${g.tLabel}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${g.don.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
             </tr>
         `).join('');
     } else {
-        const sorted = [...data].sort((a,b) => {
+        const sorted = [...data].sort((a, b) => {
             const da = (a['Thời gian'] || a['time_view'] || '').split(' - ')[0];
             const db = (b['Thời gian'] || b['time_view'] || '').split(' - ')[0];
             if (db !== da) return db.localeCompare(da);
-            const va = parseInt(String(a['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
-            const vb = parseInt(String(b['Tổng đơn tạo']||'0').replace(/[.,]/g,'')) || 0;
+            const va = parseInt(String(a['Tổng đơn tạo'] || '0').replace(/[.,]/g, '')) || 0;
+            const vb = parseInt(String(b['Tổng đơn tạo'] || '0').replace(/[.,]/g, '')) || 0;
             return vb - va;
         });
 
         tbody.innerHTML = sorted.map((r, i) => {
-            const don = parseInt(String(r['Tổng đơn tạo']||'0').replace(/\./g,'').replace(/,/g,'')) || 0;
-            const kg  = parseFloat(String(r['Tổng khối lượng (KG)']||'0').replace(/,/g,'.')) || 0;
+            const don = parseInt(String(r['Tổng đơn tạo'] || '0').replace(/\./g, '').replace(/,/g, '')) || 0;
+            const kg = parseFloat(String(r['Tổng khối lượng (KG)'] || '0').replace(/,/g, '.')) || 0;
             const tStr = r['Thời gian'] || r['time_view'] || '--';
-            
+
             return `<tr>
-                <td>${i+1}</td>
+                <td>${i + 1}</td>
                 <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
                 <td>${tStr}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
-                <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+                <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
             </tr>`;
         }).join('');
     }
@@ -2650,11 +2679,11 @@ function buildForecastData() {
         const kho = shortKho(r['Kho']);
         if (!kho) return;
         if (!gtcByKho[kho]) gtcByKho[kho] = { days: [] };
-        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0), gtc: parseInt(r['Số đơn GTC']||0) });
+        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán'] || 0), gtc: parseInt(r['Số đơn GTC'] || 0) });
     });
 
     // Tìm ngày mới nhất toàn mạng
-    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+    const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     const latestDate = allDates[0] || '';
 
     // Lấy đơn tạo N-1 theo kho (ngày mới nhất trong donTaoData) — dùng cho cảnh báo tồn hàng
@@ -2662,7 +2691,7 @@ function buildForecastData() {
     if (state.donTaoData && state.donTaoData.length) {
         const allDonDates = [...new Set(state.donTaoData.map(r =>
             (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]
-        ).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+        ).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
         const latestDonDate = allDonDates[0];
         state.donTaoData.forEach(r => {
             const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
@@ -2675,10 +2704,10 @@ function buildForecastData() {
     }
 
     Object.keys(gtcByKho).forEach(kho => {
-        const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
+        const days = gtcByKho[kho].days.sort((a, b) => b.ts - a.ts);
         const latest = days[0];
         const pcts = days.map(d => d.pct).filter(p => p > 0);
-        const avg7d = pcts.length ? (pcts.reduce((a,b) => a+b, 0) / pcts.length) : 0;
+        const avg7d = pcts.length ? (pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0;
         const max7d = pcts.length ? Math.max(...pcts) : 0;
         // Xu hướng: so sánh GTC ngày mới nhất vs TB 7 ngày
         const trend = latest ? (latest.pct - avg7d) : 0;
@@ -2689,12 +2718,12 @@ function buildForecastData() {
         const gtcDons = days.map(d => d.gtc).filter(g => g > 0);
         const maxGtcDon = gtcDons.length ? Math.max(...gtcDons) : 0;
 
-        gtcByKho[kho].latest    = gtcN1;
-        gtcByKho[kho].avg7d     = avg7d;
-        gtcByKho[kho].max7d     = max7d;
-        gtcByKho[kho].trend     = trend;
+        gtcByKho[kho].latest = gtcN1;
+        gtcByKho[kho].avg7d = avg7d;
+        gtcByKho[kho].max7d = max7d;
+        gtcByKho[kho].trend = trend;
         gtcByKho[kho].maxGtcDon = maxGtcDon;
-        gtcByKho[kho].donTaoN1  = donTaoN1ByKho[kho] || 0;
+        gtcByKho[kho].donTaoN1 = donTaoN1ByKho[kho] || 0;
     });
 
     // --- Bước 3: Tính backlog theo kho ---
@@ -2725,7 +2754,7 @@ function buildForecastData() {
         const prov = r['to_province_name'] || '';
         if (!prov) return;
         if (!nsAvgByKho[prov]) nsAvgByKho[prov] = { sumPct: 0, count: 0, sumVol: 0 };
-        const vol = parseInt(r['volume']||0);
+        const vol = parseInt(r['volume'] || 0);
         const pct = parsePct(r['Tỉ lệ GTC']);
         nsAvgByKho[prov].sumPct += pct;
         nsAvgByKho[prov].count += 1;
@@ -2807,7 +2836,7 @@ function buildForecastData() {
         }
 
         // --- Đơn Tạo N-1 vượt quá GTC Max 1 ngày × 1.5 → nguy cơ tồn hàng ---
-        const maxGtcDon  = gtc.maxGtcDon  || 0;
+        const maxGtcDon = gtc.maxGtcDon || 0;
         const donTaoN1kho = gtc.donTaoN1 || 0;
         if (maxGtcDon > 0 && donTaoN1kho > 0 && donTaoN1kho > maxGtcDon * 1.5) {
             const ratio = (donTaoN1kho / maxGtcDon).toFixed(1);
@@ -2874,14 +2903,14 @@ function renderForecastSection() {
 
     const data = buildForecastData();
     // DEBUG: kiểm tra maxGtcDon và donTaoN1
-    console.log('[FORECAST DEBUG] Sample data:', data.slice(0,3).map(r => ({
+    console.log('[FORECAST DEBUG] Sample data:', data.slice(0, 3).map(r => ({
         kho: r.kho, score: r.score, donTaoN1: r.donTaoN1, maxGtcDon: r.maxGtcDon, alerts: r.alertsText
     })));
 
     // Cập nhật KPI cards
     const counts = { critical: 0, warning: 0, watch: 0, good: 0 };
     data.forEach(r => counts[r.riskLevel]++);
-    ['critical','warning','watch','good'].forEach(lvl => {
+    ['critical', 'warning', 'watch', 'good'].forEach(lvl => {
         const el = document.getElementById(`fc-${lvl}-count`);
         if (el) el.textContent = counts[lvl];
     });
@@ -2909,8 +2938,8 @@ function renderForecastSection() {
 
     tbody.innerHTML = filtered.map(r => {
         const trendArrow = r.gtcTrend > 1 ? `<span style="color:var(--green)">↑ ${r.gtcTrend.toFixed(1)}%</span>`
-                        : r.gtcTrend < -1 ? `<span style="color:var(--red)">↓ ${Math.abs(r.gtcTrend).toFixed(1)}%</span>`
-                        : `<span style="color:var(--text3)">→ Ổn</span>`;
+            : r.gtcTrend < -1 ? `<span style="color:var(--red)">↓ ${Math.abs(r.gtcTrend).toFixed(1)}%</span>`
+                : `<span style="color:var(--text3)">→ Ổn</span>`;
 
         const gtcN1Color = r.gtcN1 < 82 ? 'var(--red)' : r.gtcN1 < 87 ? 'var(--orange)' : 'var(--green)';
         const blLmColor = r.blLm > 1000 ? 'var(--red)' : r.blLm > 500 ? 'var(--orange)' : 'inherit';
@@ -2922,13 +2951,13 @@ function renderForecastSection() {
                 <span style="font-size:13px;font-weight:700;color:${r.riskColor}">${r.riskLabel}</span>
             </td>
             <td style="text-align:center;font-weight:800;font-size:15px;color:${r.riskColor}">${r.score}</td>
-            <td style="text-align:right;font-weight:700;color:${gtcN1Color}">${r.gtcN1 > 0 ? r.gtcN1.toFixed(1)+'%' : '--'}</td>
-            <td style="text-align:right;color:var(--text2)">${r.gtcAvg7d > 0 ? r.gtcAvg7d.toFixed(1)+'%' : '--'}</td>
-            <td style="text-align:right;color:var(--blue)">${r.gtcMax7d > 0 ? r.gtcMax7d.toFixed(1)+'%' : '--'}</td>
+            <td style="text-align:right;font-weight:700;color:${gtcN1Color}">${r.gtcN1 > 0 ? r.gtcN1.toFixed(1) + '%' : '--'}</td>
+            <td style="text-align:right;color:var(--text2)">${r.gtcAvg7d > 0 ? r.gtcAvg7d.toFixed(1) + '%' : '--'}</td>
+            <td style="text-align:right;color:var(--blue)">${r.gtcMax7d > 0 ? r.gtcMax7d.toFixed(1) + '%' : '--'}</td>
             <td style="text-align:center">${trendArrow}</td>
-            <td style="text-align:right;font-weight:${r.blLm>500?'700':'400'};color:${blLmColor}">${r.blLm > 0 ? r.blLm.toLocaleString() : '0'}</td>
-            <td style="text-align:right;font-weight:${r.blKtc>200?'700':'400'};color:${blKtcColor}">${r.blKtc > 0 ? r.blKtc.toLocaleString() : '0'}</td>
-            <td style="font-size:11px;color:${r.riskLevel==='good'?'var(--text3)':'var(--text2)'};max-width:200px">${r.alertsText}</td>
+            <td style="text-align:right;font-weight:${r.blLm > 500 ? '700' : '400'};color:${blLmColor}">${r.blLm > 0 ? r.blLm.toLocaleString() : '0'}</td>
+            <td style="text-align:right;font-weight:${r.blKtc > 200 ? '700' : '400'};color:${blKtcColor}">${r.blKtc > 0 ? r.blKtc.toLocaleString() : '0'}</td>
+            <td style="font-size:11px;color:${r.riskLevel === 'good' ? 'var(--text3)' : 'var(--text2)'};max-width:200px">${r.alertsText}</td>
             <td style="font-size:11px;color:var(--text2);max-width:220px;font-style:italic">${r.recText}</td>
         </tr>`;
     }).join('');
@@ -2963,7 +2992,7 @@ function renderDonTaoVsGtcTable() {
     if (state.donTaoData && state.donTaoData.length) {
         const allDonDates = [...new Set(state.donTaoData.map(r =>
             (r['Thời gian'] || r['time_view'] || '').split(' - ')[0]
-        ).filter(Boolean))].sort((a,b) => parseVN(b) - parseVN(a));
+        ).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
         latestDonDate = allDonDates[0] || '';
         state.donTaoData.forEach(r => {
             const dStr = (r['Thời gian'] || r['time_view'] || '').split(' - ')[0];
@@ -3032,7 +3061,7 @@ function renderDonTaoVsGtcTable() {
         }
 
         const ratioColor = r.ratio > 1.5 ? 'var(--red)' : r.ratio > 1.2 ? 'var(--orange)' : 'var(--green)';
-        const donColor   = r.ratio > 1.5 ? 'var(--red)' : r.ratio > 1.2 ? 'var(--orange)' : 'inherit';
+        const donColor = r.ratio > 1.5 ? 'var(--red)' : r.ratio > 1.2 ? 'var(--orange)' : 'inherit';
 
         return `<tr style="background:${levelBg}20">
             <td style="font-weight:700">${r.kho}</td>
@@ -3072,7 +3101,7 @@ function buildOverloadData() {
 
     // --- Bước 2: GTC stats theo kho 7 ngày ---
     const gtcByKho = {};
-    const allGtcDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a,b) => parseVN(b)-parseVN(a));
+    const allGtcDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     const latestGtcDate = allGtcDates[0] || '';
 
     state.gtcData.forEach(r => {
@@ -3081,21 +3110,21 @@ function buildOverloadData() {
         const kho = shortKho(r['Kho']);
         if (!kho || kho === '--') return;
         if (!gtcByKho[kho]) gtcByKho[kho] = { days: [] };
-        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán']||0), gtcDon: parseInt(r['Số đơn GTC']||0) });
+        gtcByKho[kho].days.push({ ts, pct: parsePct(r['% GTC']), gan: parseInt(r['Số đơn gán'] || 0), gtcDon: parseInt(r['Số đơn GTC'] || 0) });
     });
 
     Object.keys(gtcByKho).forEach(kho => {
-        const days = gtcByKho[kho].days.sort((a,b) => b.ts - a.ts);
-        const pcts   = days.map(d => d.pct).filter(p => p > 0);
+        const days = gtcByKho[kho].days.sort((a, b) => b.ts - a.ts);
+        const pcts = days.map(d => d.pct).filter(p => p > 0);
         const ganAll = days.map(d => d.gan).filter(g => g > 0);
-        const avg7d  = pcts.length ? pcts.reduce((a,b) => a+b,0) / pcts.length : 0;
-        const max7d  = pcts.length ? Math.max(...pcts) : 0;
+        const avg7d = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
+        const max7d = pcts.length ? Math.max(...pcts) : 0;
         const latestRow = state.gtcData.find(r => shortKho(r['Kho']) === kho && r['Ngày'] === latestGtcDate);
-        const gtcN1     = latestRow ? parsePct(latestRow['% GTC']) : (pcts[0] || 0);
+        const gtcN1 = latestRow ? parsePct(latestRow['% GTC']) : (pcts[0] || 0);
         // Số đơn GTC THỰC TỌ ngày N-1 (không phải %)
-        const gtcN1Don  = latestRow ? parseInt(latestRow['Số đơn GTC'] || 0) : (days[0]?.gtcDon || 0);
-        const avgGan    = ganAll.length ? Math.round(ganAll.reduce((a,b)=>a+b,0)/ganAll.length) : 0;
-        gtcByKho[kho]   = { avg7d, max7d, gtcN1, gtcN1Don, avgGan };
+        const gtcN1Don = latestRow ? parseInt(latestRow['Số đơn GTC'] || 0) : (days[0]?.gtcDon || 0);
+        const avgGan = ganAll.length ? Math.round(ganAll.reduce((a, b) => a + b, 0) / ganAll.length) : 0;
+        gtcByKho[kho] = { avg7d, max7d, gtcN1, gtcN1Don, avgGan };
     });
 
     // --- Bước 3: Backlog theo kho từ warningsData ---
@@ -3103,7 +3132,7 @@ function buildOverloadData() {
     state.warningsData.forEach(r => {
         const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
         if (!kho || kho === '--') return;
-        const lm  = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
+        const lm = parseInt(r['backlog last mile'] || r['backlog lastmile'] || 0);
         const ktc = parseInt(r['backlog ktc'] || 0);
         backlogByKho[kho] = { lm, ktc };
     });
@@ -3118,16 +3147,16 @@ function buildOverloadData() {
     const results = [];
     khoSet.forEach(kho => {
         const gtc = gtcByKho[kho] || { avg7d: 0, max7d: 0, gtcN1: 0, avgGan: 0 };
-        const bl  = backlogByKho[kho] || { lm: 0, ktc: 0 };
+        const bl = backlogByKho[kho] || { lm: 0, ktc: 0 };
 
         // Đơn tạo N-1
-        const donTaoN1  = donTaoByKho[kho] || gtc.avgGan || 0;
-        const avgGan    = gtc.avgGan || donTaoN1;
-        const gtcN1Don  = gtc.gtcN1Don || 0; // Số đơn GTC thực tế ngày N-1
+        const donTaoN1 = donTaoByKho[kho] || gtc.avgGan || 0;
+        const avgGan = gtc.avgGan || donTaoN1;
+        const gtcN1Don = gtc.gtcN1Don || 0; // Số đơn GTC thực tế ngày N-1
         const tongApLuc = bl.lm + bl.ktc + donTaoN1;
         if (!tongApLuc && !gtc.avg7d) return;
 
-        const nangLucTB  = avgGan > 0 ? Math.round(avgGan * gtc.avg7d / 100) : 0;
+        const nangLucTB = avgGan > 0 ? Math.round(avgGan * gtc.avg7d / 100) : 0;
         const nangLucMax = avgGan > 0 ? Math.round(avgGan * gtc.max7d / 100) : 0;
 
         // ---- ĐƠN CẦN CLEAR ----
@@ -3140,17 +3169,17 @@ function buildOverloadData() {
         // ---- PHÂN LOẠI TRẠNG THÁI ----
         let overloadStatus, statusLabel, statusColor, statusBg;
         if (donCanClear <= 50) {
-            overloadStatus = 'stable';     statusLabel = '🟢 Ổn định';
-            statusColor = 'var(--green)';  statusBg = '#E8F5E9';
+            overloadStatus = 'stable'; statusLabel = '🟢 Ổn định';
+            statusColor = 'var(--green)'; statusBg = '#E8F5E9';
         } else if (donCanClear <= 100) {
-            overloadStatus = 'watch';      statusLabel = '🟡 Theo dõi';
-            statusColor = '#F08C00';       statusBg = '#FFFDE7';
+            overloadStatus = 'watch'; statusLabel = '🟡 Theo dõi';
+            statusColor = '#F08C00'; statusBg = '#FFFDE7';
         } else if (donCanClear <= 300) {
-            overloadStatus = 'risk';       statusLabel = '🟠 Nguy cơ';
+            overloadStatus = 'risk'; statusLabel = '🟠 Nguy cơ';
             statusColor = 'var(--orange)'; statusBg = '#FFF3E0';
         } else {
             overloadStatus = 'overloaded'; statusLabel = '🔴 Quá tải';
-            statusColor = 'var(--red)';    statusBg = '#FFEBEE';
+            statusColor = 'var(--red)'; statusBg = '#FFEBEE';
         }
 
         // ---- ĐỀ XUẤT HÀNH ĐỘNG ----
@@ -3164,7 +3193,7 @@ function buildOverloadData() {
             const soXeTC = Math.floor(donCanClear / 50);
             const soXeTCDisplay = soXeTC > 0 ? soXeTC : '<1';
             action = `🕐 Hành động 1: Cần <strong>${soNgayKhongXe} ngày</strong> để kho trở về Ổn Định nếu không sử dụng thêm xe Tăng Cường.<br>`
-                   + `🚛 Hành động 2: Cần <strong>${soXeTCDisplay} xe</strong> tăng cường clear <strong>${donCanClear.toLocaleString()} đơn</strong> trong 1 ngày để kho trở về ngày thường (NS 50 đơn GTC/xe).`;
+                + `🚛 Hành động 2: Cần <strong>${soXeTCDisplay} xe</strong> tăng cường clear <strong>${donCanClear.toLocaleString()} đơn</strong> trong 1 ngày để kho trở về ngày thường (NS 50 đơn GTC/xe).`;
         } else {
             action = '✅ Cần tiếp tục theo dõi và giữ vững năng suất hiện tại của Kho.';
         }
@@ -3201,12 +3230,12 @@ function renderOverloadTable() {
     }
 
     const khoFilter = ((document.getElementById('filter-forecast-kho') || {}).value || '').toLowerCase();
-    const filtered  = khoFilter ? data.filter(r => r.kho.toLowerCase().includes(khoFilter)) : data;
+    const filtered = khoFilter ? data.filter(r => r.kho.toLowerCase().includes(khoFilter)) : data;
 
     tbody.innerHTML = filtered.map(r => {
-        const donTaoColor   = r.donTaoN1 > 0 ? 'var(--purple)' : 'var(--text3)';
-        const clearColor    = r.donCanClear > 200 ? 'var(--red)' : r.donCanClear > 100 ? 'var(--orange)' : r.donCanClear > 0 ? '#F08C00' : 'var(--green)';
-        const clearDisplay  = r.donCanClear > 0 ? `<strong style="color:${clearColor}">${r.donCanClear.toLocaleString()}</strong>` : `<span style="color:var(--green)">0 — Ổn</span>`;
+        const donTaoColor = r.donTaoN1 > 0 ? 'var(--purple)' : 'var(--text3)';
+        const clearColor = r.donCanClear > 200 ? 'var(--red)' : r.donCanClear > 100 ? 'var(--orange)' : r.donCanClear > 0 ? '#F08C00' : 'var(--green)';
+        const clearDisplay = r.donCanClear > 0 ? `<strong style="color:${clearColor}">${r.donCanClear.toLocaleString()}</strong>` : `<span style="color:var(--green)">0 — Ổn</span>`;
 
         return `<tr style="background:${r.statusBg}15;border-left:3px solid ${r.statusColor}">
             <td style="font-weight:700;white-space:nowrap">${r.kho}</td>
@@ -3214,8 +3243,8 @@ function renderOverloadTable() {
                 <span style="font-size:12px;font-weight:700;color:${r.statusColor};padding:3px 8px;border-radius:12px;background:${r.statusBg}">${r.statusLabel}</span>
             </td>
             <td style="text-align:right;font-weight:600;color:${donTaoColor}">${r.donTaoN1 > 0 ? r.donTaoN1.toLocaleString() : '--'}</td>
-            <td style="text-align:right;color:${r.blLm>1000?'var(--red)':r.blLm>500?'var(--orange)':'inherit'}">${r.blLm.toLocaleString()}</td>
-            <td style="text-align:right;color:${r.blKtc>500?'var(--red)':r.blKtc>200?'var(--orange)':'inherit'}">${r.blKtc.toLocaleString()}</td>
+            <td style="text-align:right;color:${r.blLm > 1000 ? 'var(--red)' : r.blLm > 500 ? 'var(--orange)' : 'inherit'}">${r.blLm.toLocaleString()}</td>
+            <td style="text-align:right;color:${r.blKtc > 500 ? 'var(--red)' : r.blKtc > 200 ? 'var(--orange)' : 'inherit'}">${r.blKtc.toLocaleString()}</td>
             <td style="text-align:right;color:var(--blue);font-weight:600">${r.gtcN1Don > 0 ? r.gtcN1Don.toLocaleString() : '--'}</td>
             <td style="text-align:right">${clearDisplay}</td>
             <td style="font-size:11.5px;color:var(--text2);min-width:280px;line-height:1.7">${r.action}</td>
