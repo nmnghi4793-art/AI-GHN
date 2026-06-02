@@ -925,6 +925,17 @@ def validate_caption_strict(text: str) -> tuple[bool, str, dict]:
     if not re.match(r'^\d{2}/\d{2}/\d{4}$', date_input):
         return False, f"Định dạng ngày <code>{html.escape(date_input)}</code> không đúng! Vui lòng nhập đúng định dạng <code>dd/mm/yyyy</code> (Ví dụ: <code>01/06/2026</code>).", {}
         
+    try:
+        tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
+        now_local = dt.datetime.now(tz_utc_7)
+        today = now_local.date()
+        parsed_date = dt.datetime.strptime(date_input, "%d/%m/%Y").date()
+        
+        if parsed_date > today:
+            return False, f"Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ! Không được báo trước ODO cho ngày tương lai (Hôm nay là: <code>{today.strftime('%d/%m/%Y')}</code>).", {}
+    except Exception as e:
+        return False, f"Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ hoặc không có thực!", {}
+        
     # Dòng 4: Biển số xe
     plate_input = lines[3]
     if not re.match(r'^[A-Z0-9]+$', plate_input.upper()):
