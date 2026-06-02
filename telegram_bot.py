@@ -106,13 +106,13 @@ def get_today_submissions(target_date_str: str):
             for r in data:
                 r_date = r.get("Ngày") or r.get("ngay") or ""
                 if r_date.strip() == target_date_str:
-                    id_kho = r.get("ID Kho") or r.get("id_kho") or ""
-                    ten_kho = r.get("Tên kho") or r.get("ten_kho") or ""
-                    bien_so = r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or ""
+                    id_kho = str(r.get("ID Kho") or r.get("id_kho") or "").strip()
+                    ten_kho = str(r.get("Tên kho") or r.get("ten_kho") or "").strip()
+                    bien_so = str(r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or "").strip().upper()
                     sheet_subs.append({
-                        "id_kho": id_kho.strip(),
-                        "ten_kho": ten_kho.strip(),
-                        "bien_so": bien_so.strip().upper()
+                        "id_kho": id_kho,
+                        "ten_kho": ten_kho,
+                        "bien_so": bien_so
                     })
         except Exception as e:
             print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
@@ -219,10 +219,10 @@ def get_today_detailed_submissions(target_date_str: str):
     merged = []
     seen = set()
     for sub in local_subs + sheet_subs:
-        id_kho = sub.get("id_kho", "").strip()
-        ten_kho = sub.get("ten_kho", "").strip()
-        bien_so = sub.get("bien_so", "").strip().upper()
-        loai_xe = sub.get("loai_xe", "Xe Cố Định").strip()
+        id_kho = str(sub.get("id_kho") or "").strip()
+        ten_kho = str(sub.get("ten_kho") or "").strip()
+        bien_so = str(sub.get("bien_so") or "").strip().upper()
+        loai_xe = str(sub.get("loai_xe") or "Xe Cố Định").strip()
         key = id_kho if id_kho else ten_kho
         if not key:
             continue
@@ -264,7 +264,8 @@ def generate_odo_warning_report(date_str: str, moc_time: str) -> str:
         key = sub["id_kho"] if sub["id_kho"] else sub["ten_kho"]
         if not key:
             continue
-        if "tăng cường" in sub["loai_xe"].lower() or "tang cuong" in sub["loai_xe"].lower():
+        loai_xe = str(sub.get("loai_xe") or "Xe Cố Định").lower()
+        if "tăng cường" in loai_xe or "tang cuong" in loai_xe:
             tang_cuong_by_kho[key] = tang_cuong_by_kho.get(key, 0) + 1
         else:
             co_dinh_by_kho[key] = co_dinh_by_kho.get(key, 0) + 1

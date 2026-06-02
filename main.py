@@ -485,6 +485,47 @@ def get_bot_status():
                 "traceback": traceback.format_exc()
             }
         }
+        
+@app.get("/api/bot/test-warning")
+async def test_bot_warning(date: str = None):
+    import os
+    from datetime import datetime
+    try:
+        try:
+            from backend.telegram_bot import generate_odo_warning_report
+        except ImportError:
+            from telegram_bot import generate_odo_warning_report
+        
+        target_date = date or datetime.now().strftime("%d/%m/%Y")
+        report_msg = generate_odo_warning_report(target_date, "CHẨN ĐOÁN (TEST)")
+        
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
+        
+        if not token:
+            return {"status": "error", "message": "TELEGRAM_BOT_TOKEN chưa được cấu hình trong môi trường."}
+            
+        import httpx
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json={
+                "chat_id": warn_chat_id,
+                "text": report_msg,
+                "parse_mode": "HTML"
+            })
+            
+        if resp.status_code == 200:
+            return {
+                "status": "success", 
+                "message": f"Báo cáo thử nghiệm cho ngày {target_date} đã được gửi thành công!",
+                "report_preview": report_msg
+            }
+        else:
+            return {"status": "error", "message": f"Telegram API error: {resp.text}"}
+            
+    except Exception as e:
+        import traceback
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
 # ---- TELEGRAM REPORTING ----
 import httpx
