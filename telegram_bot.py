@@ -51,13 +51,14 @@ def save_local_state(date_str: str, submission: dict = None, off_report: dict = 
         }
         
     if submission:
-        # Check if already exists to avoid duplicates
-        exists = False
-        for s in state_data[date_str]["submissions"]:
+        updated = False
+        for i, s in enumerate(state_data[date_str]["submissions"]):
             if s.get("bien_so") == submission.get("bien_so") and s.get("id_kho") == submission.get("id_kho"):
-                exists = True
+                # Cập nhật luôn (hỗ trợ partial → complete)
+                state_data[date_str]["submissions"][i] = submission
+                updated = True
                 break
-        if not exists:
+        if not updated:
             state_data[date_str]["submissions"].append(submission)
             
     if off_report:
@@ -74,6 +75,20 @@ def save_local_state(date_str: str, submission: dict = None, off_report: dict = 
             json.dump(state_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[BOT] Error writing state file: {e}")
+
+def is_pending_submission(date_str: str, id_kho: str, bien_so: str) -> bool:
+    """Kiểm tra xem biển số xe này trong ngày đã có bản ghi chờ cập nhật KM (partial) chưa."""
+    state_file = "odo_state.json"
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                state_data = json.load(f)
+            for s in state_data.get(date_str, {}).get("submissions", []):
+                if s.get("bien_so") == bien_so and s.get("id_kho") == id_kho:
+                    return s.get("is_partial", False)
+        except Exception as e:
+            print(f"[BOT] Error checking pending submission: {e}")
+    return False
 
 def get_today_submissions(target_date_str: str):
     # target_date_str format: "01/06/2026"
@@ -787,7 +802,8 @@ async def read_odo_with_gemini(image_parts: list) -> dict:
         }
 
 # Gửi dữ liệu và danh sách file ảnh (dạng base64) lên Google Apps Script Webhook
-async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: list) -> dict:
+# mode: "insert" (mới hoàn chỉnh), "partial" (ảnh mờ - để trống KM), "update" (cập nhật KM vào dòng cũ)
+async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: list, mode: str = "insert") -> dict:
     images_payload = []
     for i, part in enumerate(image_parts):
         filename = f"odo_{metadata['bien_so']}_{metadata['ngay'].replace('/', '-')}_{i+1}.jpg"
@@ -797,12 +813,17 @@ async def upload_to_google_sheet(webhook_url: str, metadata: dict, image_parts: 
             "name": filename
         })
         
+    # KM để trống khi partial, gửi giá trị thực khi insert/update
+    odo_di_val = "" if mode == "partial" else metadata.get("odo_di", 0)
+    odo_ve_val = "" if mode == "partial" else metadata.get("odo_ve", 0)
+        
     payload = {
+        "mode": mode,  # "insert", "partial", "update"
         "id_kho": metadata.get("id_kho", ""),
         "ten_kho": metadata.get("ten_kho", ""),
         "ncc": metadata.get("ncc", ""),
-        "odo_di": metadata.get("odo_di", 0),
-        "odo_ve": metadata.get("odo_ve", 0),
+        "odo_di": odo_di_val,
+        "odo_ve": odo_ve_val,
         "ngay": metadata.get("ngay", ""),
         "bien_so": metadata.get("bien_so", ""),
         "loai_xe": metadata.get("loai_xe", ""),
@@ -1043,24 +1064,36 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         
     # Kiểm tra trùng lặp biển số xe trong ngày
     incoming_plate_norm = normalize_plate(metadata.get("bien_so"))
+    is_update_mode = False  # Cờ: đây là lần gửi lại để cập nhật KM cho dòng đã pending
+    
     if incoming_plate_norm:
         today_subs, _ = get_today_submissions(metadata["ngay"])
         all_plates_today = []
         for plates in today_subs.values():
             all_plates_today.extend(plates)
+        
+        plate_already_exists = incoming_plate_norm in [normalize_plate(p) for p in all_plates_today]
+        
+        if plate_already_exists:
+            # Kiểm tra xem xe này có đang ở trạng thái chờ cập nhật KM (partial) không
+            is_update_mode = is_pending_submission(
+                metadata["ngay"], metadata.get("id_kho", ""), metadata.get("bien_so", "")
+            )
             
-        if incoming_plate_norm in [normalize_plate(p) for p in all_plates_today]:
-            alert_msg = (
-                f"⚠️ <b>CẢNH BÁO: BIỂN SỐ XE {html.escape(metadata['bien_so'])} ĐÃ BÁO ODO TRONG NGÀY HÔM NAY {html.escape(metadata['ngay'])}</b>\n\n"
-                f"Yêu cầu bạn kiểm tra lại thông tin. Báo cáo trùng lặp này không được ghi nhận.\n\n"
-                f"cc: @Thu_Dieu_Admin_GXT"
-            )
-            await primary_message.reply_text(
-                alert_msg,
-                parse_mode="HTML",
-                disable_web_page_preview=True
-            )
-            return
+            if not is_update_mode:
+                # Xe đã báo hoàn chỉnh rồi, từ chối trùng lặp
+                alert_msg = (
+                    f"⚠️ <b>CẢNH BÁO: BIỂN SỐ XE {html.escape(metadata['bien_so'])} ĐÃ BÁO ODO TRONG NGÀY HÔM NAY {html.escape(metadata['ngay'])}</b>\n\n"
+                    f"Yêu cầu bạn kiểm tra lại thông tin. Báo cáo trùng lặp này không được ghi nhận.\n\n"
+                    f"cc: @Thu_Dieu_Admin_GXT"
+                )
+                await primary_message.reply_text(
+                    alert_msg,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
+                )
+                return
+            # Nếu is_update_mode=True: tiếp tục xử lý để cập nhật KM
         
     status_message = await primary_message.reply_text("⏳ Đang tải ảnh và phân tích dữ liệu ODO bằng AI, vui lòng đợi trong giây lát...")
     
@@ -1089,14 +1122,58 @@ async def process_media_group(media_group_id: str, context: ContextTypes.DEFAULT
         metadata["odo_ve"] = odo_results.get("odo_ve", 0)
         is_blurry = odo_results.get("blurry", False)
         
+        bien_so_display = html.escape(metadata.get("bien_so", ""))
+        sheet_url = "https://docs.google.com/spreadsheets/d/1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY/edit?gid=0#gid=0"
+        
         # Kiểm tra hình ảnh quá mờ hoặc ODO bằng 0
         if is_blurry or (metadata["odo_di"] == 0 and metadata["odo_ve"] == 0):
-            sheet_url = "https://docs.google.com/spreadsheets/d/1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY/edit?gid=0#gid=0"
-            alert_msg = (
-                f"⚠️ <b>CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ</b>\n\n"
-                f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào <a href=\"{sheet_url}\">link Google Sheet</a>.\n\n"
-                f"cc: @Thu_Dieu_Admin_GXT"
-            )
+            webhook_url = os.environ.get("ODO_SHEET_WEBHOOK_URL")
+            
+            if is_update_mode:
+                # Gửi lại lần 2 nhưng ảnh vẫn mờ — không ghi đè, giữ nguyên dòng cũ
+                alert_msg = (
+                    f"⚠️ <b>Vẫn không đọc được số KM từ ảnh!</b>\n\n"
+                    f"📄 Dòng thông tin xe <code>{bien_so_display}</code> trong Sheet vẫn được giữ nguyên (KM đang trống).\n\n"
+                    f"📸 Vui lòng chụp lại ảnh đồng hồ công tơ mét rõ nét hơn, sau đó gửi lại đúng cú pháp báo cáo cũ kèm ảnh mới.\n"
+                    f"Hoặc nhập trực tiếp số KM vào <a href=\"{sheet_url}\">Google Sheet</a>.\n\n"
+                    f"cc: @Thu_Dieu_Admin_GXT"
+                )
+            else:
+                # Lần đầu gửi, ảnh mờ — tạo dòng partial trong Sheet
+                partial_saved = False
+                if webhook_url:
+                    try:
+                        await status_message.edit_text("⏳ Ảnh mờ, đang lưu thông tin xe vào Sheet (KM để trống)...")
+                        await upload_to_google_sheet(webhook_url, metadata, image_parts, mode="partial")
+                        save_local_state(
+                            metadata["ngay"],
+                            submission={
+                                "id_kho": metadata.get("id_kho", ""),
+                                "ten_kho": metadata.get("ten_kho", ""),
+                                "bien_so": metadata.get("bien_so", ""),
+                                "loai_xe": metadata.get("loai_xe", ""),
+                                "is_partial": True
+                            }
+                        )
+                        partial_saved = True
+                    except Exception as save_err:
+                        print(f"[BOT] Error saving partial submission: {save_err}")
+                
+                if partial_saved:
+                    alert_msg = (
+                        f"⚠️ <b>KHÔNG ĐỌC ĐƯỢC SỐ KM - HÌNH ẢNH QUÁ MỜ</b>\n\n"
+                        f"✅ Đã lưu thông tin xe <code>{bien_so_display}</code> vào Google Sheet nhưng <b>để trống 2 ô KM đi và KM về</b>.\n\n"
+                        f"📸 <b>Gửi lại báo cáo cũ kèm ảnh đồng hồ rõ hơn:</b> Bot sẽ tự động điền số KM vào dòng đã có.\n"
+                        f"Hoặc nhập trực tiếp số KM vào <a href=\"{sheet_url}\">Google Sheet</a>.\n\n"
+                        f"cc: @Thu_Dieu_Admin_GXT"
+                    )
+                else:
+                    alert_msg = (
+                        f"⚠️ <b>CẢNH BÁO: KHÔNG ĐỌC ĐƯỢC SỐ KM VÌ HÌNH ẢNH QUÁ MỜ</b>\n\n"
+                        f"Yêu cầu bạn gửi lại hình ảnh khác rõ nét hơn hoặc nhập số KM trực tiếp vào <a href=\"{sheet_url}\">link Google Sheet</a>.\n\n"
+                        f"cc: @Thu_Dieu_Admin_GXT"
+                    )
+            
             await primary_message.reply_text(
                 alert_msg,
                 parse_mode="HTML",
