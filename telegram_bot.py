@@ -854,7 +854,7 @@ ALLOWED_WAREHOUSES = {
 }
 
 ALLOWED_NCC = [
-    "Ngọc Định", "Tín Thành", "An Logistics", "Minh Đăng", "Lã Mạnh Hùng", 
+    "Ngọc Đỉnh", "Tín Thành", "An Logistics", "Minh Đăng", "Lã Mạnh Hùng", 
     "Hải Đăng", "Nguyễn Mạnh Đà Nẵng", "Trần Xuân Phúc", "Thần Đèn", "HTL", 
     "Bảo Châu Phát", "Gia Hân", "Nguyễn Huy Logistics", "Đặng Ngọc Phúc", 
     "Tốt và Rẻ ĐN", "Gia Nghĩa", "Phú Hảo", "Quân Khang Phát", "Việt Bắc", 
@@ -935,12 +935,29 @@ def validate_caption_strict(text: str) -> tuple[bool, str, dict]:
         tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
         now_local = dt.datetime.now(tz_utc_7)
         today = now_local.date()
+        yesterday = today - dt.timedelta(days=1)
         parsed_date = dt.datetime.strptime(date_input, "%d/%m/%Y").date()
         
+        # Không chấp nhận ngày tương lai (N+1 trở lên)
         if parsed_date > today:
-            return False, f"Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ! Không được báo trước ODO cho ngày tương lai (Hôm nay là: <code>{today.strftime('%d/%m/%Y')}</code>).", {}
+            return False, (
+                f"❌ Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ!\n"
+                f"⛔ Không được báo trước ODO cho ngày tương lai.\n"
+                f"📅 Hôm nay là: <code>{today.strftime('%d/%m/%Y')}</code>"
+            ), {}
+        
+        # Không chấp nhận ngày quá xa quá khứ (chỉ chấp nhận hôm nay N và hôm qua N-1)
+        if parsed_date < yesterday:
+            return False, (
+                f"❌ Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ!\n"
+                f"⛔ Chỉ chấp nhận báo ODO cho ngày hôm nay (<code>{today.strftime('%d/%m/%Y')}</code>) "
+                f"hoặc hôm qua (<code>{yesterday.strftime('%d/%m/%Y')}</code>).\n"
+                f"💡 Nếu muốn báo bù ngày trước đó, vui lòng nhập trực tiếp vào Google Sheet."
+            ), {}
+    except ValueError:
+        return False, f"❌ Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ hoặc không có thực! (Ví dụ: 30/02 không tồn tại)", {}
     except Exception as e:
-        return False, f"Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ hoặc không có thực!", {}
+        return False, f"❌ Ngày báo cáo <code>{html.escape(date_input)}</code> không hợp lệ!", {}
         
     # Dòng 4: Biển số xe
     plate_input = lines[3]
