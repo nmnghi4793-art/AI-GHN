@@ -93,29 +93,28 @@ def get_today_submissions(target_date_str: str):
         except Exception as e:
             print(f"[BOT] Error reading local state file: {e}")
             
-    # 2. Read from Google Sheet if GID is provided
-    odo_gid = os.environ.get("ODO_SHEET_GID")
+    # 2. Read from Google Sheet (luôn đọc, dùng GID mặc định nếu không có env var)
+    odo_gid = os.environ.get("ODO_SHEET_GID", "0")
     sheet_subs = []
-    if odo_gid:
-        try:
-            from main import read_csv, GIDS
-            if "odo_sheet" not in GIDS:
-                GIDS["odo_sheet"] = odo_gid
-            # force read_csv to fetch latest
-            data, _ = read_csv("odo_sheet", force=True)
-            for r in data:
-                r_date = r.get("Ngày") or r.get("ngay") or ""
-                if r_date.strip() == target_date_str:
-                    id_kho = str(r.get("ID Kho") or r.get("id_kho") or "").strip()
-                    ten_kho = str(r.get("Tên kho") or r.get("ten_kho") or "").strip()
-                    bien_so = str(r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or "").strip().upper()
-                    sheet_subs.append({
-                        "id_kho": id_kho,
-                        "ten_kho": ten_kho,
-                        "bien_so": bien_so
-                    })
-        except Exception as e:
-            print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
+    try:
+        from main import read_csv, GIDS
+        if "odo_sheet" not in GIDS:
+            GIDS["odo_sheet"] = odo_gid
+        # force read_csv to fetch latest
+        data, _ = read_csv("odo_sheet", force=True)
+        for r in data:
+            r_date = r.get("Ngày") or r.get("ngay") or ""
+            if r_date.strip() == target_date_str:
+                id_kho = str(r.get("ID Kho") or r.get("id_kho") or "").strip()
+                ten_kho = str(r.get("Tên kho") or r.get("ten_kho") or "").strip()
+                bien_so = str(r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or "").strip().upper()
+                sheet_subs.append({
+                    "id_kho": id_kho,
+                    "ten_kho": ten_kho,
+                    "bien_so": bien_so
+                })
+    except Exception as e:
+        print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
             
     merged_subs = {}
     for sub in local_subs + sheet_subs:
@@ -192,29 +191,31 @@ def get_today_detailed_submissions(target_date_str: str):
         except Exception as e:
             print(f"[BOT] Error reading local state file: {e}")
             
-    odo_gid = os.environ.get("ODO_SHEET_GID")
+    # ODO_SHEET_GID từ env hoặc dùng GID mặc định từ ODO_SHEET_ID
+    # Sheet ID: 1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY, GID tab đầu tiên = 0
+    odo_gid = os.environ.get("ODO_SHEET_GID", "0")
     sheet_subs = []
-    if odo_gid:
-        try:
-            from main import read_csv, GIDS
-            if "odo_sheet" not in GIDS:
-                GIDS["odo_sheet"] = odo_gid
-            data, _ = read_csv("odo_sheet", force=True)
-            for r in data:
-                r_date = r.get("Ngày") or r.get("ngay") or ""
-                if r_date.strip() == target_date_str:
-                    id_kho = r.get("ID Kho") or r.get("id_kho") or ""
-                    ten_kho = r.get("Tên kho") or r.get("ten_kho") or ""
-                    bien_so = r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or ""
-                    loai_xe = r.get("Loại Xe") or r.get("loai_xe") or "Xe Cố Định"
-                    sheet_subs.append({
-                        "id_kho": id_kho.strip(),
-                        "ten_kho": ten_kho.strip(),
-                        "bien_so": bien_so.strip().upper(),
-                        "loai_xe": loai_xe.strip()
-                    })
-        except Exception as e:
-            print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
+    try:
+        from main import read_csv, GIDS
+        if "odo_sheet" not in GIDS:
+            GIDS["odo_sheet"] = odo_gid
+        data, _ = read_csv("odo_sheet", force=True)
+        print(f"[BOT] ODO Sheet loaded {len(data)} rows for date filter '{target_date_str}'")
+        for r in data:
+            r_date = r.get("Ngày") or r.get("ngay") or ""
+            if r_date.strip() == target_date_str:
+                id_kho = r.get("ID Kho") or r.get("id_kho") or ""
+                ten_kho = r.get("Tên kho") or r.get("ten_kho") or ""
+                bien_so = r.get("Biển Số Xe") or r.get("Biển số xe") or r.get("bien_so") or ""
+                loai_xe = r.get("Loại Xe") or r.get("loai_xe") or "Xe Cố Định"
+                sheet_subs.append({
+                    "id_kho": id_kho.strip(),
+                    "ten_kho": ten_kho.strip(),
+                    "bien_so": bien_so.strip().upper(),
+                    "loai_xe": loai_xe.strip()
+                })
+    except Exception as e:
+        print(f"[BOT] Error fetching ODO submissions from Google Sheet: {e}")
             
     merged = []
     seen = set()
@@ -358,58 +359,63 @@ async def scheduled_warning_loop(application):
     print("[BOT] Scheduled warning loop started.")
     tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
     
-    # Lưu ngày cuối cùng đã gửi báo cáo cho từng mốc để tránh trùng lặp
-    last_sent = {
-        "22:00": "",
-        "23:00": "",
-        "09:00": ""
-    }
+    # Lưu key ngày-mốc đã gửi để tránh gửi trùng (format: "DD/MM/YYYY|HH:MM")
+    sent_keys = set()
     
     while True:
         try:
-            await asyncio.sleep(20)
+            await asyncio.sleep(30)  # kiểm tra mỗi 30 giây
             now_local = dt.datetime.now(tz_utc_7)
             current_date = now_local.strftime("%d/%m/%Y")
-            current_time = now_local.strftime("%H:%M")
+            current_hour = now_local.hour
+            current_minute = now_local.minute
             
             warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
             
-            # Mốc 22:00 - Báo cáo cho ngày hôm nay (Day N)
-            if current_time == "22:00" and last_sent["22:00"] != current_date:
+            # Hàm kiểm tra mốc giờ: kích hoạt ngay khi vào phút đó (không cần trùng giây)
+            # Dùng window 5 phút: từ HH:MM đến HH:MM+4 để đảm bảo bắt được
+            def should_send(target_hour: int, target_minute: int, key_date: str, slot_name: str) -> bool:
+                slot_key = f"{key_date}|{slot_name}"
+                if slot_key in sent_keys:
+                    return False
+                if current_hour == target_hour and target_minute <= current_minute <= target_minute + 4:
+                    return True
+                return False
+            
+            # Mốc 22:00 - Báo cáo ngày hôm nay (Day N)
+            if should_send(22, 0, current_date, "22:00"):
                 report_msg = generate_odo_warning_report(current_date, "22:00")
                 await application.bot.send_message(
                     chat_id=warn_chat_id,
                     text=report_msg,
                     parse_mode="HTML"
                 )
-                last_sent["22:00"] = current_date
+                sent_keys.add(f"{current_date}|22:00")
                 print(f"[BOT] Daily warning report 22:00 sent for {current_date}")
                 
-            # Mốc 23:00 - Báo cáo cho ngày hôm nay (Day N)
-            elif current_time == "23:00" and last_sent["23:00"] != current_date:
+            # Mốc 23:00 - Báo cáo ngày hôm nay (Day N)
+            elif should_send(23, 0, current_date, "23:00"):
                 report_msg = generate_odo_warning_report(current_date, "23:00")
                 await application.bot.send_message(
                     chat_id=warn_chat_id,
                     text=report_msg,
                     parse_mode="HTML"
                 )
-                last_sent["23:00"] = current_date
+                sent_keys.add(f"{current_date}|23:00")
                 print(f"[BOT] Daily warning report 23:00 sent for {current_date}")
                 
-            # Mốc 09:00 - Báo cáo cho ngày hôm qua (Day N - 1)
-            elif current_time == "09:00" and last_sent["09:00"] != current_date:
+            # Mốc 09:00 - Báo cáo ngày hôm qua (Day N-1)
+            elif should_send(9, 0, current_date, "09:00"):
                 yesterday_local = now_local - dt.timedelta(days=1)
                 yesterday_date_str = yesterday_local.strftime("%d/%m/%Y")
-                
-                if last_sent["09:00"] != yesterday_date_str:
-                    report_msg = generate_odo_warning_report(yesterday_date_str, "09:00 (N+1)")
-                    await application.bot.send_message(
-                        chat_id=warn_chat_id,
-                        text=report_msg,
-                        parse_mode="HTML"
-                    )
-                    last_sent["09:00"] = yesterday_date_str
-                    print(f"[BOT] Morning warning report 09:00 sent for {yesterday_date_str}")
+                report_msg = generate_odo_warning_report(yesterday_date_str, "09:00 (N+1)")
+                await application.bot.send_message(
+                    chat_id=warn_chat_id,
+                    text=report_msg,
+                    parse_mode="HTML"
+                )
+                sent_keys.add(f"{current_date}|09:00")
+                print(f"[BOT] Morning warning report 09:00 sent for {yesterday_date_str}")
                     
         except Exception as e:
             print(f"[BOT ERROR] Error in scheduled warning loop: {e}")

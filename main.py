@@ -68,6 +68,7 @@ GIDS = {
     "kho_gxt":   "1962460963",
     "xe_gxt":    "541379955",
     "don_tao":   "869576788",
+    "odo_sheet": "0",  # Tab đầu tiên của ODO_SHEET_ID
 }
 
 CACHE = {}
