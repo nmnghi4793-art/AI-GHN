@@ -571,6 +571,112 @@ async def send_telegram_report(payload: dict):
         print(f"[TELEGRAM] Error: {str(e)}")
         return {"status": "error", "message": str(e)}
 
+# ---- ODO REPORT API ----
+@app.get("/api/odo/report")
+def get_odo_report(force: bool = False):
+    """Lấy dữ liệu báo cáo ODO từ Google Sheet, chỉ lấy từ 02/06/2026 trở đi"""
+    import datetime as _dt
+    MIN_DATE = _dt.date(2026, 6, 2)
+
+    # Đọc dữ liệu từ ODO Sheet (odo_sheet key đã có GID=0)
+    data, last_sync = read_csv("odo_sheet", force=force)
+
+    rows = []
+    for r in data:
+        ngay_raw = (r.get("Ngày") or r.get("ngay") or "").strip()
+        if not ngay_raw:
+            rows.append({**r, "_status": "missing_date", "_ngay_parsed": None})
+            continue
+        # Parse date dd/mm/yyyy
+        try:
+            parts = ngay_raw.replace("-", "/").split("/")
+            if len(parts) == 3:
+                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                parsed = _dt.date(y, m, d)
+            else:
+                parsed = None
+        except Exception:
+            parsed = None
+
+        if parsed is None:
+            rows.append({**r, "_status": "invalid_date", "_ngay_parsed": None})
+            continue
+        if parsed < MIN_DATE:
+            continue  # Bỏ qua dữ liệu trước 02/06/2026
+
+        # Xác định trạng thái báo cáo
+        km_di  = str(r.get("KM đi") or r.get("km di") or r.get("KM di") or "").strip()
+        km_ve  = str(r.get("KM về") or r.get("km ve") or r.get("KM ve") or "").strip()
+        link_anh = str(r.get("Link hình ảnh") or r.get("Link anh") or r.get("link_anh") or "").strip()
+
+        if not km_di and not km_ve:
+            status = "missing_km"
+        elif not km_di or not km_ve:
+            status = "incomplete"
+        else:
+            # Kiểm tra ODO bất thường (KM về < KM đi)
+            try:
+                kmd = float(km_di.replace(",", "").replace(".", ""))
+                kmv = float(km_ve.replace(",", "").replace(".", ""))
+                if kmv < kmd:
+                    status = "abnormal"
+                else:
+                    status = "complete"
+            except Exception:
+                status = "complete"
+
+        if not link_anh:
+            status = "missing_image" if status == "complete" else status
+
+        rows.append({
+            "ngay": ngay_raw,
+            "id_kho": str(r.get("ID Kho") or r.get("id_kho") or "").strip(),
+            "ten_kho": str(r.get("Tên Kho") or r.get("ten_kho") or r.get("Tên kho") or "").strip(),
+            "ncc": str(r.get("NCC") or r.get("ncc") or "").strip(),
+            "bien_so": str(r.get("BSX") or r.get("Biển Số Xe") or r.get("bien_so") or "").strip().upper(),
+            "loai_xe": str(r.get("Loại Xe") or r.get("loai_xe") or "").strip(),
+            "km_di": km_di,
+            "km_ve": km_ve,
+            "link_anh": link_anh,
+            "thoi_gian_update": str(r.get("Thời gian update") or r.get("thoi_gian_update") or "").strip(),
+            "_status": status,
+            "_ngay_parsed": ngay_raw,
+        })
+
+    # Sort: mới nhất lên trước
+    def sort_key(r):
+        try:
+            parts = r["ngay"].split("/")
+            return (int(parts[2]), int(parts[1]), int(parts[0]))
+        except Exception:
+            return (0, 0, 0)
+
+    rows.sort(key=sort_key, reverse=True)
+
+    # Tổng hợp KPI
+    total_reports = len(rows)
+    khos = set(r["id_kho"] or r["ten_kho"] for r in rows if r["id_kho"] or r["ten_kho"])
+    plates = set(r["bien_so"] for r in rows if r["bien_so"])
+    complete = sum(1 for r in rows if r["_status"] == "complete")
+    need_check = sum(1 for r in rows if r["_status"] in ("missing_km", "incomplete", "abnormal", "missing_image", "invalid_date", "missing_date"))
+    pct_complete = round(complete / total_reports * 100, 1) if total_reports > 0 else 0
+
+    return {
+        "data": rows,
+        "kpi": {
+            "total_reports": total_reports,
+            "total_khos": len(khos),
+            "total_plates": len(plates),
+            "complete": complete,
+            "incomplete": total_reports - complete,
+            "need_check": need_check,
+            "pct_complete": pct_complete,
+        },
+        "last_sync": last_sync
+    }
+
+
+
 # ---- SERVE FRONTEND ----
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
