@@ -1,5 +1,59 @@
 const API = window.location.origin + '/api';
 
+// ---- SECURITY UTILS ----
+/**
+ * Escape HTML để ngăn XSS — luôn dùng khi render dữ liệu từ API vào innerHTML
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '--';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ---- API TOKEN MANAGEMENT ----
+const SESSION_KEY = 'ghn_session_token';
+
+function getApiToken() {
+    return sessionStorage.getItem(SESSION_KEY) || '';
+}
+
+function setApiToken(token) {
+    sessionStorage.setItem(SESSION_KEY, token);
+}
+
+function clearApiToken() {
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem('ghn_logged_in');
+}
+
+/**
+ * Trả về headers chuẩn có Bearer token cho mọi fetch API
+ */
+function getAuthHeaders() {
+    const token = getApiToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+/**
+ * Wrapper fetch có tự động gắi auth header
+ */
+async function apiFetch(url, opts = {}) {
+    const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
+    const resp = await fetch(url, { ...opts, headers });
+    if (resp.status === 401 || resp.status === 403) {
+        // Token hết hiệu lực — đăng xuất
+        clearApiToken();
+        localStorage.removeItem('ghn_logged_in');
+        window.location.reload();
+        return null;
+    }
+    return resp;
+}
+
 // GHN Brand Colors
 const C_ORANGE = '#FF5200';
 const C_BLUE = '#0076BE';
@@ -88,21 +142,22 @@ async function fetchAll(force = false) {
 
     try {
         const query = force ? '?force=true' : '';
+        const h = { headers: getAuthHeaders() };
         const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt, dontao] = await Promise.all([
-            fetch(`${API}/dashboard/overview${query}`).then(r => r.json()).catch(e => ({})),
-            fetch(`${API}/kpi/gtc${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/kpi/ontime${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/returns${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/backlog/critical${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/backlog/b2b${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/personnel${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/nang-suat${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/warnings${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/returns/by-client${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/xe-gxt${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/xe-su-co${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/kho-gxt${query}`).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/don-tao${query}`).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/dashboard/overview${query}`, h).then(r => r.json()).catch(e => ({})),
+            fetch(`${API}/kpi/gtc${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/kpi/ontime${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/returns${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/backlog/critical${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/backlog/b2b${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/personnel${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/nang-suat${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/warnings${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/returns/by-client${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/xe-gxt${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/xe-su-co${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/kho-gxt${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            fetch(`${API}/don-tao${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
         ]);
 
         state = {
@@ -3293,22 +3348,37 @@ function setupLoginForm() {
         };
     }
 
-    const handleLoginSubmit = () => {
+    const handleLoginSubmit = async () => {
         const username = usernameInput.value.trim();
         const password = passwordInput.value;
 
-        if (username === 'giaohangnangmientrung' && password === 'b2bmientrung') {
-            localStorage.setItem('ghn_logged_in', 'true');
-            if (loginError) loginError.style.display = 'none';
-            initLogin();
-        } else {
-            if (loginError) {
-                loginError.style.display = 'flex';
-                // Add shake animation
-                loginError.style.animation = 'none';
-                loginError.offsetHeight; // trigger reflow
-                loginError.style.animation = null;
+        try {
+            // Gọi backend để xác thực — không lưu mật khẩu trong JS
+            const resp = await fetch(`${API}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (resp.ok) {
+                const json = await resp.json();
+                if (json.token) {
+                    setApiToken(json.token);       // Lưu token vào sessionStorage
+                    localStorage.setItem('ghn_logged_in', 'true');
+                }
+                if (loginError) loginError.style.display = 'none';
+                initLogin();
+            } else {
+                if (loginError) {
+                    loginError.style.display = 'flex';
+                    loginError.style.animation = 'none';
+                    loginError.offsetHeight;
+                    loginError.style.animation = null;
+                }
             }
+        } catch (err) {
+            console.error('[AUTH] Login error:', err);
+            if (loginError) loginError.style.display = 'flex';
         }
     };
 
@@ -3334,6 +3404,7 @@ function setupLogout() {
     if (logoutBtn) {
         logoutBtn.onclick = (e) => {
             e.preventDefault();
+            clearApiToken();
             localStorage.removeItem('ghn_logged_in');
             window.location.reload();
         };

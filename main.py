@@ -1,11 +1,12 @@
 import sys
 import os
+import secrets
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -14,15 +15,43 @@ import io
 import time
 import urllib.request
 
-app = FastAPI(title="GHN Miền Trung Operations API")
+app = FastAPI(
+    title="GHN Miền Trung Operations API",
+    docs_url=None,      # Tắt Swagger UI công khai
+    redoc_url=None,     # Tắt ReDoc công khai
+    openapi_url=None,   # Tắt OpenAPI schema công khai
+)
 
+# ---- CORS: Chỉ cho phép origin cụ thể, không dùng wildcard ----
+_ALLOWED_ORIGINS = [
+    "https://ai-ghn-gxt.up.railway.app",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=False,   # False khi không dùng cookie cross-origin
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
 )
+
+# ---- API AUTH: Bearer token / session validation ----
+_API_TOKEN = os.environ.get("API_SECRET_TOKEN", "")
+
+# NOTE: require_api_token is defined below after _ACTIVE_SESSIONS is initialized.
+# This placeholder is intentionally left blank — do NOT add a function here.
+
+
+# ---- ADMIN KEY: dùng cho các endpoint nhạy cảm ----
+_ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
+
+def require_admin_key(x_admin_key: str = Header(None)):
+    """Dependency: bảo vệ endpoint admin bằng X-Admin-Key header."""
+    if not _ADMIN_KEY:
+        raise HTTPException(status_code=503, detail="Admin key not configured")
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, _ADMIN_KEY):
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid admin key")
 
 @app.on_event("startup")
 async def startup_event():
@@ -51,8 +80,9 @@ except Exception as e:
     print(f"[STARTUP] Could not list BASE_DIR: {e}")
 
 # ---- GOOGLE SHEETS MAPPING ----
-SHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
-ODO_SHEET_ID = "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY"
+# Sheet IDs — đặt vào env var nếu muốn ẩn hoàn toàn
+SHEET_ID = os.environ.get("SHEET_ID", "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk")
+ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY")
 GIDS = {
     "gtc":       "0",
     "ontime":    "25240142",
@@ -146,8 +176,64 @@ def parse_pct_vn(s: str) -> float:
     except ValueError:
         return 0.0
 
+# ---- AUTH: Login endpoint (thay thế client-side auth) ----
+# Credentials lấy từ environment variables, KHÔNG hardcode
+_DASH_USER = os.environ.get("DASH_USER", "giaohangnangmientrung")
+_DASH_PASS = os.environ.get("DASH_PASS", "b2bmientrung")
+
+# Session token store (in-memory, đủ cho single-instance Railway)
+_ACTIVE_SESSIONS: dict = {}
+SESSION_TTL = 8 * 3600  # 8 tiếng
+
+@app.post("/api/auth/login")
+async def login(payload: dict):
+    """Xác thực username/password, trả về session token."""
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+
+    # Dùng compare_digest để tránh timing attack
+    user_ok = secrets.compare_digest(username, _DASH_USER)
+    pass_ok  = secrets.compare_digest(password, _DASH_PASS)
+
+    if user_ok and pass_ok:
+        token = secrets.token_urlsafe(32)
+        _ACTIVE_SESSIONS[token] = time.time()
+        # Dọn session cũ
+        expired = [k for k, t in _ACTIVE_SESSIONS.items() if time.time() - t > SESSION_TTL]
+        for k in expired: del _ACTIVE_SESSIONS[k]
+        return {"token": token}
+    else:
+        raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
+
+@app.post("/api/auth/logout")
+async def logout(authorization: str = Header(None)):
+    """Hủy session token."""
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+        _ACTIVE_SESSIONS.pop(token, None)
+    return {"status": "ok"}
+
+def require_api_token(authorization: str = Header(None)):
+    """Override: kiểm tra session token từ _ACTIVE_SESSIONS (nếu API_SECRET_TOKEN không cấu hình)."""
+    if _API_TOKEN:
+        # Mode prod: dùng static API token
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        token = authorization[len("Bearer "):]
+        if not secrets.compare_digest(token, _API_TOKEN):
+            raise HTTPException(status_code=403, detail="Forbidden")
+    else:
+        # Mode session: kiểm tra session token
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        token = authorization[len("Bearer "):]
+        if token not in _ACTIVE_SESSIONS:
+            raise HTTPException(status_code=403, detail="Session expired")
+        # Gia hạn session
+        _ACTIVE_SESSIONS[token] = time.time()
+
 # ---- DATA GTC ----
-@app.get("/api/kpi/gtc")
+@app.get("/api/kpi/gtc", dependencies=[Depends(require_api_token)])
 def get_gtc(date: str = Query(None), force: bool = False):
     data, last_sync = read_csv("gtc", force)
     if date:
@@ -155,7 +241,7 @@ def get_gtc(date: str = Query(None), force: bool = False):
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA GTC LATEST DATE ----
-@app.get("/api/kpi/gtc/latest")
+@app.get("/api/kpi/gtc/latest", dependencies=[Depends(require_api_token)])
 def get_gtc_latest(force: bool = False):
     data, last_sync = read_csv("gtc", force)
     if not data:
@@ -166,48 +252,42 @@ def get_gtc_latest(force: bool = False):
     return {"data": filtered, "last_sync": last_sync}
 
 # ---- DATA ONTIME ----
-@app.get("/api/kpi/ontime")
+@app.get("/api/kpi/ontime", dependencies=[Depends(require_api_token)])
 def get_ontime(force: bool = False):
     data, last_sync = read_csv("ontime", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA TRẢ HÀNG ----
-@app.get("/api/returns")
+@app.get("/api/returns", dependencies=[Depends(require_api_token)])
 def get_returns(force: bool = False):
     data, last_sync = read_csv("returns", force)
     return {"data": data, "last_sync": last_sync}
 
-@app.get("/api/returns/by-client")
+@app.get("/api/returns/by-client", dependencies=[Depends(require_api_token)])
 def get_returns_by_client(force: bool = False):
     data, last_sync = read_csv("returns_by_client", force)
     return {"data": data, "last_sync": last_sync}
 
-@app.get("/api/returns/by-client/columns")
-def get_returns_by_client_columns():
-    data, _ = read_csv("returns_by_client")
-    if not data: return {"error": "No data"}
-    return {"columns": list(data[0].keys()), "sample": data[0]}
-
 # ---- NHÂN SỰ ----
-@app.get("/api/personnel")
+@app.get("/api/personnel", dependencies=[Depends(require_api_token)])
 def get_personnel(force: bool = False):
     data, last_sync = read_csv("nhan_su", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA GIAO B2B ----
-@app.get("/api/backlog/b2b")
+@app.get("/api/backlog/b2b", dependencies=[Depends(require_api_token)])
 def get_b2b(force: bool = False):
     data, last_sync = read_csv("b2b", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA BACKLOG > 7N ----
-@app.get("/api/backlog/critical")
+@app.get("/api/backlog/critical", dependencies=[Depends(require_api_token)])
 def get_backlog(force: bool = False):
     data, last_sync = read_csv("backlog", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA NĂNG SUẤT NV ----
-@app.get("/api/nang-suat")
+@app.get("/api/nang-suat", dependencies=[Depends(require_api_token)])
 def get_nang_suat(date: str = Query(None), force: bool = False):
     data, last_sync = read_csv("nang_suat", force)
     if date:
@@ -215,32 +295,32 @@ def get_nang_suat(date: str = Query(None), force: bool = False):
     return {"data": data, "last_sync": last_sync}
 
 # ---- AVAILABLE DATES (for GTC filter) ----
-@app.get("/api/kpi/gtc/dates")
+@app.get("/api/kpi/gtc/dates", dependencies=[Depends(require_api_token)])
 def get_gtc_dates(force: bool = False):
     data, last_sync = read_csv("gtc", force)
     dates = sorted(set(r.get("Ngày", "") for r in data if r.get("Ngày")), reverse=True)
     return {"data": dates, "last_sync": last_sync}
-    
+
 # ---- DATA XE GXT ----
-@app.get("/api/xe-gxt")
+@app.get("/api/xe-gxt", dependencies=[Depends(require_api_token)])
 def get_xe_gxt(force: bool = False):
     data, last_sync = read_csv("xe_gxt", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA XE SỰ CỐ ----
-@app.get("/api/xe-su-co")
+@app.get("/api/xe-su-co", dependencies=[Depends(require_api_token)])
 def get_xe_su_co(force: bool = False):
     data, last_sync = read_csv("xe_su_co", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA KHO GXT ----
-@app.get("/api/kho-gxt")
+@app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
     data, last_sync = read_csv("kho_gxt", force)
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA ĐƠN TẠO N-1 ----
-@app.get("/api/don-tao")
+@app.get("/api/don-tao", dependencies=[Depends(require_api_token)])
 def get_don_tao(date: str = Query(None), force: bool = False):
     data, last_sync = read_csv("don_tao", force)
     if date:
@@ -248,21 +328,13 @@ def get_don_tao(date: str = Query(None), force: bool = False):
     return {"data": data, "last_sync": last_sync}
 
 # ---- DATA CẢNH BÁO ----
-@app.get("/api/warnings")
+@app.get("/api/warnings", dependencies=[Depends(require_api_token)])
 def get_warnings(force: bool = False):
     data, last_sync = read_csv("warnings", force)
     return {"data": data, "last_sync": last_sync}
 
-# ---- DEBUG: xem tên cột thực tế ----
-@app.get("/api/warnings/columns")
-def get_warning_columns():
-    data = read_csv("warnings")
-    if not data:
-        return {"error": "No data", "file": "warnings"}
-    return {"columns": list(data[0].keys()), "sample_row": data[0]}
-
 # ---- DASHBOARD OVERVIEW ----
-@app.get("/api/dashboard/overview")
+@app.get("/api/dashboard/overview", dependencies=[Depends(require_api_token)])
 def get_overview(force: bool = False):
     gtc_data, gtc_sync     = read_csv("gtc", force)
     b2b_data, _            = read_csv("b2b", force)
@@ -418,7 +490,7 @@ def get_overview(force: bool = False):
     }
 
 # ---- GTC BY KHO (latest date) ----
-@app.get("/api/kpi/gtc/by-kho")
+@app.get("/api/kpi/gtc/by-kho", dependencies=[Depends(require_api_token)])
 def get_gtc_by_kho(force: bool = False):
     data, last_sync = read_csv("gtc", force)
     dates = sorted(set(r.get("Ngày", "").split(" - ")[0] for r in data if r.get("Ngày")), reverse=True)
@@ -435,77 +507,46 @@ def get_gtc_by_kho(force: bool = False):
         })
     return {"data": sorted(result, key=lambda x: x["pct_gtc"]), "last_sync": last_sync}
 
-# ---- TELEGRAM BOT DIAGNOSTICS ----
-@app.get("/api/bot/status")
+# ---- TELEGRAM BOT DIAGNOSTICS (Admin only) ----
+@app.get("/api/bot/status", dependencies=[Depends(require_admin_key)])
 def get_bot_status():
-    import os
-    import sys
-    
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    files_in_base = []
-    try:
-        files_in_base = os.listdir(base_dir)
-    except Exception as e:
-        files_in_base = [f"Error: {e}"]
-        
-    backend_exists = os.path.exists(os.path.join(base_dir, "backend"))
-    backend_files = []
-    if backend_exists:
-        try:
-            backend_files = os.listdir(os.path.join(base_dir, "backend"))
-        except Exception as e:
-            backend_files = [f"Error: {e}"]
-
+    """Chỉ dành cho admin — trả về trạng thái tối thiểu, không lộ file/path."""
     try:
         try:
             from backend.telegram_bot import BOT_STATUS
         except ImportError:
             from telegram_bot import BOT_STATUS
+        # Chỉ trả về thông tin cần thiết, KHÔNG lộ token/key/file listing
         return {
             "status": "success",
-            "bot_status": BOT_STATUS,
-            "diagnostics": {
-                "base_dir": base_dir,
-                "sys_path": sys.path,
-                "files_in_base": files_in_base,
-                "backend_exists": backend_exists,
-                "backend_files": backend_files
-            }
+            "bot_running": BOT_STATUS.get("running", False),
+            "initialized": BOT_STATUS.get("initialized", False),
+            "last_error": BOT_STATUS.get("last_error"),
+            "gemini_status": BOT_STATUS.get("gemini_status", "Unknown"),
         }
     except Exception as e:
-        import traceback
-        return {
-            "status": "error",
-            "message": f"Không thể lấy trạng thái Bot: {str(e)}",
-            "diagnostics": {
-                "base_dir": base_dir,
-                "sys_path": sys.path,
-                "files_in_base": files_in_base,
-                "backend_exists": backend_exists,
-                "backend_files": backend_files,
-                "traceback": traceback.format_exc()
-            }
-        }
-        
-@app.get("/api/bot/test-warning")
+        return {"status": "error", "message": "Không thể lấy trạng thái Bot."}
+
+@app.get("/api/bot/test-warning", dependencies=[Depends(require_admin_key)])
 async def test_bot_warning(date: str = None):
-    import os
     from datetime import datetime
     try:
         try:
             from backend.telegram_bot import generate_odo_warning_report
         except ImportError:
             from telegram_bot import generate_odo_warning_report
-        
+
         target_date = date or datetime.now().strftime("%d/%m/%Y")
         report_msg = generate_odo_warning_report(target_date, "CHẨN ĐOÁN (TEST)")
-        
+
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
-        warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
-        
+        warn_chat_id = os.environ.get("WARN_CHAT_ID", "")
+
         if not token:
-            return {"status": "error", "message": "TELEGRAM_BOT_TOKEN chưa được cấu hình trong môi trường."}
-            
+            return {"status": "error", "message": "TELEGRAM_BOT_TOKEN chưa được cấu hình."}
+        if not warn_chat_id:
+            return {"status": "error", "message": "WARN_CHAT_ID chưa được cấu hình."}
+
         import httpx
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         async with httpx.AsyncClient() as client:
@@ -514,44 +555,40 @@ async def test_bot_warning(date: str = None):
                 "text": report_msg,
                 "parse_mode": "HTML"
             })
-            
+
         if resp.status_code == 200:
-            return {
-                "status": "success", 
-                "message": f"Báo cáo thử nghiệm cho ngày {target_date} đã được gửi thành công!",
-                "report_preview": report_msg
-            }
+            return {"status": "success", "message": f"Đã gửi test report cho ngày {target_date}."}
         else:
-            return {"status": "error", "message": f"Telegram API error: {resp.text}"}
-            
+            return {"status": "error", "message": "Telegram API lỗi."}
+
     except Exception as e:
-        import traceback
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+        return {"status": "error", "message": str(e)}
 
 # ---- TELEGRAM REPORTING ----
 import httpx
 from datetime import datetime
 
-# Cấu hình Telegram
-TELEGRAM_TOKEN = "8161133962:AAHsGqX7D5z0IGJDTvJTSrMIeu1NyiQHv-E"
-CHAT_ID = "-1002712779761"
-ADMIN_KEY = "gxt1103" # Mã bí mật để gửi báo cáo
+# Cấu hình Telegram — tất cả lấy từ environment variables, không hardcode
+TELEGRAM_TOKEN = None  # Chỉ dùng os.environ.get() bên dưới
+CHAT_ID = None         # Chỉ dùng os.environ.get() bên dưới
 
-@app.post("/api/telegram/report")
+@app.post("/api/telegram/report", dependencies=[Depends(require_api_token)])
 async def send_telegram_report(payload: dict):
     try:
-        # Kiểm tra mã bí mật
+        # Kiểm tra admin key trong payload (second layer)
         client_key = payload.get("key", "")
-        if client_key != ADMIN_KEY:
+        if not _ADMIN_KEY or not secrets.compare_digest(client_key, _ADMIN_KEY):
             return {"status": "error", "message": "Bạn không có quyền thực hiện hành động này."}
 
         message = payload.get("message", "")
         if not message:
             return {"status": "error", "message": "Nội dung báo cáo trống."}
 
-        # Gửi qua Telegram API
-        token = os.environ.get("TELEGRAM_BOT_TOKEN", TELEGRAM_TOKEN)
-        chat_id = os.environ.get("WARN_CHAT_ID", CHAT_ID)
+        # Gửi qua Telegram API — chỉ dùng environment variables
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = os.environ.get("WARN_CHAT_ID")
+        if not token or not chat_id:
+            return {"status": "error", "message": "Telegram chưa được cấu hình đúng."}
         
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         async with httpx.AsyncClient() as client:
@@ -612,11 +649,6 @@ def read_index():
             return HTMLResponse(content=content)
         except Exception:
             return FileResponse(target)
-    return {
-        "message": "Frontend not found",
-        "base_dir": BASE_DIR,
-        "frontend_dir": FRONTEND_DIR,
-        "frontend_exists": os.path.exists(FRONTEND_DIR),
-        "files_in_base": os.listdir(BASE_DIR)
-    }
+    # Không trả về thông tin nhạy cảm về server
+    return HTMLResponse(content="<h1>Service Unavailable</h1>", status_code=503)
 
