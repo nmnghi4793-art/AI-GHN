@@ -835,12 +835,12 @@ function renderGtcSection(searchFilter = '') {
     document.getElementById('tbody-gtc').innerHTML = displayData.map(r => `
         <tr>
             <td>${r.stt}</td>
-            <td>${r.kho}</td>
-            <td>${r.ngay}</td>
-            <td>${r.kl}</td>
-            <td>${r.gan}</td>
-            <td>${r.gtc}</td>
-            <td class="${pctClass(r.pct)}">${r.pct}</td>
+            <td>${escapeHtml(r.kho)}</td>
+            <td>${escapeHtml(r.ngay)}</td>
+            <td>${escapeHtml(r.kl)}</td>
+            <td>${escapeHtml(r.gan)}</td>
+            <td>${escapeHtml(r.gtc)}</td>
+            <td class="${pctClass(r.pct)}">${escapeHtml(r.pct)}</td>
         </tr>
     `).join('');
 
@@ -988,7 +988,7 @@ function renderGtcTopBottom() {
         const renderRow = (r, isTop) => `
             <tr style="background:${isTop ? 'var(--green-bg)' : 'var(--red-bg)'}">
                 <td><span class="badge ${isTop ? 'storing' : 'p1'}">${isTop ? '↑ Tốt' : '↓ Tệ'}</span></td>
-                <td style="font-weight:600">${r.kho}</td>
+                <td style="font-weight:600">${escapeHtml(r.kho)}</td>
                 <td style="text-align:right;color:var(--text3)">${r.gan.toLocaleString()}</td>
                 <td style="text-align:right;font-weight:800;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pct}%</td>
             </tr>`;
@@ -1030,14 +1030,14 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
     document.getElementById('backlog-count-label').textContent = data.length + ' đơn';
     document.getElementById('tbody-backlog').innerHTML = data.map(r => `
         <tr>
-            <td>${r['status'] || '--'}</td>
-            <td>${r['vung_giao'] || '--'}</td>
-            <td>${shortKho(getKho(r))}</td>
-            <td>${r['PIC'] || '--'}</td>
-            <td class="order-code">${r['order_code'] || ''}</td>
-            <td>${r['client_type'] || ''}</td>
-            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Lý do giao thất bại gần nhất'] || ''}</td>
-            <td>${r['time_nhap_kho_giao'] || ''}</td>
+            <td>${escapeHtml(r['status'] || '--')}</td>
+            <td>${escapeHtml(r['vung_giao'] || '--')}</td>
+            <td>${escapeHtml(shortKho(getKho(r)))}</td>
+            <td>${escapeHtml(r['PIC'] || '--')}</td>
+            <td class="order-code">${escapeHtml(r['order_code'] || '')}</td>
+            <td>${escapeHtml(r['client_type'] || '')}</td>
+            <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r['Lý do giao thất bại gần nhất'] || '')}</td>
+            <td>${escapeHtml(r['time_nhap_kho_giao'] || '')}</td>
             <td>${agingChip(getAging(r))}</td>
         </tr>
     `).join('');
@@ -1106,14 +1106,14 @@ function renderB2bSection(khoFilter = '', prioFilter = '', clientFilter = '', ty
     document.getElementById('tbody-b2b').innerHTML = data.map(r => `
         <tr>
             <td>${priorityBadge(r['Mức độ ưu tiên'])}</td>
-            <td>${shortKho(r['Kho hiện tại'])}</td>
-            <td>${r['PIC'] || ''}</td>
-            <td class="order-code">${r['Order code'] || ''}</td>
-            <td><span class="badge ${r['Loại'] === 'Giao' ? 'storing' : 'waiting'}">${r['Loại'] || ''}</span></td>
-            <td>${r['Khách'] || ''}</td>
-            <td>${r['Ngày nhập kho'] || ''}</td>
+            <td>${escapeHtml(shortKho(r['Kho hiện tại']))}</td>
+            <td>${escapeHtml(r['PIC'] || '')}</td>
+            <td class="order-code">${escapeHtml(r['Order code'] || '')}</td>
+            <td><span class="badge ${r['Loại'] === 'Giao' ? 'storing' : 'waiting'}">${escapeHtml(r['Loại'] || '')}</span></td>
+            <td>${escapeHtml(r['Khách'] || '')}</td>
+            <td>${escapeHtml(r['Ngày nhập kho'] || '')}</td>
             <td>${agingChip(r['Đã lưu kho (ngày)'] || 0)}</td>
-            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r['Địa chỉ giao'] || ''}</td>
+            <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r['Địa chỉ giao'] || '')}</td>
         </tr>
     `).join('');
 }
@@ -1129,10 +1129,10 @@ function renderReturnsSection(clientFilter = '') {
     });
     document.getElementById('tbody-returns').innerHTML = sorted.map(r => `
         <tr>
-            <td>${shortKho(r['Kho'])}</td>
-            <td>${r['Ngày'] || ''}</td>
-            <td style="text-align:center;font-weight:700">${r['Số đơn trả'] || 0}</td>
-            <td style="text-align:right;font-weight:800;color:var(--red)">${r['% FD'] || ''}</td>
+            <td>${escapeHtml(shortKho(r['Kho']))}</td>
+            <td>${escapeHtml(r['Ngày'] || '')}</td>
+            <td style="text-align:center;font-weight:700">${escapeHtml(String(r['Số đơn trả'] || 0))}</td>
+            <td style="text-align:right;font-weight:800;color:var(--red)">${escapeHtml(r['% FD'] || '')}</td>
         </tr>
     `).join('');
 }
@@ -1157,14 +1157,14 @@ function renderReturnsByClient(filter = '') {
 
     tbody.innerHTML = sorted.slice(0, 10).map(r => `
         <tr>
-            <td style="font-weight:600;color:var(--text3);font-size:11px">${r['Thời gian'] || '--'}</td>
-            <td style="text-align:center;font-weight:700;color:var(--orange)">${r['Tổng đơn trả'] || 0}</td>
-            <td style="text-align:right;font-weight:700;color:var(--red)">${r['Trả hàng tổng'] || '0%'}</td>
-            <td style="text-align:right">${r['Trả hàng SHOPEE Bulky'] || '0%'}</td>
-            <td style="text-align:right">${r['Trả hàng TTS Bulky'] || '0%'}</td>
-            <td style="text-align:right">${r['Trả hàng SME'] || '0%'}</td>
-            <td style="text-align:right">${r['Trả hàng B2B'] || '0%'}</td>
-            <td style="text-align:right">${r['Trả hàng Ecommerce'] || '0%'}</td>
+            <td style="font-weight:600;color:var(--text3);font-size:11px">${escapeHtml(r['Thời gian'] || '--')}</td>
+            <td style="text-align:center;font-weight:700;color:var(--orange)">${escapeHtml(String(r['Tổng đơn trả'] || 0))}</td>
+            <td style="text-align:right;font-weight:700;color:var(--red)">${escapeHtml(r['Trả hàng tổng'] || '0%')}</td>
+            <td style="text-align:right">${escapeHtml(r['Trả hàng SHOPEE Bulky'] || '0%')}</td>
+            <td style="text-align:right">${escapeHtml(r['Trả hàng TTS Bulky'] || '0%')}</td>
+            <td style="text-align:right">${escapeHtml(r['Trả hàng SME'] || '0%')}</td>
+            <td style="text-align:right">${escapeHtml(r['Trả hàng B2B'] || '0%')}</td>
+            <td style="text-align:right">${escapeHtml(r['Trả hàng Ecommerce'] || '0%')}</td>
         </tr>
     `).join('');
 }
@@ -1268,7 +1268,7 @@ function renderPersonnelOverview() {
             <tbody>
                 ${posSorted.map(([pos, cnt]) => `
                     <tr>
-                        <td>${pos}</td>
+                        <td>${escapeHtml(pos)}</td>
                         <td style="text-align:right;font-weight:700;color:var(--orange)">${cnt}</td>
                     </tr>
                 `).join('')}
@@ -1288,7 +1288,7 @@ function renderPersonnelOverview() {
             <tbody>
                 ${tenureSorted.map(([tn, cnt]) => `
                     <tr>
-                        <td>${tn}</td>
+                        <td>${escapeHtml(tn)}</td>
                         <td style="text-align:right;font-weight:700;color:var(--orange)">${cnt}</td>
                     </tr>
                 `).join('')}
@@ -1311,13 +1311,13 @@ function renderPersonnelSection(filter = '', posFilter = '') {
         return `
         <tr>
             <td>${i + 1}</td>
-            <td style="font-family:monospace;font-size:12px;color:var(--text3)">${r['ID'] || ''}</td>
-            <td style="font-weight:600">${r['Họ tên'] || ''}</td>
-            <td>${r['Vị trí công việc'] || r['Tên vị trí'] || ''}</td>
-            <td><span class="badge ${loaiHD.includes('Xác định') || loaiHD.includes('chính thức') ? 'storing' : 'p3'}">${loaiHD}</span></td>
-            <td>${r['Thâm niên'] || ''}</td>
-            <td>${shortKho(r['Kho làm việc'] || r['Kho']) || ''}</td>
-            <td>${r['Phòng ban'] || ''}</td>
+            <td style="font-family:monospace;font-size:12px;color:var(--text3)">${escapeHtml(r['ID'] || '')}</td>
+            <td style="font-weight:600">${escapeHtml(r['Họ tên'] || '')}</td>
+            <td>${escapeHtml(r['Vị trí công việc'] || r['Tên vị trí'] || '')}</td>
+            <td><span class="badge ${loaiHD.includes('Xác định') || loaiHD.includes('chính thức') ? 'storing' : 'p3'}">${escapeHtml(loaiHD)}</span></td>
+            <td>${escapeHtml(r['Thâm niên'] || '')}</td>
+            <td>${escapeHtml(shortKho(r['Kho làm việc'] || r['Kho']) || '')}</td>
+            <td>${escapeHtml(r['Phòng ban'] || '')}</td>
         </tr>
     `}).join('');
 }
@@ -1379,8 +1379,8 @@ function renderProductivityWarnings() {
     tbody.innerHTML = list.slice(0, 10).map((r, idx) => `
         <tr>
             <td><span class="badge ${idx < 3 ? 'p1' : 'waiting'}">#${idx + 1}</span></td>
-            <td style="font-weight:600">${r.name}</td>
-            <td>${r.province}</td>
+            <td style="font-weight:600">${escapeHtml(r.name)}</td>
+            <td>${escapeHtml(r.province)}</td>
             <td style="text-align:right;font-weight:700">${r.totalVol.toLocaleString()} đơn</td>
             <td style="text-align:right;font-weight:700;color:var(--red)">${r.pctGtc.toFixed(2)}%</td>
         </tr>
@@ -1656,9 +1656,9 @@ function renderNangSuatSection() {
 
             allTbody.innerHTML = aggregatedList.map(g => `
                 <tr>
-                    <td style="font-size:11px;font-weight:700;color:var(--blue)">${g.tLabel}</td>
-                    <td style="font-weight:600">${g.driver}</td>
-                    <td>${g.province}</td>
+                    <td style="font-size:11px;font-weight:700;color:var(--blue)">${escapeHtml(g.tLabel)}</td>
+                    <td style="font-weight:600">${escapeHtml(g.driver)}</td>
+                    <td>${escapeHtml(g.province)}</td>
                     <td style="text-align:right">${g.avgRate.toFixed(1)}</td>
                     <td style="text-align:right;font-weight:600">${g.totalVol.toLocaleString()}</td>
                     <td style="text-align:right;font-weight:700;color:${g.pctGtc >= 90 ? 'var(--green)' : 'var(--red)'}">${g.pctGtc.toFixed(1)}%</td>
@@ -1680,14 +1680,14 @@ function renderNangSuatSection() {
 
             allTbody.innerHTML = allTableData.sort((a, b) => { const rA = parsePct(a['Tỉ lệ GTC']), rB = parsePct(b['Tỉ lệ GTC']); if (rB !== rA) return rB - rA; return parseVN(b['Ngày']) - parseVN(a['Ngày']); }).map(r => `
                 <tr>
-                    <td style="font-size:11px;color:var(--text3)">${r['Ngày'] || '--'}</td>
-                    <td style="font-weight:600">${r['driver'] || '--'}</td>
-                    <td>${r['to_province_name'] || '--'}</td>
+                    <td style="font-size:11px;color:var(--text3)">${escapeHtml(r['Ngày'] || '--')}</td>
+                    <td style="font-weight:600">${escapeHtml(r['driver'] || '--')}</td>
+                    <td>${escapeHtml(r['to_province_name'] || '--')}</td>
                     <td style="text-align:right">${parseFloat(r['avg_delivery_volume_per_hour'] || 0).toFixed(1)}</td>
                     <td style="text-align:right;font-weight:600">${parseInt(r['volume'] || 0).toLocaleString()}</td>
-                    <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${r['Tỉ lệ GTC'] || '0%'}</td>
-                    <td style="font-size:11px">${r['first_3_delivery'] || '--'}</td>
-                    <td style="font-size:11px">${r['last_3_delivery'] || '--'}</td>
+                    <td style="text-align:right;font-weight:700;color:${parsePct(r['Tỉ lệ GTC']) >= 90 ? 'var(--green)' : 'var(--red)'}">${escapeHtml(r['Tỉ lệ GTC'] || '0%')}</td>
+                    <td style="font-size:11px">${escapeHtml(r['first_3_delivery'] || '--')}</td>
+                    <td style="font-size:11px">${escapeHtml(r['last_3_delivery'] || '--')}</td>
                 </tr>
             `).join('');
         }
@@ -1885,8 +1885,8 @@ function renderXeGxtSection() {
         tbody.innerHTML = list.map((item, index) => `
             <tr>
                 <td style="color:var(--text3)">${index + 1}</td>
-                <td>${item.tinh}</td>
-                <td style="font-weight:600;color:var(--blue)">${item.kho}</td>
+                <td>${escapeHtml(item.tinh)}</td>
+                <td style="font-weight:600;color:var(--blue)">${escapeHtml(item.kho)}</td>
                 <td style="text-align:right;font-weight:700;color:var(--orange)">${item.total.toLocaleString()} xe</td>
             </tr>
         `).join('');
@@ -1908,13 +1908,13 @@ function renderXeGxtSection() {
             tbodyDetail.innerHTML = filteredRaw.map((r, index) => `
                 <tr>
                     <td style="color:var(--text3)">${index + 1}</td>
-                    <td>${r['Tỉnh'] || '--'}</td>
-                    <td style="font-weight:600">${r['Kho'] || '--'}</td>
-                    <td>${r['Tên NCC'] || '--'}</td>
-                    <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${r['Loại xe'] || '--'}</span></td>
+                    <td>${escapeHtml(r['Tỉnh'] || '--')}</td>
+                    <td style="font-weight:600">${escapeHtml(r['Kho'] || '--')}</td>
+                    <td>${escapeHtml(r['Tên NCC'] || '--')}</td>
+                    <td><span class="badge" style="background:var(--bg2);color:var(--text1)">${escapeHtml(r['Loại xe'] || '--')}</span></td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${parseInt(r['Tổng xe đang chạy'] || 0).toLocaleString()}</td>
-                    <td style="font-size:0.85rem">${r['Ca làm việc'] || '--'}</td>
-                    <td style="text-align:right;font-weight:700;color:var(--orange)">${(r['Giá thuê xe'] || r['Gía thuê xe']) || '--'}</td>
+                    <td style="font-size:0.85rem">${escapeHtml(r['Ca làm việc'] || '--')}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--orange)">${escapeHtml((r['Giá thuê xe'] || r['Gía thuê xe']) || '--')}</td>
                 </tr>
             `).join('');
         }
@@ -1979,7 +1979,12 @@ function renderXeSuCoSection() {
     if (dayCont && dayCont.children.length === 0) {
         days.forEach(d => {
             const lbl = document.createElement('label');
-            lbl.innerHTML = `<input type="checkbox" value="${d}" class="filter-xesuco-day"> ${d}`;
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.value = d;  // textContent an toàn, không cần escape
+            chk.className = 'filter-xesuco-day';
+            lbl.appendChild(chk);
+            lbl.appendChild(document.createTextNode(' ' + d));
             dayCont.appendChild(lbl);
         });
         dayCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
@@ -2000,7 +2005,12 @@ function renderXeSuCoSection() {
     if (weekCont && weekCont.children.length === 0) {
         weeks.forEach(w => {
             const lbl = document.createElement('label');
-            lbl.innerHTML = `<input type="checkbox" value="${w}" class="filter-xesuco-week"> ${w}`;
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.value = w;
+            chk.className = 'filter-xesuco-week';
+            lbl.appendChild(chk);
+            lbl.appendChild(document.createTextNode(' ' + w));
             weekCont.appendChild(lbl);
         });
         weekCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
@@ -2024,7 +2034,12 @@ function renderXeSuCoSection() {
     if (monthCont && monthCont.children.length === 0) {
         months.forEach(m => {
             const lbl = document.createElement('label');
-            lbl.innerHTML = `<input type="checkbox" value="${m}" class="filter-xesuco-month"> Tháng ${m}`;
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.value = m;
+            chk.className = 'filter-xesuco-month';
+            lbl.appendChild(chk);
+            lbl.appendChild(document.createTextNode(' Tháng ' + m));
             monthCont.appendChild(lbl);
         });
         monthCont.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
@@ -2066,14 +2081,14 @@ function renderXeSuCoSection() {
     tbodyRaw.innerHTML = filtered.map((r, i) => `
         <tr>
             <td style="color:var(--text3)">${i + 1}</td>
-            <td>${r['Tỉnh'] || ''}</td>
-            <td>${r['ID'] || ''}</td>
-            <td style="font-weight:600">${r['Kho'] || ''}</td>
-            <td>${r['Ngày'] || ''}</td>
-            <td style="color:var(--red)">${r['Lỗi'] || ''}</td>
-            <td style="font-size:0.85rem; max-width:300px; white-space:normal">${r['Nội Dung Chi Tiết'] || ''}</td>
-            <td style="font-weight:600">${r['Biển Số Xe'] || ''}</td>
-            <td>${r['NCC'] || ''}</td>
+            <td>${escapeHtml(r['Tỉnh'] || '')}</td>
+            <td>${escapeHtml(r['ID'] || '')}</td>
+            <td style="font-weight:600">${escapeHtml(r['Kho'] || '')}</td>
+            <td>${escapeHtml(r['Ngày'] || '')}</td>
+            <td style="color:var(--red)">${escapeHtml(r['Lỗi'] || '')}</td>
+            <td style="font-size:0.85rem; max-width:300px; white-space:normal">${escapeHtml(r['Nội Dung Chi Tiết'] || '')}</td>
+            <td style="font-weight:600">${escapeHtml(r['Biển Số Xe'] || '')}</td>
+            <td>${escapeHtml(r['NCC'] || '')}</td>
         </tr>
     `).join('');
 }
@@ -2096,14 +2111,14 @@ function renderKhoGxtSection() {
 
     tbody.innerHTML = sorted.map(r => `
         <tr>
-            <td style="font-weight:600">${r['Tên'] || '--'}</td>
-            <td>${r['Số điện thoại'] || '--'}</td>
-            <td style="color:var(--text3)">${r['ID Kho'] || ''}</td>
-            <td style="font-weight:700; color:var(--blue)">${r['Tên Kho GXT'] || ''}</td>
-            <td>${r['Tỉnh'] || ''}</td>
-            <td>${r['Diện Tích'] || ''}</td>
-            <td><span class="badge" style="background:${r['Tình trạng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['Tình trạng'] === 'Active' ? '#2E7D32' : '#C62828'}">${r['Tình trạng'] || ''}</span></td>
-            <td style="font-size:0.85rem">${r['Địa chỉ kho'] || ''}</td>
+            <td style="font-weight:600">${escapeHtml(r['Tên'] || '--')}</td>
+            <td>${escapeHtml(r['Số điện thoại'] || '--')}</td>
+            <td style="color:var(--text3)">${escapeHtml(r['ID Kho'] || '')}</td>
+            <td style="font-weight:700; color:var(--blue)">${escapeHtml(r['Tên Kho GXT'] || '')}</td>
+            <td>${escapeHtml(r['Tỉnh'] || '')}</td>
+            <td>${escapeHtml(r['Diện Tích'] || '')}</td>
+            <td><span class="badge" style="background:${r['Tình trạng'] === 'Active' ? '#E8F5E9' : '#FFEBEE'}; color:${r['Tình trạng'] === 'Active' ? '#2E7D32' : '#C62828'}">${escapeHtml(r['Tình trạng'] || '')}</span></td>
+            <td style="font-size:0.85rem">${escapeHtml(r['Địa chỉ kho'] || '')}</td>
         </tr>
     `).join('');
 }

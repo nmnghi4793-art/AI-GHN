@@ -1,6 +1,8 @@
 import sys
 import os
 import secrets
+import time
+from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -10,9 +12,9 @@ from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 import csv
 import io
-import time
 import urllib.request
 
 app = FastAPI(
@@ -35,6 +37,44 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
 )
+
+# ---- SECURITY HEADERS MIDDLEWARE ----
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Thêm security headers vào tất cả HTTP response."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'unsafe-inline'; "
+            "style-src 'self' fonts.googleapis.com cdnjs.cloudflare.com 'unsafe-inline'; "
+            "font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com data:; "
+            "img-src 'self' data:; "
+            "connect-src 'self';"
+        )
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# ---- RATE LIMITING (in-memory, không cần thêm dependency) ----
+_LOGIN_ATTEMPTS: dict = defaultdict(list)
+_RATE_LIMIT_MAX = 5       # Tối đa 5 lần thử
+_RATE_LIMIT_WINDOW = 60   # Trong vòng 60 giây
+
+def _check_login_rate_limit(ip: str) -> bool:
+    """Trả về True nếu được phép, False nếu bị rate limit."""
+    now = time.time()
+    cutoff = now - _RATE_LIMIT_WINDOW
+    # Xóa các attempt cũ ngoài cửa sổ thời gian
+    _LOGIN_ATTEMPTS[ip] = [t for t in _LOGIN_ATTEMPTS[ip] if t > cutoff]
+    if len(_LOGIN_ATTEMPTS[ip]) >= _RATE_LIMIT_MAX:
+        return False
+    _LOGIN_ATTEMPTS[ip].append(now)
+    return True
 
 # ---- API AUTH: Bearer token / session validation ----
 _API_TOKEN = os.environ.get("API_SECRET_TOKEN", "")
@@ -186,8 +226,17 @@ _ACTIVE_SESSIONS: dict = {}
 SESSION_TTL = 8 * 3600  # 8 tiếng
 
 @app.post("/api/auth/login")
-async def login(payload: dict):
+async def login(request: Request, payload: dict):
     """Xác thực username/password, trả về session token."""
+    # Rate limiting: tối đa 5 lần thử/phút/IP
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_login_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Quá nhiều lần thử đăng nhập. Vui lòng đợi 1 phút.",
+            headers={"Retry-After": "60"}
+        )
+
     username = (payload.get("username") or "").strip()
     password = payload.get("password") or ""
 
