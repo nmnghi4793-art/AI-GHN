@@ -2342,20 +2342,35 @@ function switchKhoXeTab(tab) {
     document.getElementById('khoxe-tab-btn-' + tab).classList.add('active');
 }
 
+/**
+ * Chuyển tab bên trong section Cảnh Báo Rủi Ro
+ * @param {'warnings'|'forecast'|'overload'|'dontao'} tab
+ */
+function switchCbrTab(tab) {
+    ['warnings', 'forecast', 'overload', 'dontao'].forEach(t => {
+        document.getElementById('cbr-panel-' + t).style.display = 'none';
+        document.getElementById('cbr-tab-btn-' + t).classList.remove('active');
+    });
+    document.getElementById('cbr-panel-' + tab).style.display = 'block';
+    document.getElementById('cbr-tab-btn-' + tab).classList.add('active');
+}
+
 // ---- NAVIGATION ----
 const SECTION_META = {
     overview:  ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
-    warnings:  ['Hệ Thống Cảnh Báo',       'Danh sách đơn hàng cần xử lý khẩn cấp và cảnh báo vận hành'],
-    gtc:       ['GTC & Năng Suất',          'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
+    cbr:       ['Cảnh Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
+    warnings:  ['Cảnh Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
+    forecast:  ['Cảnh Báo Rủi Ro',         'Tab Dự Báo Rủi Ro'],
+    gtc:       ['GTC và Năng Suất',       'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
     backlog:   ['Backlog > 7 Ngày',         'Đơn hàng tồn lâu trên 7 ngày cần ưu tiên xử lý'],
     b2b:       ['B2B & SLA',               'Theo dõi đơn B2B ưu tiên và cam kết SLA với đối tác'],
     returns:   ['Trả Hàng & FD',            'Phân tích lý do trả hàng và freeship đảo hàng'],
     personnel: ['Nhân Sự',                  'Danh sách nhân viên và thông tin phân công'],
-    nangsuat:  ['Năng Suất Nhân Viên',      'Thống kê năng suất xử lý đơn hàng theo từng nhân viên'],
-    xegxt:     ['Xe GXT',                   'Danh sách và trạng thái xe GXT / Delivery Staff'],
-    xesuco:    ['Xe Sự Cố',                 'Xe đang gặp sự cố cần kiểm tra và xử lý'],
-    khogxt:    ['Danh Sách Kho GXT',        'Thông tin chi tiết các kho GXT trong mạng lưới'],
-    forecast:  ['Dự Báo Rủi Ro Kho',       'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
+    nangsuat:  ['GTC và Năng Suất',       'Tab Năng Suất NV'],
+    khoxe:     ['Kho và Xe GXT',           'Danh sách kho, xe và xe sự cố GXT'],
+    xegxt:     ['Kho và Xe GXT',           'Tab Xe GXT'],
+    xesuco:    ['Kho và Xe GXT',           'Tab Xe Sự Cố'],
+    khogxt:    ['Kho và Xe GXT',           'Tab Kho GXT'],
     dontao:    ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 

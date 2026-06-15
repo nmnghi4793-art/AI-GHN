@@ -158,8 +158,8 @@
             <a href="#" class="nav-item active" data-section="overview" id="nav-overview">
                 <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
             </a>
-            <a href="#" class="nav-item" data-section="warnings" id="nav-warnings">
-                <i class="fa-solid fa-bell"></i><span>Hệ Thống Cảnh Báo</span>
+            <a href="#" class="nav-item" data-section="cbr" id="nav-cbr">
+                <i class="fa-solid fa-shield-exclamation"></i><span>Cảnh Báo Rủi Ro</span>
                 <span class="nav-badge danger" id="nav-warnings-count">--</span>
             </a>
             <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
@@ -182,10 +182,7 @@
             <a href="#" class="nav-item" data-section="khoxe" id="nav-khoxe">
                 <i class="fa-solid fa-warehouse"></i><span>Kho và Xe GXT</span>
             </a>
-            <a href="#" class="nav-item" data-section="forecast" id="nav-forecast">
-                <i class="fa-solid fa-magnifying-glass-chart"></i><span>Dự Báo Rủi Ro Kho</span>
-                <span class="nav-badge danger" id="nav-forecast-count" style="display:none">!</span>
-            </a>
+            
             <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
                 <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
             </a>
@@ -474,264 +471,252 @@
         </section>
 
         <!-- ===== SECTION: DỰ BÁO RỦI RO KHO ===== -->
-        <section class="section" id="section-forecast">
-            <div class="section-filters"
-                style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
-                <input type="text" id="filter-forecast-kho" placeholder="🔍 Tìm kho..." class="filter-input"
-                    style="width:200px; height:42px;">
-                <select id="filter-forecast-risk" class="filter-select" style="height:42px;">
-                    <option value="">Tất cả mức độ rủi ro</option>
-                    <option value="critical">🔴 Nghiêm trọng</option>
-                    <option value="warning">🟠 Cảnh báo</option>
-                    <option value="watch">🟡 Theo dõi</option>
-                    <option value="good">🟢 Ổn định</option>
-                </select>
+        <!-- ===== SECTION: CẢNH BÁO RỦI RO (gộp) ===== -->
+        <section class="section" id="section-cbr">
+            <!-- KPI TAB BAR -->
+            <div class="kpi-tab-bar" id="cbr-tabbar">
+                <button class="kpi-tab-btn active" id="cbr-tab-btn-warnings" onclick="switchCbrTab('warnings')">
+                    <i class="fa-solid fa-bell"></i> Tình Trạng Hiện Tại
+                </button>
+                <button class="kpi-tab-btn" id="cbr-tab-btn-forecast" onclick="switchCbrTab('forecast')">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i> Dự Báo Rủi Ro
+                </button>
+                <button class="kpi-tab-btn" id="cbr-tab-btn-overload" onclick="switchCbrTab('overload')">
+                    <i class="fa-solid fa-boxes-stacked"></i> Dự Báo Quá Tải
+                </button>
+                <button class="kpi-tab-btn" id="cbr-tab-btn-dontao" onclick="switchCbrTab('dontao')">
+                    <i class="fa-solid fa-truck-ramp-box"></i> N-1 vs GTC Max
+                </button>
             </div>
 
-            <!-- KPI Tổng hợp -->
-            <div class="overview-cards" style="margin-bottom:20px">
-                <div class="stat-card red-card">
-                    <div class="stat-icon red"><i class="fa-solid fa-circle-radiation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Rủi Ro Cao</h3>
-                        <h2 id="fc-critical-count" class="text-danger">--</h2>
-                        <p class="stat-sub">Cần can thiệp ngay</p>
-                    </div>
+            <!-- ===== TAB 1: TÌNH TRẠNG HIỆN TẠI ===== -->
+            <div id="cbr-panel-warnings" class="gtc-tab-pane">
+                <div class="section-filters">
+                    <input type="text" id="filter-kho-warnings" placeholder="🔍 Tìm kho..." class="filter-input">
+                    <select id="filter-status-warnings" class="filter-select">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="Nghiêm trọng">Nghiêm trọng</option>
+                        <option value="Cảnh báo">Cảnh báo</option>
+                        <option value="Bình thường">Bình thường</option>
+                    </select>
                 </div>
-                <div class="stat-card orange-card">
-                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Cảnh Báo</h3>
-                        <h2 id="fc-warning-count" class="text-warning">--</h2>
-                        <p class="stat-sub">Theo dõi chặt chẽ</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-eye"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3>Kho Cần Theo Dõi</h3>
-                        <h2 id="fc-watch-count" style="color:#F08C00">--</h2>
-                        <p class="stat-sub">Có dấu hiệu xuống cấp</p>
-                    </div>
-                </div>
-                <div class="stat-card green-card">
-                    <div class="stat-icon green"><i class="fa-solid fa-shield-halved"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Ổn Định</h3>
-                        <h2 id="fc-good-count" class="text-green">--</h2>
-                        <p class="stat-sub">Vận hành bình thường</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bảng dự báo chi tiết -->
-            <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--purple)"></i> Dự Báo Rủi Ro Vận
-                        Hành Từng Kho — Vài Ngày Tới</h3>
-                    <div style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên phân tích: GTC N-1, Xu
-                        hướng GTC 7 ngày, Backlog, Năng suất nhân viên</div>
-                </div>
-                <div class="table-scroll" style="max-height:none">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Kho</th>
-                                <th style="text-align:center">Rủi ro</th>
-                                <th style="text-align:center">Điểm</th>
-                                <th style="text-align:right">GTC N-1</th>
-                                <th style="text-align:right">GTC TB 7N</th>
-                                <th style="text-align:right">GTC Max 7N</th>
-                                <th style="text-align:right">Xu hướng GTC</th>
-                                <th style="text-align:right">Backlog LM</th>
-                                <th style="text-align:right">Backlog KTC</th>
-                                <th>Cảnh báo chính</th>
-                                <th>Khuyến nghị</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-forecast"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Ghi chú phương pháp -->
-            <div
-                style="margin-top:16px; padding:14px 18px; background:linear-gradient(135deg,#f8fafc,#eef2ff); border-radius:12px; border:1px solid #c7d2fe; font-size:12px; color:var(--text2);">
-                <strong style="color:var(--purple)"><i class="fa-solid fa-circle-info"></i> Phương pháp tính điểm rủi
-                    ro:</strong>
-                <span style="margin-left:8px">
-                    🔴 GTC &lt; 82% → +40đ &nbsp;|&nbsp;
-                    🟠 GTC 82-87% → +20đ &nbsp;|&nbsp;
-                    📉 Xu hướng GTC giảm &gt;3% → +25đ &nbsp;|&nbsp;
-                    📦 Backlog LM &gt;500 → +20đ &nbsp;|&nbsp;
-                    📦 Backlog KTC &gt;200 → +15đ &nbsp;|&nbsp;
-                    ⚠️ Đã cảnh báo (sheet) → +30đ
-                </span>
-            </div>
-
-            <!-- ===== BẢNG DỰ BÁO QUÁ TẢI KHO ===== -->
-            <div class="table-card" style="margin-top:28px;">
-                <div class="table-header">
-                    <div>
-                        <h3><i class="fa-solid fa-boxes-stacked" style="color:var(--orange)"></i> Dự Báo Quá Tải & Số
-                            Ngày Trở Lại Bình Thường</h3>
-                        <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
-                            Tính từ: Backlog KTC + Backlog LM + Đơn tạo N-1 &nbsp;|&nbsp; Năng lực = Đơn tạo × GTC%
-                            &nbsp;|&nbsp; Số ngày = Tổng áp lực ÷ Công suất giải phóng
+                <div class="overview-cards">
+                    <div class="stat-card red-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Nghiêm Trọng</h3>
+                            <h2 id="warn-critical-count" class="text-danger">--</h2>
+                            <p class="stat-sub">Cần xử lý tức thì</p>
                         </div>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <div style="display:flex;gap:6px;">
-                            <span
-                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🔴
-                                Quá tải</span>
-                            <span
-                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">🟠
-                                Nguy cơ</span>
-                            <span
-                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFFDE7;color:#F08C00;padding:4px 10px;border-radius:20px;font-weight:600">🟡
-                                Theo dõi</span>
-                            <span
-                                style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">🟢
-                                Ổn định</span>
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Bất Ổn</h3>
+                            <h2 id="warn-warning-count" class="text-warning">--</h2>
+                            <p class="stat-sub">Cần theo dõi sát</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i></div>
+                        <div class="stat-details">
+                            <h3>Cảnh Báo Sắp Tới</h3>
+                            <h2 id="warn-upcoming-count" style="color:#F08C00">--</h2>
+                            <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
+                        </div>
+                    </div>
+                    <div class="stat-card blue-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="stat-details">
+                            <h3>Ngày Trở Lại Bình Thường</h3>
+                            <h2 id="warn-avg-days" style="color:var(--blue)">--</h2>
+                            <p class="stat-sub">Trung bình toàn vùng</p>
                         </div>
                     </div>
                 </div>
-                <div class="table-scroll" style="max-height:none;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Kho</th>
-                                <th style="text-align:center">Trạng thái</th>
-                                <th style="text-align:right">Đơn Tạo N-1</th>
-                                <th style="text-align:right">Backlog LM</th>
-                                <th style="text-align:right">Backlog KTC</th>
-                                <th style="text-align:right">GTC N-1 (đơn)</th>
-                                <th style="text-align:right">Đơn Cần Clear</th>
-                                <th>Đề xuất hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-overload"></tbody>
-                    </table>
+                <div class="table-card" style="margin-top:18px">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-shield-heart" style="color:var(--green)"></i> Trạng Thái Sức Khỏe Mạng Lưới</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th>Trạng Thái Hiện Tại</th>
+                                    <th>Backlog Last Mile</th>
+                                    <th>Backlog KTC</th>
+                                    <th>Tổng Backlog</th>
+                                    <th>Đơn N-1 (Tạo / GTC)</th>
+                                    <th>tb gtc (L7D)</th>
+                                    <th>max gtc (L7D)</th>
+                                    <th>Số Ngày Về Bình Thường</th>
+                                    <th>Dự Báo Sắp Tới</th>
+                                    <th>Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-warnings"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- ===== BẢNG CẢNH BÁO HÀNG TẠO vs GTC MAX ===== -->
-            <div class="table-card" style="margin-top:28px;">
-                <div class="table-header">
-                    <div>
-                        <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--red)"></i> Cảnh Báo Hàng Tạo N-1 vs
-                            Năng Lực GTC Max</h3>
-                        <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
-                            So sánh <strong>Đơn Tạo N-1</strong> với <strong>Số đơn GTC cao nhất 1 ngày trong 7 ngày gần
-                                nhất</strong> của từng kho.
-                            Nếu hàng tạo &gt; 1.5× GTC max → nguy cơ tồn hàng cao, cần chuẩn bị xe tăng cường.
+            <!-- ===== TAB 2: DỰ BÁO RỦI RO TỪNG KHO ===== -->
+            <div id="cbr-panel-forecast" class="gtc-tab-pane" style="display:none">
+                <div class="section-filters" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+                    <input type="text" id="filter-forecast-kho" placeholder="🔍 Tìm kho..." class="filter-input" style="width:200px; height:42px;">
+                    <select id="filter-forecast-risk" class="filter-select" style="height:42px;">
+                        <option value="">Tất cả mức độ rủi ro</option>
+                        <option value="critical">🔴 Nghiêm trọng</option>
+                        <option value="warning">🟠 Cảnh báo</option>
+                        <option value="watch">🟡 Theo dõi</option>
+                        <option value="good">🟢 Ổn định</option>
+                    </select>
+                </div>
+                <div class="overview-cards" style="margin-bottom:20px">
+                    <div class="stat-card red-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-circle-radiation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Rủi Ro Cao</h3>
+                            <h2 id="fc-critical-count" class="text-danger">--</h2>
+                            <p class="stat-sub">Cần can thiệp ngay</p>
                         </div>
                     </div>
-                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                        <span
-                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🚛
-                            &gt;1.5x — Tăng xe ngay</span>
-                        <span
-                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">⚠️
-                            &gt;1.2x — Theo dõi sát</span>
-                        <span
-                            style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅
-                            An toàn</span>
+                    <div class="stat-card orange-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Cảnh Báo</h3>
+                            <h2 id="fc-warning-count" class="text-warning">--</h2>
+                            <p class="stat-sub">Theo dõi chặt chẽ</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
+                        <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-eye"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Cần Theo Dõi</h3>
+                            <h2 id="fc-watch-count" style="color:#F08C00">--</h2>
+                            <p class="stat-sub">Có dấu hiệu xuống cấp</p>
+                        </div>
+                    </div>
+                    <div class="stat-card green-card">
+                        <div class="stat-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div class="stat-details">
+                            <h3>Kho Ổn Định</h3>
+                            <h2 id="fc-good-count" class="text-green">--</h2>
+                            <p class="stat-sub">Vận hành bình thường</p>
+                        </div>
                     </div>
                 </div>
-                <div class="table-scroll" style="max-height:none;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Kho</th>
-                                <th style="text-align:right">Đơn Tạo N-1</th>
-                                <th style="text-align:right">GTC Max/Ngày (7N)</th>
-                                <th style="text-align:center">Tỉ lệ</th>
-                                <th style="text-align:center">Mức độ</th>
-                                <th>Cảnh báo & Đề xuất</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-dontao-vs-gtc"></tbody>
-                    </table>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--purple)"></i> Dự Báo Rủi Ro Vận Hành Từng Kho — Vài Ngày Tới</h3>
+                        <div style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên phân tích: GTC N-1, Xu hướng GTC 7 ngày, Backlog, Năng suất nhân viên</div>
+                    </div>
+                    <div class="table-scroll" style="max-height:none">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:center">Rủi ro</th>
+                                    <th style="text-align:center">Điểm</th>
+                                    <th style="text-align:right">GTC N-1</th>
+                                    <th style="text-align:right">GTC TB 7N</th>
+                                    <th style="text-align:right">GTC Max 7N</th>
+                                    <th style="text-align:right">Xu hướng GTC</th>
+                                    <th style="text-align:right">Backlog LM</th>
+                                    <th style="text-align:right">Backlog KTC</th>
+                                    <th>Cảnh báo chính</th>
+                                    <th>Khuyến nghị</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-forecast"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top:16px; padding:14px 18px; background:linear-gradient(135deg,#f8fafc,#eef2ff); border-radius:12px; border:1px solid #c7d2fe; font-size:12px; color:var(--text2);">
+                    <strong style="color:var(--purple)"><i class="fa-solid fa-circle-info"></i> Phương pháp tính điểm rủi ro:</strong>
+                    <span style="margin-left:8px">
+                        🔴 GTC &lt; 82% → +40đ &nbsp;|&nbsp;
+                        🟠 GTC 82-87% → +20đ &nbsp;|&nbsp;
+                        📉 Xu hướng GTC giảm &gt;3% → +25đ &nbsp;|&nbsp;
+                        📦 Backlog LM &gt;500 → +20đ &nbsp;|&nbsp;
+                        📦 Backlog KTC &gt;200 → +15đ &nbsp;|&nbsp;
+                        ⚠️ Đã cảnh báo (sheet) → +30đ
+                    </span>
                 </div>
             </div>
 
-        </section>
-
-        <!-- ===== SECTION: HỆ THỐNG CẢNH BÁO ===== -->
-        <section class="section" id="section-warnings">
-            <div class="section-filters">
-                <input type="text" id="filter-kho-warnings" placeholder="🔍 Tìm kho..." class="filter-input">
-                <select id="filter-status-warnings" class="filter-select">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="Nghiêm trọng">Nghiêm trọng</option>
-                    <option value="Cảnh báo">Cảnh báo</option>
-                    <option value="Bình thường">Bình thường</option>
-                </select>
-            </div>
-
-            <div class="overview-cards">
-                <div class="stat-card red-card">
-                    <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Nghiêm Trọng</h3>
-                        <h2 id="warn-critical-count" class="text-danger">--</h2>
-                        <p class="stat-sub">Cần xử lý tức thì</p>
+            <!-- ===== TAB 3: DỰ BÁO QUÁ TẢI ===== -->
+            <div id="cbr-panel-overload" class="gtc-tab-pane" style="display:none">
+                <div class="table-card">
+                    <div class="table-header">
+                        <div>
+                            <h3><i class="fa-solid fa-boxes-stacked" style="color:var(--orange)"></i> Dự Báo Quá Tải &amp; Số Ngày Trở Lại Bình Thường</h3>
+                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                                Tính từ: Backlog KTC + Backlog LM + Đơn tạo N-1 &nbsp;|&nbsp; Năng lực = Đơn tạo × GTC% &nbsp;|&nbsp; Số ngày = Tổng áp lực ÷ Công suất giải phóng
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <div style="display:flex;gap:6px;">
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🔴 Quá tải</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">🟠 Nguy cơ</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFFDE7;color:#F08C00;padding:4px 10px;border-radius:20px;font-weight:600">🟡 Theo dõi</span>
+                                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">🟢 Ổn định</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card orange-card">
-                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Bất Ổn</h3>
-                        <h2 id="warn-warning-count" class="text-warning">--</h2>
-                        <p class="stat-sub">Cần theo dõi sát</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3>Cảnh Báo Sắp Tới</h3>
-                        <h2 id="warn-upcoming-count" style="color:#F08C00">--</h2>
-                        <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
-                    </div>
-                </div>
-                <div class="stat-card blue-card">
-                    <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
-                    <div class="stat-details">
-                        <h3>Ngày Trở Lại Bình Thường</h3>
-                        <h2 id="warn-avg-days" style="color:var(--blue)">--</h2>
-                        <p class="stat-sub">Trung bình toàn vùng</p>
+                    <div class="table-scroll" style="max-height:none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:center">Trạng thái</th>
+                                    <th style="text-align:right">Đơn Tạo N-1</th>
+                                    <th style="text-align:right">Backlog LM</th>
+                                    <th style="text-align:right">Backlog KTC</th>
+                                    <th style="text-align:right">GTC N-1 (đơn)</th>
+                                    <th style="text-align:right">Đơn Cần Clear</th>
+                                    <th>Đề xuất hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-overload"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <div class="table-card" style="margin-top:18px">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-shield-heart" style="color:var(--green)"></i> Trạng Thái Sức Khỏe Mạng
-                        Lưới</h3>
-                </div>
-                <div class="table-scroll" style="max-height: none;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Kho</th>
-                                <th>Trạng Thái Hiện Tại</th>
-                                <th>Backlog Last Mile</th>
-                                <th>Backlog KTC</th>
-                                <th>Tổng Backlog</th>
-                                <th>Đơn N-1 (Tạo / GTC)</th>
-                                <th>tb gtc (L7D)</th>
-                                <th>max gtc (L7D)</th>
-                                <th>Số Ngày Về Bình Thường</th>
-                                <th>Dự Báo Sắp Tới</th>
-                                <th>Rank</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-warnings"></tbody>
-                    </table>
+            <!-- ===== TAB 4: CẢNH BÁO N-1 vs GTC MAX ===== -->
+            <div id="cbr-panel-dontao" class="gtc-tab-pane" style="display:none">
+                <div class="table-card">
+                    <div class="table-header">
+                        <div>
+                            <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--red)"></i> Cảnh Báo Hàng Tạo N-1 vs Năng Lực GTC Max</h3>
+                            <div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px">
+                                So sánh <strong>Đơn Tạo N-1</strong> với <strong>Số đơn GTC cao nhất 1 ngày trong 7 ngày gần nhất</strong> của từng kho.
+                                Nếu hàng tạo &gt; 1.5× GTC max → nguy cơ tồn hàng cao, cần chuẩn bị xe tăng cường.
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFEBEE;color:var(--red);padding:4px 10px;border-radius:20px;font-weight:600">🚛 &gt;1.5x — Tăng xe ngay</span>
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#FFF3E0;color:var(--orange);padding:4px 10px;border-radius:20px;font-weight:600">⚠️ &gt;1.2x — Theo dõi sát</span>
+                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#E8F5E9;color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅ An toàn</span>
+                        </div>
+                    </div>
+                    <div class="table-scroll" style="max-height:none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th style="text-align:right">Đơn Tạo N-1</th>
+                                    <th style="text-align:right">GTC Max/Ngày (7N)</th>
+                                    <th style="text-align:center">Tỉ lệ</th>
+                                    <th style="text-align:center">Mức độ</th>
+                                    <th>Cảnh báo &amp; Đề xuất</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-dontao-vs-gtc"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
