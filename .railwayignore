@@ -1,0 +1,27 @@
+# Loại bỏ file không cần thiết khỏi Railway snapshot
+cloudflared.exe
+*.exe
+__pycache__/
+*.pyc
+*.pyo
+mock_data/
+scratch/
+scratch_don_tao.csv
+all_user_requests.txt
+check_cols.py
+check_data.py
+check_status.py
+clean_js.py
+diagnose.py
+dump_xe_gxt.py
+find_lines.py
+fix_encoding.py
+header.txt
+header_full.txt
+start.bat
+start.sh
+test.py
+update_all_kpis.py
+update_htmls.py
+*.csv
+security-rules.md
