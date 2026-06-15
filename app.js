@@ -133,6 +133,25 @@ function parseVN(s) {
 let nextSyncTime = Date.now() + 5 * 60 * 1000;
 let syncTimerInterval = null;
 
+/**
+ * fetch có auth header + tự động logout nếu token hết hạn (401/403)
+ */
+async function authFetch(url, fallback = null) {
+    try {
+        const r = await fetch(url, { headers: getAuthHeaders() });
+        if (r.status === 401 || r.status === 403) {
+            // Token hết hạn hoặc không hợp lệ → buộc đăng nhập lại
+            clearApiToken();
+            localStorage.removeItem('ghn_logged_in');
+            window.location.reload();
+            return fallback;
+        }
+        return await r.json();
+    } catch (e) {
+        return fallback;
+    }
+}
+
 async function fetchAll(force = false) {
     const btn = document.getElementById('refresh-btn');
     if (force) {
@@ -142,22 +161,21 @@ async function fetchAll(force = false) {
 
     try {
         const query = force ? '?force=true' : '';
-        const h = { headers: getAuthHeaders() };
         const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt, dontao] = await Promise.all([
-            fetch(`${API}/dashboard/overview${query}`, h).then(r => r.json()).catch(e => ({})),
-            fetch(`${API}/kpi/gtc${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/kpi/ontime${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/returns${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/backlog/critical${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/backlog/b2b${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/personnel${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/nang-suat${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/warnings${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/returns/by-client${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/xe-gxt${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/xe-su-co${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/kho-gxt${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
-            fetch(`${API}/don-tao${query}`, h).then(r => r.json()).catch(e => ({ data: [] })),
+            authFetch(`${API}/dashboard/overview${query}`, {}),
+            authFetch(`${API}/kpi/gtc${query}`, { data: [] }),
+            authFetch(`${API}/kpi/ontime${query}`, { data: [] }),
+            authFetch(`${API}/returns${query}`, { data: [] }),
+            authFetch(`${API}/backlog/critical${query}`, { data: [] }),
+            authFetch(`${API}/backlog/b2b${query}`, { data: [] }),
+            authFetch(`${API}/personnel${query}`, { data: [] }),
+            authFetch(`${API}/nang-suat${query}`, { data: [] }),
+            authFetch(`${API}/warnings${query}`, { data: [] }),
+            authFetch(`${API}/returns/by-client${query}`, { data: [] }),
+            authFetch(`${API}/xe-gxt${query}`, { data: [] }),
+            authFetch(`${API}/xe-su-co${query}`, { data: [] }),
+            authFetch(`${API}/kho-gxt${query}`, { data: [] }),
+            authFetch(`${API}/don-tao${query}`, { data: [] }),
         ]);
 
         state = {
