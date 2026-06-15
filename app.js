@@ -750,12 +750,22 @@ function populateGtcTimeSelects() {
 function renderMultiselectItems(mode, values) {
     const menu = document.getElementById('menu-gtc-' + mode);
     if (!menu) return;
-    menu.innerHTML = values.map(v => `
-        <div class="ghn-filter-item">
-            <input type="checkbox" id="chk-${mode}-${v}" value="${v}" onchange="updateGtcTimeMode('${mode}')">
-            <label for="chk-${mode}-${v}">${mode === 'day' ? v : (mode === 'week' ? 'Tuần ' + v : (mode === 'month' ? 'Tháng ' + v : v))}</label>
-        </div>
-    `).join('');
+    menu.innerHTML = '';
+    values.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'ghn-filter-item';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `chk-${mode}-${v}`;
+        chk.value = v;  // DOM property, không cần escape
+        chk.setAttribute('onchange', `updateGtcTimeMode('${mode}')`);
+        const lbl = document.createElement('label');
+        lbl.htmlFor = chk.id;
+        lbl.textContent = mode === 'day' ? v : (mode === 'week' ? 'Tuần ' + v : (mode === 'month' ? 'Tháng ' + v : v));
+        item.appendChild(chk);
+        item.appendChild(lbl);
+        menu.appendChild(item);
+    });
 }
 
 // ---- GTC SECTION ----
@@ -1395,12 +1405,22 @@ let nsFiltersInit = false;
 function renderNsMultiItems(mode, values) {
     const menu = document.getElementById('menu-ns-' + mode);
     if (!menu) return;
-    menu.innerHTML = values.map(v => `
-        <div class="ghn-filter-item">
-            <input type="checkbox" id="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}" value="${v}" onchange="updateNsTimeMode('${mode}')">
-            <label for="chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}">${mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v}</label>
-        </div>
-    `).join('');
+    menu.innerHTML = '';
+    values.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'ghn-filter-item';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `chk-ns-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}`;
+        chk.value = v;  // DOM property, không cần escape
+        chk.setAttribute('onchange', `updateNsTimeMode('${mode}')`);
+        const lbl = document.createElement('label');
+        lbl.htmlFor = chk.id;
+        lbl.textContent = mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v;
+        item.appendChild(chk);
+        item.appendChild(lbl);
+        menu.appendChild(item);
+    });
 }
 
 function updateNsLabel(mode) {
@@ -2511,11 +2531,12 @@ document.getElementById('filter-ns-province')?.addEventListener('change', () => 
 function checkAdminAccess() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlKey = urlParams.get('key');
-    const secretKey = "gxt1103";
-
-    if (urlKey === secretKey) {
+    // NOTE: Admin key không được hardcode ở đây.
+    // Để bật admin mode: truy cập ?key=<ADMIN_KEY> (lấy từ biến Railway ADMIN_KEY)
+    // Key sẽ được lưu vào localStorage để dùng cho các request sau
+    if (urlKey) {
         localStorage.setItem('ghn_admin_key', urlKey);
-        // Clear the key from URL for cleanliness
+        // Xóa key khỏi URL sau khi lưu
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -2523,9 +2544,9 @@ function checkAdminAccess() {
     const telegramBtn = document.getElementById('telegram-btn');
 
     if (telegramBtn) {
-        if (savedKey === secretKey) {
+        // Hiển thị nút Telegram nếu có admin key hợp lệ (kiểm tra ở backend khi gửi)
+        if (savedKey) {
             telegramBtn.style.display = 'flex';
-            console.log("[ADMIN] Admin mode enabled.");
         } else {
             telegramBtn.style.display = 'none';
         }
@@ -2588,12 +2609,22 @@ function updateDtLabel(mode) {
 function renderDtMultiItems(mode, values) {
     const menu = document.getElementById('menu-dt-' + mode);
     if (!menu) return;
-    menu.innerHTML = values.map(v => `
-        <div class="ghn-filter-item">
-            <input type="checkbox" id="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}" value="${v}" onchange="updateDtTimeMode('${mode}')">
-            <label for="chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}">${mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v}</label>
-        </div>
-    `).join('');
+    menu.innerHTML = '';
+    values.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'ghn-filter-item';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `chk-dt-${mode}-${v.replace(/[^a-z0-9]/gi, '-')}`;
+        chk.value = v;  // DOM property, không cần escape
+        chk.setAttribute('onchange', `updateDtTimeMode('${mode}')`);
+        const lbl = document.createElement('label');
+        lbl.htmlFor = chk.id;
+        lbl.textContent = mode === 'day' ? v : mode === 'week' ? 'Tuần ' + v : mode === 'month' ? 'Tháng ' + v : v;
+        item.appendChild(chk);
+        item.appendChild(lbl);
+        menu.appendChild(item);
+    });
 }
 
 function populateDtSelects() {
@@ -2791,8 +2822,8 @@ function renderDonTaoSection() {
         tbody.innerHTML = sortedGroup.map((g, i) => `
             <tr>
                 <td>${i + 1}</td>
-                <td>${shortKho(g.khoName)}</td>
-                <td style="font-weight:600;color:var(--blue)">${g.tLabel}</td>
+                <td>${escapeHtml(shortKho(g.khoName))}</td>
+                <td style="font-weight:600;color:var(--blue)">${escapeHtml(g.tLabel)}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${g.don.toLocaleString('vi-VN')}</td>
                 <td style="text-align:right;font-weight:600;color:#0288D1">${g.kg.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
             </tr>
@@ -2814,8 +2845,8 @@ function renderDonTaoSection() {
 
             return `<tr>
                 <td>${i + 1}</td>
-                <td>${shortKho(r['Kho giao'] || r['kho_giao'] || '--')}</td>
-                <td>${tStr}</td>
+                <td>${escapeHtml(shortKho(r['Kho giao'] || r['kho_giao'] || '--'))}</td>
+                <td>${escapeHtml(tStr)}</td>
                 <td style="text-align:right;font-weight:600;color:#7B1FA2">${don.toLocaleString('vi-VN')}</td>
                 <td style="text-align:right;font-weight:600;color:#0288D1">${kg.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
             </tr>`;
