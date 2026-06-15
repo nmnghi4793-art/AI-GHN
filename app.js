@@ -2297,10 +2297,21 @@ document.getElementById('telegram-btn-send-custom')?.addEventListener('click', s
 
 // ---- NAVIGATION ----
 const SECTION_META = {
-    khogxt: ['Danh Sách Kho GXT', 'Thông tin chi tiết các kho GXT trong mạng lưới'],
-    forecast: ['Dự Báo Rủi Ro Kho', 'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
-    dontao: ['Đơn Tạo N-1', 'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
+    overview:  ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
+    warnings:  ['Hệ Thống Cảnh Báo',       'Danh sách đơn hàng cần xử lý khẩn cấp và cảnh báo vận hành'],
+    gtc:       ['GTC & Năng Suất',          'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
+    backlog:   ['Backlog > 7 Ngày',         'Đơn hàng tồn lâu trên 7 ngày cần ưu tiên xử lý'],
+    b2b:       ['B2B & SLA',               'Theo dõi đơn B2B ưu tiên và cam kết SLA với đối tác'],
+    returns:   ['Trả Hàng & FD',            'Phân tích lý do trả hàng và freeship đảo hàng'],
+    personnel: ['Nhân Sự',                  'Danh sách nhân viên và thông tin phân công'],
+    nangsuat:  ['Năng Suất Nhân Viên',      'Thống kê năng suất xử lý đơn hàng theo từng nhân viên'],
+    xegxt:     ['Xe GXT',                   'Danh sách và trạng thái xe GXT / Delivery Staff'],
+    xesuco:    ['Xe Sự Cố',                 'Xe đang gặp sự cố cần kiểm tra và xử lý'],
+    khogxt:    ['Danh Sách Kho GXT',        'Thông tin chi tiết các kho GXT trong mạng lưới'],
+    forecast:  ['Dự Báo Rủi Ro Kho',       'Phân tích và dự báo nguy cơ vận hành theo từng kho'],
+    dontao:    ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
+
 
 function showSection(name) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -3316,11 +3327,14 @@ function initLogin() {
     if (isAlreadyLoggedIn) {
         if (loginWrapper) loginWrapper.style.display = 'none';
         if (appContainer) appContainer.style.display = 'flex';
+        // Set default section title immediately
+        showSection('overview');
         // Start dashboard loading
         fetchAll();
         startSyncTimer();
         checkAdminAccess();
         setupLogout();
+
     } else {
         if (loginWrapper) loginWrapper.style.display = 'flex';
         if (appContainer) appContainer.style.display = 'none';
