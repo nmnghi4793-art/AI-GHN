@@ -17,12 +17,12 @@
     --purple: #7C3AED;
     --purple-bg: #EDE9FE;
 
-    /* GHN Background - clean professional */
-    --bg: #F0F2F5;
-    --bg-universe: #F0F2F5;
+    /* GHN Background - sky blue matching truck brand */
+    --bg: #E8F4FC;
+    --bg-universe: linear-gradient(150deg, #C8E8F8 0%, #A8D8F0 40%, #87C8E8 100%);
     --bg-white: #FFFFFF;
-    --bg-sidebar: #1A2332;
-    --bg-sidebar-hover: #243040;
+    --bg-sidebar: #0D3F6E;
+    --bg-sidebar-hover: #1A5490;
     --bg-card: #FFFFFF;
 
     /* Text */
@@ -53,7 +53,8 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body {
-    background: var(--bg);
+    background: linear-gradient(150deg, #C8E8F8 0%, #9ACFE8 50%, #6BB8DC 100%);
+    background-attachment: fixed;
     color: var(--text);
     font-family: var(--font);
     min-height: 100vh;
