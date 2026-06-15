@@ -17,12 +17,12 @@
     --purple: #7C3AED;
     --purple-bg: #EDE9FE;
 
-    /* GHN Background - sky blue matching truck brand */
-    --bg: #E8F4FC;
-    --bg-universe: linear-gradient(150deg, #C8E8F8 0%, #A8D8F0 40%, #87C8E8 100%);
+    /* GHN Background - sky blue matching website */
+    --bg: #E0F4FF;
+    --bg-universe: linear-gradient(160deg, #29B6F6 0%, #0288D1 60%, #01579B 100%);
     --bg-white: #FFFFFF;
-    --bg-sidebar: #0D3F6E;
-    --bg-sidebar-hover: #1A5490;
+    --bg-sidebar: #01579B;
+    --bg-sidebar-hover: #0277BD;
     --bg-card: #FFFFFF;
 
     /* Text */
@@ -54,17 +54,30 @@
 
 body {
     background: 
-        radial-gradient(ellipse at top left,    #00BCD4 0%, transparent 50%),
-        radial-gradient(ellipse at top right,   #FF6600 0%, transparent 45%),
-        radial-gradient(ellipse at bottom left, #0066CC 0%, transparent 50%),
-        radial-gradient(ellipse at bottom right,#7C3AED 0%, transparent 45%),
-        linear-gradient(135deg, #0D3F6E 0%, #005B6E 100%);
+        linear-gradient(160deg, #29B6F6 0%, #0288D1 55%, #01579B 100%);
     background-attachment: fixed;
     color: var(--text);
     font-family: var(--font);
     min-height: 100vh;
     overflow-x: hidden;
     font-size: 14px;
+}
+
+/* Xe GHN trang trí góc dưới phải */
+body::after {
+    content: '';
+    position: fixed;
+    bottom: -20px;
+    right: -30px;
+    width: 420px;
+    height: 300px;
+    background-image: url('ghn_truck_bg.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom right;
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
 }
 
 /* ===== LAYOUT ===== */
@@ -143,14 +156,14 @@ nav {
     font-size: 14px;
 }
 
-.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item:hover { background: rgba(255,255,255,0.12); color: white; }
 .nav-item.active {
-    background: linear-gradient(90deg, var(--orange), #FF8C00);
-    color: white;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(255,102,0,0.3);
+    background: white;
+    color: var(--bg-sidebar);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
-.nav-item.active i { color: white; }
+.nav-item.active i { color: var(--orange); }
 
 .nav-badge {
     margin-left: auto;
