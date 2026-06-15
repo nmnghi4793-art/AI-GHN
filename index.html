@@ -179,14 +179,8 @@
             <a href="#" class="nav-item" data-section="personnel" id="nav-personnel">
                 <i class="fa-solid fa-users"></i><span>Nhân Sự</span>
             </a>
-            <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
-                <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
-            </a>
-            <a href="#" class="nav-item" data-section="xesuco" id="nav-xesuco">
-                <i class="fa-solid fa-triangle-exclamation"></i><span>Xe Sự Cố</span>
-            </a>
-            <a href="#" class="nav-item" data-section="khogxt" id="nav-khogxt">
-                <i class="fa-solid fa-warehouse"></i><span>Kho GXT</span>
+            <a href="#" class="nav-item" data-section="khoxe" id="nav-khoxe">
+                <i class="fa-solid fa-warehouse"></i><span>Kho và Xe GXT</span>
             </a>
             <a href="#" class="nav-item" data-section="forecast" id="nav-forecast">
                 <i class="fa-solid fa-magnifying-glass-chart"></i><span>Dự Báo Rủi Ro Kho</span>
@@ -1149,194 +1143,173 @@
         <!-- section-nangsuat đã được gộp vào section-gtc (tab panel 2) -->
 
         <!-- ===== SECTION: XE GXT ===== -->
-        <section class="section" id="section-xegxt">
-            <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="filter-xegxt-kho" placeholder="🔍 Tìm tên kho..." class="filter-input"
-                    style="flex: 1; min-width: 200px;">
-
-                <select id="filter-xegxt-tinh" class="filter-select">
-                    <option value="">-- Tất cả Tỉnh --</option>
-                </select>
-
-                <select id="filter-xegxt-ncc" class="filter-select">
-                    <option value="">-- Tất cả NCC --</option>
-                </select>
-
-                <select id="filter-xegxt-loai" class="filter-select">
-                    <option value="">-- Tất cả Loại xe --</option>
-                </select>
-            </div>
-            <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-truck-fast"></i> Số Lượng Xe GXT Theo Kho</h3>
-                </div>
-                <div class="table-scroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Tỉnh</th>
-                                <th>Kho</th>
-                                <th style="text-align:right">Tổng xe đang chạy</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-xegxt">
-                            <tr>
-                                <td colspan="4" style="text-align:center">Đang tải...</td>
-                            </tr>
-                        </tbody>
-                        <tfoot id="tfoot-xegxt" style="background:#f8fafc; font-weight:700"></tfoot>
-                    </table>
-                </div>
+        <!-- ===== SECTION: KHO VÀ XE GXT (gộp) ===== -->
+        <section class="section" id="section-khoxe">
+            <!-- KPI TAB BAR -->
+            <div class="kpi-tab-bar" id="khoxe-tabbar">
+                <button class="kpi-tab-btn active" id="khoxe-tab-btn-khogxt" onclick="switchKhoXeTab('khogxt')">
+                    <i class="fa-solid fa-warehouse"></i> Kho GXT
+                </button>
+                <button class="kpi-tab-btn" id="khoxe-tab-btn-xegxt" onclick="switchKhoXeTab('xegxt')">
+                    <i class="fa-solid fa-truck-ramp-box"></i> Xe GXT
+                </button>
+                <button class="kpi-tab-btn" id="khoxe-tab-btn-xesuco" onclick="switchKhoXeTab('xesuco')">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Xe Sự Cố
+                </button>
             </div>
 
-            <div class="table-card" style="margin-top: 20px;">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-list-check"></i> Dữ Liệu Chi Tiết Xe GXT</h3>
+            <!-- ===== TAB PANEL: KHO GXT (mặc định) ===== -->
+            <div id="khoxe-panel-khogxt" class="gtc-tab-pane">
+                <div class="section-filters">
+                    <input type="text" id="filter-khogxt-search" placeholder="🔍 Tìm tên kho, địa chỉ, tỉnh..." class="filter-input">
                 </div>
-                <div class="table-scroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Tỉnh</th>
-                                <th>Kho</th>
-                                <th>Tên NCC</th>
-                                <th>Loại Xe</th>
-                                <th style="text-align:right">SL Xe</th>
-                                <th>Ca làm việc</th>
-                                <th style="text-align:right">Giá thuê xe</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-xegxt-detail">
-                            <tr>
-                                <td colspan="8" style="text-align:center">Đang tải...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-warehouse"></i> Danh Sách Kho GXT</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height: 75vh;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tên Nhân Viên</th>
+                                    <th>Số Điện Thoại</th>
+                                    <th>ID Kho</th>
+                                    <th>Tên kho GXT</th>
+                                    <th>Tỉnh</th>
+                                    <th>Diện Tích</th>
+                                    <th>Tình Trạng</th>
+                                    <th>Địa chỉ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-khogxt">
+                                <tr><td colspan="8" style="text-align:center">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== TAB PANEL: XE GXT ===== -->
+            <div id="khoxe-panel-xegxt" class="gtc-tab-pane" style="display:none">
+                <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="filter-xegxt-kho" placeholder="🔍 Tìm tên kho..." class="filter-input" style="flex: 1; min-width: 200px;">
+                    <select id="filter-xegxt-tinh" class="filter-select"><option value="">-- Tất cả Tỉnh --</option></select>
+                    <select id="filter-xegxt-ncc" class="filter-select"><option value="">-- Tất cả NCC --</option></select>
+                    <select id="filter-xegxt-loai" class="filter-select"><option value="">-- Tất cả Loại xe --</option></select>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-truck-fast"></i> Số Lượng Xe GXT Theo Kho</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th><th>Tỉnh</th><th>Kho</th>
+                                    <th style="text-align:right">Tổng xe đang chạy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-xegxt">
+                                <tr><td colspan="4" style="text-align:center">Đang tải...</td></tr>
+                            </tbody>
+                            <tfoot id="tfoot-xegxt" style="background:#f8fafc; font-weight:700"></tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="table-card" style="margin-top: 20px;">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-list-check"></i> Dữ Liệu Chi Tiết Xe GXT</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th><th>Tỉnh</th><th>Kho</th><th>Tên NCC</th>
+                                    <th>Loại Xe</th><th style="text-align:right">SL Xe</th>
+                                    <th>Ca làm việc</th><th style="text-align:right">Giá thuê xe</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-xegxt-detail">
+                                <tr><td colspan="8" style="text-align:center">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== TAB PANEL: XE SỰ CỐ ===== -->
+            <div id="khoxe-panel-xesuco" class="gtc-tab-pane" style="display:none">
+                <div class="section-filters"
+                    style="display: grid; grid-template-columns: 1fr 200px 200px 200px 180px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
+                    <div>
+                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm kiếm thông tin</label>
+                        <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..." class="filter-input" style="width: 100%;">
+                    </div>
+                    <div class="filter-group">
+                        <label>Chọn nhiều Ngày</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-day">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-day-list')">
+                                <span id="label-xesuco-day">Chọn Ngày...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-day-list">
+                                <div class="dropdown-items" id="filter-xesuco-day-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Chọn nhiều Tuần</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-week">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-week-list')">
+                                <span id="label-xesuco-week">Chọn Tuần...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-week-list">
+                                <div class="dropdown-items" id="filter-xesuco-week-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Chọn nhiều Tháng</label>
+                        <div class="dropdown-multi" id="dropdown-xesuco-month">
+                            <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-month-list')">
+                                <span id="label-xesuco-month">Chọn Tháng...</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-list" id="dropdown-xesuco-month-list">
+                                <div class="dropdown-items" id="filter-xesuco-month-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn Kho</label>
+                        <select id="filter-xesuco-kho" class="filter-select" style="width: 100%;">
+                            <option value="">-- Tất cả --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-card" style="margin-bottom: 20px;">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Chi Tiết Xe Sự Cố</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th><th>Tỉnh</th><th>ID</th><th>Kho</th><th>Ngày</th>
+                                    <th>Lỗi</th><th>Nội Dung Chi Tiết</th><th>Biển Số</th><th>NCC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-xesuco-raw">
+                                <tr><td colspan="9" style="text-align:center">Đang tải dữ liệu...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ===== SECTION: XE SỰ CỐ ===== -->
-        <section class="section" id="section-xesuco">
-            <div class="section-filters"
-                style="display: grid; grid-template-columns: 1fr 200px 200px 200px 180px; gap: 15px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 20px;">
-                <div>
-                    <label
-                        style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Tìm
-                        kiếm thông tin</label>
-                    <input type="text" id="filter-xesuco-search" placeholder="🔍 Kho, NCC, Biển số, ID..."
-                        class="filter-input" style="width: 100%;">
-                </div>
-                <div class="filter-group">
-                    <label>Chọn nhiều Ngày</label>
-                    <div class="dropdown-multi" id="dropdown-xesuco-day">
-                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-day-list')">
-                            <span id="label-xesuco-day">Chọn Ngày...</span>
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </div>
-                        <div class="dropdown-list" id="dropdown-xesuco-day-list">
-                            <div class="dropdown-items" id="filter-xesuco-day-container"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <label>Chọn nhiều Tuần</label>
-                    <div class="dropdown-multi" id="dropdown-xesuco-week">
-                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-week-list')">
-                            <span id="label-xesuco-week">Chọn Tuần...</span>
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </div>
-                        <div class="dropdown-list" id="dropdown-xesuco-week-list">
-                            <div class="dropdown-items" id="filter-xesuco-week-container"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <label>Chọn nhiều Tháng</label>
-                    <div class="dropdown-multi" id="dropdown-xesuco-month">
-                        <div class="dropdown-trigger" onclick="toggleDropdown('dropdown-xesuco-month-list')">
-                            <span id="label-xesuco-month">Chọn Tháng...</span>
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </div>
-                        <div class="dropdown-list" id="dropdown-xesuco-month-list">
-                            <div class="dropdown-items" id="filter-xesuco-month-container"></div>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <label
-                        style="font-weight:600; font-size: 0.85rem; color: var(--text2); margin-bottom: 8px; display: block;">Chọn
-                        Kho</label>
-                    <select id="filter-xesuco-kho" class="filter-select" style="width: 100%;">
-                        <option value="">-- Tất cả --</option>
-                    </select>
-                </div>
-            </div>
 
-            <div class="table-card" style="margin-bottom: 20px;">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Chi Tiết Xe Sự Cố</h3>
-                </div>
-                <div class="table-scroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Tỉnh</th>
-                                <th>ID</th>
-                                <th>Kho</th>
-                                <th>Ngày</th>
-                                <th>Lỗi</th>
-                                <th>Nội Dung Chi Tiết</th>
-                                <th>Biển Số</th>
-                                <th>NCC</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-xesuco-raw">
-                            <tr>
-                                <td colspan="9" style="text-align:center">Đang tải dữ liệu...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== SECTION: KHO GXT ===== -->
-        <section class="section" id="section-khogxt">
-            <div class="section-filters">
-                <input type="text" id="filter-khogxt-search" placeholder="🔍 Tìm tên kho, địa chỉ, tỉnh..."
-                    class="filter-input">
-            </div>
-            <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-warehouse"></i> Danh Sách Kho GXT</h3>
-                </div>
-                <div class="table-scroll" style="max-height: 75vh;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Tên Nhân Viên</th>
-                                <th>Số Điện Thoại</th>
-                                <th>ID Kho</th>
-                                <th>Tên kho GXT</th>
-                                <th>Tỉnh</th>
-                                <th>Diện Tích</th>
-                                <th>Tình Trạng</th>
-                                <th>Địa chỉ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-khogxt">
-                            <tr>
-                                <td colspan="8" style="text-align:center">Đang tải...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
 
         <!-- ===== SECTION: ĐƠN TẠO N-1 ===== -->
         <section class="section" id="section-dontao">

@@ -2329,6 +2329,19 @@ function switchGtcTab(tab) {
     document.getElementById('tab-btn-' + tab).classList.add('active');
 }
 
+/**
+ * Chuyển tab bên trong section Kho & Xe GXT
+ * @param {'khogxt'|'xegxt'|'xesuco'} tab
+ */
+function switchKhoXeTab(tab) {
+    ['khogxt', 'xegxt', 'xesuco'].forEach(t => {
+        document.getElementById('khoxe-panel-' + t).style.display = 'none';
+        document.getElementById('khoxe-tab-btn-' + t).classList.remove('active');
+    });
+    document.getElementById('khoxe-panel-' + tab).style.display = 'block';
+    document.getElementById('khoxe-tab-btn-' + tab).classList.add('active');
+}
+
 // ---- NAVIGATION ----
 const SECTION_META = {
     overview:  ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
@@ -2348,16 +2361,22 @@ const SECTION_META = {
 
 
 function showSection(name) {
-    // Nếu là nangsuat, chuyển về section gtc và mở tab nangsuat
+    // Alias: nangsuat → gtc + tab nangsuat
     if (name === 'nangsuat') {
         showSection('gtc');
         switchGtcTab('nangsuat');
         return;
     }
-    // Mặc định khi vào tab gtc, hiển thị tab GTC
-    if (name === 'gtc') {
-        switchGtcTab('gtc');
+    // Alias: xegxt / xesuco / khogxt → khoxe + đúng tab
+    if (name === 'xegxt' || name === 'xesuco' || name === 'khogxt') {
+        showSection('khoxe');
+        switchKhoXeTab(name);
+        return;
     }
+    // Mặc định khi vào gtc → reset tab về GTC
+    if (name === 'gtc') switchGtcTab('gtc');
+    // Mặc định khi vào khoxe → reset tab về Kho GXT
+    if (name === 'khoxe') switchKhoXeTab('khogxt');
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const sectionEl = document.getElementById('section-' + name);
