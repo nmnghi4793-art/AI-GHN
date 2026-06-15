@@ -1,32 +1,35 @@
-/* ===== DRAGON BALL THEME SYSTEM ===== */
+/* ===== GHN BRAND THEME ===== */
 :root {
-    /* Dragon Ball Core Colors */
-    --orange: #FF5200; /* Goku Gi */
+    /* GHN Primary Orange */
+    --orange: #FF6600;
     --orange-light: #FF8533;
-    --orange-dark: #CC4200;
-    --orange-bg: #FFF3EE;
-    --orange-border: #FFD0BC;
+    --orange-dark: #E55A00;
+    --orange-bg: #FFF4EE;
+    --orange-border: #FFCAAA;
 
-    --blue: #0076BE; /* Goku Undershirt */
-    --blue-light: #1A88CF;
-    --blue-bg: #EBF5FB;
-    --blue-border: #BDDFF4;
+    /* GHN Secondary Blue */
+    --blue: #0066CC;
+    --blue-light: #1A7ADB;
+    --blue-bg: #EBF4FF;
+    --blue-border: #B3D4F5;
 
-    --ssj-gold: #FFD700; /* Super Saiyan Gold */
-    --ssj-glow: 0 0 15px rgba(255, 215, 0, 0.4);
+    /* Accent Purple (for forecast/analytics) */
+    --purple: #7C3AED;
+    --purple-bg: #EDE9FE;
 
-    /* Background - Dragon Ball Sky/Universe Style */
-    --bg: #fdf2f2; 
-    --bg-universe: linear-gradient(135deg, #FFF8E1 0%, #E3F2FD 100%);
-    --bg-white: rgba(255, 255, 255, 0.95);
-    --bg-sidebar: #1E293B; /* Dark Blue */
+    /* GHN Background - clean professional */
+    --bg: #F0F2F5;
+    --bg-universe: #F0F2F5;
+    --bg-white: #FFFFFF;
+    --bg-sidebar: #1A2332;
+    --bg-sidebar-hover: #243040;
     --bg-card: #FFFFFF;
 
     /* Text */
-    --text: #0F172A;
-    --text2: #334155;
-    --text3: #64748B;
-    --text-light: #94A3B8;
+    --text: #111827;
+    --text2: #374151;
+    --text3: #6B7280;
+    --text-light: #9CA3AF;
 
     /* Status Colors */
     --green: #059669;
@@ -38,11 +41,11 @@
 
     /* Layout */
     --sidebar-w: 240px;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-    --ssj-card-shadow: 0 0 20px rgba(255, 215, 0, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+    --shadow-md: 0 8px 16px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
 
     --font: 'Outfit', sans-serif;
 }
@@ -50,8 +53,7 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body {
-    background: var(--bg-universe);
-    background-attachment: fixed;
+    background: var(--bg);
     color: var(--text);
     font-family: var(--font);
     min-height: 100vh;
@@ -63,7 +65,6 @@ body {
 .app-container { 
     display: flex;
     min-height: 100vh;
-    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.4) 0%, transparent 40%);
 }
 
 /* ===== SIDEBAR ===== */
@@ -71,23 +72,23 @@ body {
     width: var(--sidebar-w);
     background: var(--bg-sidebar);
     color: #fff;
-    padding: 24px 16px;
+    padding: 0 12px 24px;
     display: flex;
     flex-direction: column;
     position: fixed;
     height: 100vh;
     transition: all 0.3s;
     z-index: 1000;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-    border-right: 2px solid var(--orange-dark);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    border-right: none;
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 20px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding: 20px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
     flex-shrink: 0;
 }
 
@@ -136,13 +137,14 @@ nav {
     font-size: 14px;
 }
 
-.nav-item:hover { background: rgba(0,0,0,0.1); color: white; }
+.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
 .nav-item.active {
-    background: white;
-    color: var(--orange);
+    background: linear-gradient(90deg, var(--orange), #FF8C00);
+    color: white;
     font-weight: 600;
+    box-shadow: 0 2px 8px rgba(255,102,0,0.3);
 }
-.nav-item.active i { color: var(--orange); }
+.nav-item.active i { color: white; }
 
 .nav-badge {
     margin-left: auto;
@@ -216,10 +218,10 @@ nav {
     justify-content: space-between;
     align-items: center;
     padding: 14px 28px;
-    background: var(--bg-white);
-    border-bottom: 1px solid #E8EDF5;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
     flex-shrink: 0;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .topbar-left { display: flex; align-items: center; gap: 14px; }
@@ -333,20 +335,20 @@ nav {
     background: var(--bg-card);
     padding: 20px;
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
     gap: 12px;
     position: relative;
     overflow: hidden;
-    transition: all 0.3s;
-    border: 1px solid rgba(255, 215, 0, 0.1);
+    transition: all 0.25s;
+    border: 1px solid #E5E7EB;
 }
 
 .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--ssj-card-shadow);
-    border-color: var(--ssj-gold);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: #D1D5DB;
 }
 
 .stat-card::before {
@@ -359,7 +361,6 @@ nav {
 .stat-card.orange-card::before { background: var(--orange); }
 .stat-card.green-card::before { background: var(--green); }
 .stat-card.red-card::before { background: var(--red); }
-.stat-card.gold-card { border: 2px solid var(--ssj-gold); }
 .stat-card.purple-card::before { background: var(--purple); }
 
 .stat-icon {
@@ -455,8 +456,8 @@ nav {
     justify-content: space-between;
     align-items: center;
     padding: 14px 18px;
-    border-bottom: 1px solid #F0F3F8;
-    background: #FAFBFC;
+    border-bottom: 1px solid #E5E7EB;
+    background: #FFFFFF;
 }
 
 .table-header h3 {
@@ -542,7 +543,7 @@ nav {
     outline: none;
     transition: border 0.15s;
 }
-.filter-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,82,0,0.08); }
+.filter-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,102,0,0.1); }
 .filter-input::placeholder { color: var(--text-light); }
 
 .filter-select {
@@ -680,7 +681,7 @@ nav {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: radial-gradient(circle at 10% 20%, rgba(255, 82, 0, 0.08) 0%, rgba(0, 118, 190, 0.08) 90.1%), var(--bg);
+    background: linear-gradient(135deg, rgba(255,102,0,0.06) 0%, rgba(0,102,204,0.06) 100%), var(--bg);
     font-family: var(--font);
     padding: 20px;
 }
@@ -802,7 +803,7 @@ nav {
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 4px 10px rgba(255,82,0,0.25);
+    box-shadow: 0 4px 12px rgba(255,102,0,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -811,7 +812,7 @@ nav {
 
 .login-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(255,82,0,0.35);
+    box-shadow: 0 6px 16px rgba(255,102,0,0.4);
 }
 
 .login-btn:active {
@@ -845,47 +846,47 @@ nav {
     color: var(--red) !important;
 }
 
-/* ===== KPI TAB BAR — GTC & Năng Suất gộp ===== */
+/* ===== KPI TAB BAR ===== */
 .kpi-tab-bar {
     display: flex;
     gap: 4px;
-    background: #f1f5f9;
-    border-radius: 14px;
-    padding: 5px;
+    background: #F3F4F6;
+    border-radius: 12px;
+    padding: 4px;
     margin-bottom: 24px;
     width: fit-content;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.07);
+    border: 1px solid #E5E7EB;
 }
 .kpi-tab-btn {
-    padding: 10px 22px;
-    border-radius: 10px;
+    padding: 9px 20px;
+    border-radius: 9px;
     border: none;
     background: transparent;
     color: var(--text3);
     font-family: 'Outfit', sans-serif;
-    font-size: 0.93rem;
+    font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.2s ease;
+    gap: 7px;
+    transition: all 0.18s ease;
     white-space: nowrap;
     outline: none;
 }
 .kpi-tab-btn:hover {
-    background: rgba(255,82,0,0.07);
+    background: rgba(255,102,0,0.08);
     color: var(--orange);
 }
 .kpi-tab-btn.active {
-    background: #fff;
-    color: var(--orange);
+    background: var(--orange);
+    color: #fff;
     font-weight: 700;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+    box-shadow: 0 2px 8px rgba(255,102,0,0.35);
 }
-.kpi-tab-btn i { font-size: 0.88rem; }
+.kpi-tab-btn i { font-size: 0.85rem; }
 .gtc-tab-pane { display: block; }
 @media (max-width: 640px) {
-    .kpi-tab-bar { width: 100%; border-radius: 12px; }
-    .kpi-tab-btn { flex: 1; justify-content: center; padding: 9px 8px; font-size: 0.82rem; }
+    .kpi-tab-bar { width: 100%; border-radius: 10px; flex-wrap: wrap; }
+    .kpi-tab-btn { flex: 1; justify-content: center; padding: 8px 6px; font-size: 0.8rem; }
 }
