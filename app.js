@@ -2313,6 +2313,22 @@ document.getElementById('cancel-telegram-modal')?.addEventListener('click', clos
 document.getElementById('telegram-btn-compile')?.addEventListener('click', compileQuickReport);
 document.getElementById('telegram-btn-send-custom')?.addEventListener('click', sendCustomTelegramMessage);
 
+/**
+ * Chuyển tab bên trong section GTC & Năng Suất
+ * @param {'gtc'|'nangsuat'} tab
+ */
+function switchGtcTab(tab) {
+    // Ẩn tất cả panels
+    document.getElementById('gtc-panel-gtc').style.display = 'none';
+    document.getElementById('gtc-panel-nangsuat').style.display = 'none';
+    // Bỏ active khỏi tất cả tab buttons
+    document.getElementById('tab-btn-gtc').classList.remove('active');
+    document.getElementById('tab-btn-nangsuat').classList.remove('active');
+    // Hiển thị panel được chọn + đánh dấu active
+    document.getElementById('gtc-panel-' + tab).style.display = 'block';
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+}
+
 // ---- NAVIGATION ----
 const SECTION_META = {
     overview:  ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
@@ -2332,10 +2348,22 @@ const SECTION_META = {
 
 
 function showSection(name) {
+    // Nếu là nangsuat, chuyển về section gtc và mở tab nangsuat
+    if (name === 'nangsuat') {
+        showSection('gtc');
+        switchGtcTab('nangsuat');
+        return;
+    }
+    // Mặc định khi vào tab gtc, hiển thị tab GTC
+    if (name === 'gtc') {
+        switchGtcTab('gtc');
+    }
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('section-' + name).classList.add('active');
-    document.getElementById('nav-' + name).classList.add('active');
+    const sectionEl = document.getElementById('section-' + name);
+    const navEl = document.getElementById('nav-' + name);
+    if (sectionEl) sectionEl.classList.add('active');
+    if (navEl) navEl.classList.add('active');
     const [title, sub] = SECTION_META[name] || ['--', '--'];
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;

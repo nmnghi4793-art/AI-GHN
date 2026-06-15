@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -163,24 +163,21 @@
                 <span class="nav-badge danger" id="nav-warnings-count">--</span>
             </a>
             <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
-                <i class="fa-solid fa-check-double"></i><span>GTC & Năng Suất</span>
+                <i class="fa-solid fa-check-double"></i><span>GTC và Năng Suất</span>
             </a>
             <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
                 <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog > 7 Ngày</span>
                 <span class="nav-badge danger" id="nav-backlog-count">--</span>
             </a>
             <a href="#" class="nav-item" data-section="b2b" id="nav-b2b">
-                <i class="fa-solid fa-crown"></i><span>B2B & SLA</span>
+                <i class="fa-solid fa-crown"></i><span>B2B &amp; SLA</span>
                 <span class="nav-badge danger" id="nav-b2b-count">--</span>
             </a>
             <a href="#" class="nav-item" data-section="returns" id="nav-returns">
-                <i class="fa-solid fa-rotate-left"></i><span>Trả Hàng & FD</span>
+                <i class="fa-solid fa-rotate-left"></i><span>Trả Hàng &amp; FD</span>
             </a>
             <a href="#" class="nav-item" data-section="personnel" id="nav-personnel">
                 <i class="fa-solid fa-users"></i><span>Nhân Sự</span>
-            </a>
-            <a href="#" class="nav-item" data-section="nangsuat" id="nav-nangsuat">
-                <i class="fa-solid fa-motorcycle"></i><span>Năng Suất NV</span>
             </a>
             <a href="#" class="nav-item" data-section="xegxt" id="nav-xegxt">
                 <i class="fa-solid fa-truck-ramp-box"></i><span>Xe GXT</span>
@@ -747,63 +744,194 @@
 
         <!-- ===== SECTION: GTC & NĂNG SUẤT ===== -->
         <section class="section" id="section-gtc">
-            <div class="chart-card" style="margin-bottom:18px">
-                <div class="chart-header">
-                    <h3><i class="fa-solid fa-ranking-star"></i> GTC theo từng kho</h3>
+            <!-- ===== KPI TAB BAR ===== -->
+            <div class="kpi-tab-bar" id="gtc-ns-tabbar">
+                <button class="kpi-tab-btn active" id="tab-btn-gtc" onclick="switchGtcTab('gtc')">
+                    <i class="fa-solid fa-check-double"></i> GTC &amp; Năng Suất
+                </button>
+                <button class="kpi-tab-btn" id="tab-btn-nangsuat" onclick="switchGtcTab('nangsuat')">
+                    <i class="fa-solid fa-motorcycle"></i> Năng Suất NV
+                </button>
+            </div>
+
+            <!-- ===== TAB PANEL 1: GTC & NĂNG SUẤT ===== -->
+            <div id="gtc-panel-gtc" class="gtc-tab-pane">
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-ranking-star"></i> GTC theo từng kho</h3>
+                    </div>
+                    <div style="position:relative;min-height:300px" id="gtc-by-kho-wrapper">
+                        <canvas id="chart-gtc-by-kho"></canvas>
+                    </div>
                 </div>
-                <div style="position:relative;min-height:300px" id="gtc-by-kho-wrapper">
-                    <canvas id="chart-gtc-by-kho"></canvas>
+
+                <!-- GTC BEST/WORST RANKINGS -->
+                <div id="gtc-top-bottom"></div>
+
+                <div class="section-filters ghn-filter-row"
+                    style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <input type="text" id="filter-kho-gtc" placeholder="🔍 Tìm kiếm kho hoặc ngày..." class="filter-input"
+                        style="width: 240px; height: 42px;">
+
+                    <div class="ghn-filter-container" id="multi-gtc-day">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-day"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-gtc-week">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('week')">Chọn Tuần...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-week"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-gtc-month">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-month"></div>
+                    </div>
+
+                    <div class="ghn-filter-container" id="multi-gtc-kho">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('kho')">Chọn Kho...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-kho"></div>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-table"></i> Chi Tiết GTC Toàn Bộ</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Kho</th>
+                                    <th>Ngày</th>
+                                    <th>KL Gán</th>
+                                    <th>Số Đơn Gán</th>
+                                    <th>Số Đơn GTC</th>
+                                    <th>% GTC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-gtc"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- GTC BEST/WORST RANKINGS -->
-            <div id="gtc-top-bottom"></div>
-
-            <div class="section-filters ghn-filter-row"
-                style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <input type="text" id="filter-kho-gtc" placeholder="🔍 Tìm kiếm kho hoặc ngày..." class="filter-input"
-                    style="width: 240px; height: 42px;">
-
-                <div class="ghn-filter-container" id="multi-gtc-day">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('day')">Chọn Ngày...</div>
-                    <div class="ghn-filter-menu" id="menu-gtc-day"></div>
+            <!-- ===== TAB PANEL 2: NĂNG SUẤT NV ===== -->
+            <div id="gtc-panel-nangsuat" class="gtc-tab-pane" style="display:none">
+                <div class="section-filters" style="margin-bottom: 20px; display:flex; justify-content: space-between;">
+                    <div class="filter-tabs" style="display:flex; gap: 10px;">
+                        <button class="btn btn-outline" id="btn-ns-day"
+                            style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700">Ngày gần nhất</button>
+                        <button class="btn btn-outline" id="btn-ns-week" onclick="switchNsPeriod('week')">Tuần</button>
+                        <button class="btn btn-outline" id="btn-ns-month" onclick="switchNsPeriod('month')">Tháng</button>
+                    </div>
+                    <select id="filter-ns-province" class="filter-select">
+                        <option value="">Tất cả khu vực</option>
+                    </select>
                 </div>
 
-                <div class="ghn-filter-container" id="multi-gtc-week">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('week')">Chọn Tuần...</div>
-                    <div class="ghn-filter-menu" id="menu-gtc-week"></div>
+                <div class="tables-row">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-trophy" style="color:var(--green)"></i> Top 10 NV Năng Suất Tốt Nhất</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                        <th style="text-align:right">Đơn/Giờ</th>
+                                        <th style="text-align:right">Tổng Đơn</th>
+                                        <th style="text-align:right">% GTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-ns-top"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Top 10 NV Năng Suất Thấp Nhất</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                        <th style="text-align:right">Đơn/Giờ</th>
+                                        <th style="text-align:right">Tổng Đơn</th>
+                                        <th style="text-align:right">% GTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-ns-bottom"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="ghn-filter-container" id="multi-gtc-month">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('month')">Chọn Tháng...</div>
-                    <div class="ghn-filter-menu" id="menu-gtc-month"></div>
+                <div class="table-card" style="margin-top:20px">
+                    <div class="table-header" style="display:flex;justify-content:space-between;align-items:center">
+                        <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Cảnh Báo NV Năng Suất Thấp</h3>
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" onclick="switchProdTab(this,7)">Tuần</button>
+                            <button class="tab-btn" onclick="switchProdTab(this,30)">Tháng</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Hạng</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                    <th style="text-align:right">Tổng Đơn</th>
+                                    <th style="text-align:right">% GTC TB</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-productivity-warnings"></tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div class="ghn-filter-container" id="multi-gtc-kho">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('kho')">Chọn Kho...</div>
-                    <div class="ghn-filter-menu" id="menu-gtc-kho"></div>
+                <div class="section-filters ghn-filter-row"
+                    style="display:flex;gap:10px;align-items:center;margin-top:20px;margin-bottom:20px;flex-wrap:wrap;background:#f8fafc;padding:15px;border-radius:12px;border:1px solid #e2e8f0">
+                    <input type="text" id="filter-ns-driver" placeholder="🔍 Tìm kiếm nhân viên..." class="filter-input" style="width:240px;height:42px">
+                    <div class="ghn-filter-container" id="multi-ns-prov">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-prov')">Chọn Khu vực...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-prov"></div>
+                    </div>
+                    <div class="ghn-filter-container" id="multi-ns-day">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-day"></div>
+                    </div>
+                    <div class="ghn-filter-container" id="multi-ns-week">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-week')">Chọn Tuần...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-week"></div>
+                    </div>
+                    <div class="ghn-filter-container" id="multi-ns-month">
+                        <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-ns-month"></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-table"></i> Chi Tiết GTC Toàn Bộ</h3>
-                </div>
-                <div class="table-scroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Kho</th>
-                                <th>Ngày</th>
-                                <th>KL Gán</th>
-                                <th>Số Đơn Gán</th>
-                                <th>Số Đơn GTC</th>
-                                <th>% GTC</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-gtc"></tbody>
-                    </table>
+                <div class="table-card" style="margin-top:20px">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-list" style="color:var(--blue)"></i> Chi Tiết Năng Suất Toàn Bộ Nhân Viên</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height:400px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th><th>Nhân Viên</th><th>Khu Vực</th>
+                                    <th style="text-align:right">Đơn/Giờ</th>
+                                    <th style="text-align:right">Tổng Đơn</th>
+                                    <th style="text-align:right">% GTC</th>
+                                    <th>3 Đơn Đầu</th>
+                                    <th>3 Đơn Cuối</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ns-all"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1018,145 +1146,8 @@
             </div>
         </section>
 
-        <!-- ===== SECTION: NĂNG SUẤT NV ===== -->
-        <section class="section" id="section-nangsuat">
-            <div class="section-filters" style="margin-bottom: 20px; display:flex; justify-content: space-between;">
-                <div class="filter-tabs" style="display:flex; gap: 10px;">
-                    <button class="btn btn-outline" id="btn-ns-day"
-                        style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border);font-weight:700">Ngày
-                        gần nhất</button>
-                    <button class="btn btn-outline" id="btn-ns-week" onclick="switchNsPeriod('week')">Tuần</button>
-                    <button class="btn btn-outline" id="btn-ns-month" onclick="switchNsPeriod('month')">Tháng</button>
-                </div>
-                <select id="filter-ns-province" class="filter-select">
-                    <option value="">Tất cả khu vực</option>
-                </select>
-            </div>
+        <!-- section-nangsuat đã được gộp vào section-gtc (tab panel 2) -->
 
-            <div class="tables-row">
-                <!-- Top 10 -->
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-trophy" style="color:var(--green)"></i> Top 10 NV Năng Suất Tốt Nhất
-                        </h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Hạng</th>
-                                    <th>Nhân Viên</th>
-                                    <th>Khu Vực</th>
-                                    <th style="text-align:right">Đơn/Giờ</th>
-                                    <th style="text-align:right">Tổng Đơn</th>
-                                    <th style="text-align:right">% GTC</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-ns-top"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <!-- Bottom 10 -->
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Top 10 NV Năng
-                            Suất Thấp Nhất</h3>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Hạng</th>
-                                    <th>Nhân Viên</th>
-                                    <th>Khu Vực</th>
-                                    <th style="text-align:right">Đơn/Giờ</th>
-                                    <th style="text-align:right">Tổng Đơn</th>
-                                    <th style="text-align:right">% GTC</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-ns-bottom"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="table-card" style="margin-top: 20px;">
-                <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--red)"></i> Cảnh Báo NV Năng Suất
-                        Thấp</h3>
-                    <div class="tab-buttons">
-                        <button class="tab-btn active" onclick="switchProdTab(this, 7)">Tuần</button>
-                        <button class="tab-btn" onclick="switchProdTab(this, 30)">Tháng</button>
-                    </div>
-                </div>
-                <div class="table-scroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Hạng</th>
-                                <th>Nhân Viên</th>
-                                <th>Khu Vực</th>
-                                <th style="text-align:right">Tổng Đơn</th>
-                                <th style="text-align:right">% GTC TB</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-productivity-warnings"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Filter bar thông minh cho Chi Tiết Năng Suất -->
-            <div class="section-filters ghn-filter-row"
-                style="display:flex; gap: 10px; align-items: center; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <input type="text" id="filter-ns-driver" placeholder="🔍 Tìm kiếm nhân viên..." class="filter-input"
-                    style="width: 240px; height: 42px;">
-
-                <div class="ghn-filter-container" id="multi-ns-prov">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-prov')">Chọn Khu vực...</div>
-                    <div class="ghn-filter-menu" id="menu-ns-prov"></div>
-                </div>
-
-                <div class="ghn-filter-container" id="multi-ns-day">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-day')">Chọn Ngày...</div>
-                    <div class="ghn-filter-menu" id="menu-ns-day"></div>
-                </div>
-
-                <div class="ghn-filter-container" id="multi-ns-week">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-week')">Chọn Tuần...</div>
-                    <div class="ghn-filter-menu" id="menu-ns-week"></div>
-                </div>
-
-                <div class="ghn-filter-container" id="multi-ns-month">
-                    <div class="ghn-filter-selected" onclick="toggleMultiselect('ns-month')">Chọn Tháng...</div>
-                    <div class="ghn-filter-menu" id="menu-ns-month"></div>
-                </div>
-            </div>
-
-            <!-- ALL DRIVERS TABLE -->
-            <div class="table-card" style="margin-top: 20px;">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-list" style="color:var(--blue)"></i> Chi Tiết Năng Suất Toàn Bộ Nhân Viên
-                    </h3>
-                </div>
-                <div class="table-scroll" style="max-height: 400px;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Ngày</th>
-                                <th>Nhân Viên</th>
-                                <th>Khu Vực</th>
-                                <th style="text-align:right">Đơn/Giờ</th>
-                                <th style="text-align:right">Tổng Đơn</th>
-                                <th style="text-align:right">% GTC</th>
-                                <th>3 Đơn Đầu</th>
-                                <th>3 Đơn Cuối</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-ns-all"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
         <!-- ===== SECTION: XE GXT ===== -->
         <section class="section" id="section-xegxt">
             <div class="section-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">

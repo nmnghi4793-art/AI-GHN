@@ -838,8 +838,54 @@ nav {
     75% { transform: translateX(6px); }
 }
 
+
 #logout-btn:hover {
     background: var(--red-bg) !important;
     border-color: var(--red-border) !important;
     color: var(--red) !important;
+}
+
+/* ===== KPI TAB BAR — GTC & Năng Suất gộp ===== */
+.kpi-tab-bar {
+    display: flex;
+    gap: 4px;
+    background: #f1f5f9;
+    border-radius: 14px;
+    padding: 5px;
+    margin-bottom: 24px;
+    width: fit-content;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.07);
+}
+.kpi-tab-btn {
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.93rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    outline: none;
+}
+.kpi-tab-btn:hover {
+    background: rgba(255,82,0,0.07);
+    color: var(--orange);
+}
+.kpi-tab-btn.active {
+    background: #fff;
+    color: var(--orange);
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+}
+.kpi-tab-btn i { font-size: 0.88rem; }
+.gtc-tab-pane { display: block; }
+@media (max-width: 640px) {
+    .kpi-tab-bar { width: 100%; border-radius: 12px; }
+    .kpi-tab-btn { flex: 1; justify-content: center; padding: 9px 8px; font-size: 0.82rem; }
 }
