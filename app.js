@@ -1587,8 +1587,8 @@ function renderNangSuatSection() {
     const formatRow = (r, idx, isTop) => `
         <tr>
             <td><span class="badge ${isTop ? 'storing' : 'p1'}">#${idx + 1}</span></td>
-            <td style="font-weight:600">${r.name}</td>
-            <td>${r.province}</td>
+            <td style="font-weight:600">${escapeHtml(r.name)}</td>
+            <td>${escapeHtml(r.province)}</td>
             <td style="text-align:right">${r.avgRate.toFixed(1)}</td>
             <td style="text-align:right">${r.totalVol.toLocaleString()}</td>
             <td style="text-align:right;font-weight:700;color:${isTop ? 'var(--green)' : 'var(--red)'}">${r.pctGtc.toFixed(1)}%</td>
@@ -1833,12 +1833,12 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
 
             return `
                 <tr>
-                    <td style="font-weight:600">${shortKho(r['kho gxt'] || r['Kho'] || '--')}</td>
-                    <td><span class="badge ${badgeClass}">${status}</span></td>
+                    <td style="font-weight:600">${escapeHtml(shortKho(r['kho gxt'] || r['Kho'] || '--'))}</td>
+                    <td><span class="badge ${badgeClass}">${escapeHtml(status)}</span></td>
                     <td style="text-align:right;font-weight:700;color:var(--red)">${backlogLM.toLocaleString()}</td>
                     <td style="text-align:right">${backlogKTC.toLocaleString()}</td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${totalBL.toLocaleString()}</td>
-                    <td style="text-align:center;font-weight:600;color:var(--orange)">${donTao} / ${donGtc}</td>
+                    <td style="text-align:center;font-weight:600;color:var(--orange)">${escapeHtml(String(donTao))} / ${escapeHtml(String(donGtc))}</td>
                     <td style="text-align:right;font-weight:700;color:var(--green)">${Math.round(avgGtcVol).toLocaleString()}</td>
                     <td style="text-align:right;font-weight:700;color:var(--blue)">${maxGtcVol.toLocaleString()}</td>
                     <td style="text-align:right">
@@ -1846,7 +1846,7 @@ function renderWarningsSection(khoFilter = '', statusFilter = '') {
                             ${r.soNgayVal} ngày
                         </span>
                     </td>
-                    <td><span class="badge ${nextBadgeClass}">${nextStatus}</span></td>
+                    <td><span class="badge ${nextBadgeClass}">${escapeHtml(nextStatus)}</span></td>
                     <td style="font-weight:800;color:var(--orange)">${index + 1}</td>
                 </tr>
             `;
