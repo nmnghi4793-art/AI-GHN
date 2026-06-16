@@ -2301,7 +2301,7 @@ async function sendCustomTelegramMessage() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('ghn_token') || ''}`
+                ...getAuthHeaders()
             },
             body: JSON.stringify({ message: message, key: adminKey })
         });
