@@ -96,6 +96,7 @@ def require_admin_key(x_admin_key: str = Header(None)):
 @app.on_event("startup")
 async def startup_event():
     import asyncio
+    # --- Telegram Bot ---
     try:
         try:
             from backend.telegram_bot import run_bot
@@ -105,6 +106,15 @@ async def startup_event():
         print("[STARTUP] Đã kích hoạt background task cho Telegram Bot.")
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký background task cho Telegram Bot: {e}")
+
+    # --- Giao Hang Scheduler ---
+    try:
+        from giao_hang_scheduler import run_giao_hang_scheduler
+        asyncio.create_task(run_giao_hang_scheduler())
+        print("[STARTUP] Đã kích hoạt Giao Hàng Scheduler (09:30 & 13:30).")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký Giao Hàng Scheduler: {e}")
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Frontend files (index.html, app.js, styles.css) are deployed at root alongside main.py
