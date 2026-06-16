@@ -736,13 +736,21 @@
             <!-- ===== TAB PANEL 1: GTC & NĂNG SUẤT ===== -->
             <div id="gtc-panel-gtc" class="gtc-tab-pane">
                 <div class="chart-card" style="margin-bottom:18px">
-                    <div class="chart-header">
+                    <div class="chart-header" style="display:flex; justify-content:space-between; align-items:center;">
                         <h3><i class="fa-solid fa-ranking-star"></i> GTC theo từng kho</h3>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <span style="font-size:11px;color:var(--text3);margin-right:4px;">Xem theo:</span>
+                            <button class="btn-mini active" id="btn-kho-day"   onclick="switchGtcByKhoPeriod('day')">Ngày</button>
+                            <button class="btn-mini"        id="btn-kho-week"  onclick="switchGtcByKhoPeriod('week')">Tuần</button>
+                            <button class="btn-mini"        id="btn-kho-month" onclick="switchGtcByKhoPeriod('month')">Tháng</button>
+                        </div>
                     </div>
+                    <div id="gtc-by-kho-period-label" style="font-size:12px;color:var(--text3);padding:4px 0 8px 2px;font-style:italic;"></div>
                     <div style="position:relative;min-height:300px" id="gtc-by-kho-wrapper">
                         <canvas id="chart-gtc-by-kho"></canvas>
                     </div>
                 </div>
+
 
                 <!-- GTC BEST/WORST RANKINGS -->
                 <div id="gtc-top-bottom"></div>

@@ -862,26 +862,148 @@ function renderGtcSection(searchFilter = '') {
 function renderGtcByRegionChart() { /* Removed per user request */ }
 
 // ---- GTC BY KHO BAR CHART ----
+// ---- GTC BY KHO PERIOD MODE ----
+let gtcByKhoPeriod = 'day';
+
+// Helper: lay tuan ISO (bat dau Tu 2)
+function _isoWeek(dateStr) {
+    const part = dateStr ? dateStr.split(' - ')[0] : '';
+    if (!part) return null;
+    const d = new Date(part + 'T00:00:00');
+    if (isNaN(d)) return null;
+    const day = d.getDay() || 7;    // Thu 2 = 1, CN = 7
+    d.setDate(d.getDate() + 4 - day);
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    return { week: Math.ceil(((d - jan1) / 86400000 + 1) / 7), year: d.getFullYear() };
+}
+
+// Helper: lay thang (YYYY-MM)
+function _yearMonth(dateStr) {
+    const part = dateStr ? dateStr.split(' - ')[0] : '';
+    return part ? part.slice(0, 7) : null;  // "2026-06"
+}
+
+// Helper: ngay dau & cuoi tuan ISO
+function _weekRange(dateStr) {
+    const part = dateStr ? dateStr.split(' - ')[0] : '';
+    if (!part) return '';
+    const d = new Date(part + 'T00:00:00');
+    const day = d.getDay() || 7;
+    const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fmt = dt => `${dt.getDate()}/${dt.getMonth()+1}`;
+    return `${fmt(mon)} - ${fmt(sun)}`;
+}
+
+window.switchGtcByKhoPeriod = function(period) {
+    gtcByKhoPeriod = period;
+    ['day','week','month'].forEach(p => {
+        const btn = document.getElementById('btn-kho-' + p);
+        if (btn) btn.classList.toggle('active', p === period);
+    });
+    renderGtcByKhoChart();
+};
+
 function renderGtcByKhoChart() {
     const allDates = [...new Set(state.gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
-    let referenceDate = allDates[0];
 
-    if (gtcTimeMode === 'day' && selectedGtcVals.length > 0) {
-        // Use the latest among selected dates
-        const sortedSelected = [...selectedGtcVals].sort((a, b) => parseVN(b) - parseVN(a));
-        referenceDate = sortedSelected[0];
+    // =====================================================================
+    // AGGREGATION THEO PERIOD
+    // =====================================================================
+    let chartRows = [];
+    let periodLabel = '';
+
+    if (gtcByKhoPeriod === 'day') {
+        // --- CHẾ ĐỘ NGÀY: dùng ngày gần nhất (hoặc selected) ---
+        let referenceDate = allDates[0];
+        if (gtcTimeMode === 'day' && selectedGtcVals.length > 0) {
+            referenceDate = [...selectedGtcVals].sort((a, b) => parseVN(b) - parseVN(a))[0];
+        }
+        const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
+        chartRows = selectedGtcKhos.length > 0
+            ? dayRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])))
+            : dayRows;
+        // Label: "Dữ liệu ngày: 16/06/2026"
+        const datePart = referenceDate ? referenceDate.split(' - ')[0] : '';
+        if (datePart) {
+            const [y,m,d] = datePart.split('-');
+            periodLabel = `Dữ liệu ngày: ${d}/${m}/${y}`;
+        }
+
+    } else if (gtcByKhoPeriod === 'week') {
+        // --- CHẾ ĐỘ TUẦN: gom thành tuần, lấy tuần gần nhất ---
+        const latestDate = allDates[0];
+        const latestWeekInfo = _isoWeek(latestDate);
+        if (!latestWeekInfo) { chartRows = []; }
+        else {
+            const { week: latestWeek, year: latestYear } = latestWeekInfo;
+
+            // Gom dữ liệu theo kho + tuần
+            const khoMap = {};
+            state.gtcData.forEach(r => {
+                const wi = _isoWeek(r['Ngày']);
+                if (!wi || wi.week !== latestWeek || wi.year !== latestYear) return;
+                const khoFull = r['Kho'] || '';
+                if (!khoMap[khoFull]) khoMap[khoFull] = { Kho: khoFull, gtc: 0, gan: 0 };
+                khoMap[khoFull].gtc += parseInt((r['Số đơn GTC'] || '0').toString().replace(/\./g,'')) || 0;
+                khoMap[khoFull].gan += parseInt((r['Số đơn gán'] || '0').toString().replace(/\./g,'')) || 0;
+            });
+            chartRows = Object.values(khoMap).map(x => ({
+                'Kho': x.Kho,
+                'Số đơn GTC': x.gtc,
+                'Số đơn gán': x.gan,
+                '% GTC': x.gan > 0 ? (x.gtc / x.gan * 100).toFixed(2) : '0'
+            }));
+            if (selectedGtcKhos.length > 0)
+                chartRows = chartRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
+
+            // Tính ngày đầu tuần (Thứ 2)
+            const rangeStr = _weekRange(latestDate);
+            periodLabel = `Tuần ${latestWeek}/${latestYear} (${rangeStr}) — tổng hợp toàn tuần`;
+        }
+
+    } else {
+        // --- CHẾ ĐỘ THÁNG: gom thành tháng, lấy tháng gần nhất ---
+        const latestDate = allDates[0];
+        const latestYM = _yearMonth(latestDate);
+        if (!latestYM) { chartRows = []; }
+        else {
+            const khoMap = {};
+            state.gtcData.forEach(r => {
+                if (_yearMonth(r['Ngày']) !== latestYM) return;
+                const khoFull = r['Kho'] || '';
+                if (!khoMap[khoFull]) khoMap[khoFull] = { Kho: khoFull, gtc: 0, gan: 0 };
+                khoMap[khoFull].gtc += parseInt((r['Số đơn GTC'] || '0').toString().replace(/\./g,'')) || 0;
+                khoMap[khoFull].gan += parseInt((r['Số đơn gán'] || '0').toString().replace(/\./g,'')) || 0;
+            });
+            chartRows = Object.values(khoMap).map(x => ({
+                'Kho': x.Kho,
+                'Số đơn GTC': x.gtc,
+                'Số đơn gán': x.gan,
+                '% GTC': x.gan > 0 ? (x.gtc / x.gan * 100).toFixed(2) : '0'
+            }));
+            if (selectedGtcKhos.length > 0)
+                chartRows = chartRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
+
+            const [yr, mo] = latestYM.split('-');
+            periodLabel = `Tháng ${parseInt(mo)}/${yr} (tổng hợp từ ngày 1)`;
+        }
     }
 
-    const dayRows = state.gtcData.filter(r => r['Ngày'] === referenceDate);
+    // Hien thi period label
+    const labelEl = document.getElementById('gtc-by-kho-period-label');
+    if (labelEl) labelEl.textContent = periodLabel;
 
-    // Filter active warehouses to keep chart output strictly equal to multi-selection lists
-    let chartRows = dayRows;
-    if (selectedGtcKhos.length > 0) chartRows = chartRows.filter(r => selectedGtcKhos.includes(shortKho(r['Kho'])));
-
+    // =====================================================================
+    // RENDER CHART
+    // =====================================================================
     const sorted = [...chartRows].sort((a, b) => parsePct(a['% GTC']) - parsePct(b['% GTC']));
 
     const labels = sorted.map(r => shortKho(r['Kho']));
-    const values = sorted.map(r => parsePct(r['% GTC']));
+    const values = sorted.map(r => {
+        const v = parseFloat(String(r['% GTC']).replace(',','.').replace('%',''));
+        return isNaN(v) ? 0 : parseFloat(v.toFixed(2));
+    });
     const colors = values.map(v => v >= 90 ? C_GREEN : v >= 80 ? C_ORANGE : C_RED);
 
     // Calculate totals for Legend display
