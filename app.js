@@ -2390,7 +2390,7 @@ async function sendCustomTelegramMessage() {
     sendBtn.disabled = true;
 
     try {
-        const adminKey = localStorage.getItem('ghn_admin_key') || '';
+        const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
         const resp = await fetch('/api/telegram/report', {
             method: 'POST',
             headers: {
@@ -2631,12 +2631,24 @@ function checkAdminAccess() {
     // Để bật admin mode: truy cập ?key=<ADMIN_KEY> (lấy từ biến Railway ADMIN_KEY)
     // Key sẽ được lưu vào localStorage để dùng cho các request sau
     if (urlKey) {
-        localStorage.setItem('ghn_admin_key', urlKey);
+        // [SEC] Dùng sessionStorage thay vì localStorage:
+        // - sessionStorage tự xóa khi đóng tab/trình duyệt
+        // - An toàn hơn localStorage (không tồn tại vĩnh viễn)
+        sessionStorage.setItem('ghn_admin_key', urlKey);
+        // Xóa key cũ trong localStorage nếu có
+        localStorage.removeItem('ghn_admin_key');
         // Xóa key khỏi URL sau khi lưu
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const savedKey = localStorage.getItem('ghn_admin_key');
+    // [SEC] Ưu tiên sessionStorage; fallback localStorage (backward-compat)
+    const savedKey = sessionStorage.getItem('ghn_admin_key')
+                  || localStorage.getItem('ghn_admin_key') || '';
+    // Nếu còn trong localStorage (cũ), migrate sang sessionStorage rồi xóa
+    if (!sessionStorage.getItem('ghn_admin_key') && localStorage.getItem('ghn_admin_key')) {
+        sessionStorage.setItem('ghn_admin_key', localStorage.getItem('ghn_admin_key'));
+        localStorage.removeItem('ghn_admin_key');
+    }
     const telegramBtn = document.getElementById('telegram-btn');
 
     if (telegramBtn) {

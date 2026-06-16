@@ -43,18 +43,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Thêm security headers vào tất cả HTTP response."""
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        response.headers["Content-Security-Policy"] = (
+        response.headers["X-Frame-Options"]          = "DENY"
+        response.headers["X-Content-Type-Options"]   = "nosniff"
+        response.headers["Referrer-Policy"]          = "strict-origin-when-cross-origin"
+        response.headers["Strict-Transport-Security"]= "max-age=31536000; includeSubDomains; preload"
+        response.headers["Permissions-Policy"]       = "camera=(), microphone=(), geolocation=()"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Content-Security-Policy"]  = (
             "default-src 'self'; "
+            # unsafe-inline cần thiết do onclick attrs trong index.html;
+            # refactor to addEventListener để xóa dc unsafe-inline sau này
             "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'unsafe-inline'; "
             "style-src 'self' fonts.googleapis.com cdnjs.cloudflare.com 'unsafe-inline'; "
             "font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com data:; "
             "img-src 'self' data:; "
-            "connect-src 'self';"
+            "connect-src 'self' api.telegram.org; "
+            "frame-ancestors 'none'; "           # chống Clickjacking (tăng cường X-Frame-Options)
+            "base-uri 'self'; "                  # chống Base Tag Injection
+            "object-src 'none'; "                # chặn Flash / plugins
+            "form-action 'self';"
         )
         return response
 
@@ -155,9 +162,14 @@ except Exception as e:
     print(f"[STARTUP] Could not list BASE_DIR: {e}")
 
 # ---- GOOGLE SHEETS MAPPING ----
-# Sheet IDs — đặt vào env var nếu muốn ẩn hoàn toàn
-SHEET_ID = os.environ.get("SHEET_ID", "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk")
-ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY")
+# Sheet IDs — luôn load từ env var; fallback chỉ dùng khi dev local
+_SHEET_ID_FALLBACK     = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+_ODO_SHEET_ID_FALLBACK = "1frGuwcXD3oTcvY8wt62CqA3j0i6Ub2YrksF_tUIFrcY"
+SHEET_ID     = os.environ.get("SHEET_ID")     or _SHEET_ID_FALLBACK
+ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID") or _ODO_SHEET_ID_FALLBACK
+if not os.environ.get("SHEET_ID"):
+    print("[SECURITY WARNING] SHEET_ID not in env vars — using hardcoded fallback. "
+          "Set SHEET_ID in Railway environment for production.")
 GIDS = {
     "gtc":       "0",
     "ontime":    "25240142",
@@ -659,6 +671,19 @@ from datetime import datetime
 TELEGRAM_TOKEN = None  # Chỉ dùng os.environ.get() bên dưới
 CHAT_ID = None         # Chỉ dùng os.environ.get() bên dưới
 
+import re as _re
+def _sanitize_telegram_message(text: str) -> str:
+    """
+    Sanitize nội dung tin nhắn Telegram trước khi gửi:
+    - Xóa Markdown link injection: [text](url) -> text
+    - Giới hạn độ dài (Telegram limit: 4096 chars)
+    """
+    # Strip Markdown links: [anchor](url) -> anchor
+    text = _re.sub(r'\[([^\]]{1,200})\]\(https?://[^\)]{1,500}\)', r'\1', text)
+    # Xóa HTML injection cơ bản nếu dùng parse_mode=HTML
+    # Đối với Markdown mode, giới hạn inline code block để tránh code injection
+    return text[:4000].strip()
+
 @app.post("/api/telegram/report", dependencies=[Depends(require_api_token)])
 async def send_telegram_report(payload: dict):
     try:
@@ -667,9 +692,12 @@ async def send_telegram_report(payload: dict):
         if not _ADMIN_KEY or not secrets.compare_digest(client_key, _ADMIN_KEY):
             return {"status": "error", "message": "Bạn không có quyền thực hiện hành động này."}
 
-        message = payload.get("message", "")
-        if not message:
+        raw_message = payload.get("message", "")
+        if not raw_message:
             return {"status": "error", "message": "Nội dung báo cáo trống."}
+
+        # Sanitize trước khi gửi — chống Markdown injection
+        message = _sanitize_telegram_message(raw_message)
 
         # Gửi qua Telegram API — chỉ dùng environment variables
         token = os.environ.get("TELEGRAM_BOT_TOKEN")

@@ -1642,7 +1642,11 @@ async def run_bot():
         except Exception as e:
             err_msg = f"Lỗi chạy Bot: {str(e)}"
             log_status(err_msg)
-            BOT_STATUS["last_error"] = f"{err_msg}\n{traceback.format_exc()}"
+            # [SEC] Chỉ lưu thông báo ngắn vào BOT_STATUS (expose qua /api/bot/status)
+            # Full traceback chỉ in ra server console (không lộ qua API)
+            import traceback as _tb
+            _tb.print_exc()  # In ra console Railway để debug
+            BOT_STATUS["last_error"] = f"{err_msg} (xem server log để biết chi tiết)"
             BOT_STATUS["running"] = False
             
             # Đợi một chút rồi thử lại (tránh trường hợp xung đột cổng/instance tạm thời)
