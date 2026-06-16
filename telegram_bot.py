@@ -373,39 +373,82 @@ def generate_odo_warning_report(date_str: str, moc_time: str) -> str:
 def _generate_van_hanh_report(now_local) -> str:
     """
     Tổng hợp Báo cáo Vận hành Miền Trung (gửi lúc 10:30 hằng ngày).
-    Đọc dữ liệu trực tiếp từ Google Sheets qua read_csv của main.py.
-    Gồm 3 mục: KHO NGHIÊM TRỌNG, BACKLOG >7 ngày, HIỆU SUẤT KHO (GTC).
+    Đọc data N-1 từ Google Sheets qua read_csv của main.py.
+    Nếu data N-1 chưa được cập nhật → dừng lại và yêu cầu cập nhật.
     """
+    import datetime as _dt
     try:
         from main import read_csv
     except ImportError:
         return "⚠️ Không load được dữ liệu vận hành (main module unavailable)."
 
-    date_str = now_local.strftime("%d/%m/%Y")
-    time_str = now_local.strftime("%H:%M:%S")
-    msg = f"📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n⏱ _{date_str} {time_str}_\n\n"
+    tz_utc7    = _dt.timezone(_dt.timedelta(hours=7))
+    yesterday  = (now_local - _dt.timedelta(days=1)).date()
+    y_str      = yesterday.strftime("%Y-%m-%d")   # "2026-06-15"
+    y_str_vn   = yesterday.strftime("%d/%m/%Y")   # "15/06/2026"
+    date_str   = now_local.strftime("%d/%m/%Y")
+    time_str   = now_local.strftime("%H:%M:%S")
 
-    # ---- 1. KHO NGHIÊM TRỌNG ----
+    # =========================================================
+    # KIỂM TRA DATA N-1 (dùng GTC là nguồn chính)
+    # =========================================================
+    gtc_data, _ = read_csv("gtc", force=True)
+
+    # Tìm ngày mới nhất có trong GTC data
+    latest_date = ""
+    has_yesterday = False
+    for r in gtc_data:
+        ngay = r.get("Ngày", "").strip()
+        if ngay.startswith(y_str):
+            has_yesterday = True
+            break
+        if ngay and ngay > latest_date:
+            latest_date = ngay[:10]  # lấy phần YYYY-MM-DD
+
+    if not has_yesterday:
+        latest_vn = ""
+        try:
+            d = _dt.date.fromisoformat(latest_date)
+            latest_vn = d.strftime("%d/%m/%Y")
+        except Exception:
+            latest_vn = latest_date or "chưa xác định"
+
+        return (
+            f"⚠️ *BÁO CÁO VẬN HÀNH MIỀN TRUNG — {date_str}*\n\n"
+            f"🔴 *Data N-1 ({y_str_vn}) chưa được cập nhật*\n"
+            f"Dữ liệu mới nhất trong Dashboard: *{latest_vn}*\n\n"
+            f"Bot không thể gửi báo cáo hôm nay.\n"
+            f"📌 Vui lòng cập nhật data GTC ngày *{y_str_vn}* lên Dashboard trước khi nhận báo cáo.\n\n"
+            f"🔗 [Mở Dashboard để cập nhật](https://ai-ghn-gxt.up.railway.app/)"
+        )
+
+    # =========================================================
+    # DATA N-1 ĐÃ CÓ — TỔNG HỢP BÁO CÁO
+    # =========================================================
+    msg = (f"📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n"
+           f"⏱ _{date_str} {time_str}_\n\n")
+
+    # ---- 1. KHO NGHIÊM TRỌNG (warnings) ----
     msg += "🚨 *1. KHO NGHIÊM TRỌNG (>5 NGÀY):*\n"
     try:
         warn_data, _ = read_csv("warnings")
         critical = []
         for r in warn_data:
-            kho = r.get("Tên kho", r.get("ten_kho", ""))
-            days_raw = r.get("Số ngày trở về ngày thường",
-                             r.get("so_ngay", r.get("so ngay", "")))
+            kho      = r.get("kho gxt", r.get("Kho", "")).strip()
+            days_raw = r.get("Total ngày", r.get("Rank", "0")).strip()
             try:
-                days = int(str(days_raw).strip()) if days_raw else 0
+                days = float(days_raw.replace(",", "."))
             except ValueError:
                 days = 0
-            if days > 5:
-                critical.append(f"• *{kho}*: {days} ngày")
+            if days > 5 and kho:
+                kho_short = kho.replace("Kho Giao Hàng Nặng - ", "")
+                critical.append(f"• *{kho_short}*: {days:.1f} ngày")
         if critical:
             msg += "\n".join(critical[:10]) + "\n"
         else:
             msg += "_Không có kho nào_\n"
     except Exception as e:
-        msg += f"_Lỗi đọc dữ liệu: {e}_\n"
+        msg += f"_Lỗi đọc dữ liệu cảnh báo: {e}_\n"
     msg += "\n"
 
     # ---- 2. CẢNH BÁO BACKLOG > 7 NGÀY ----
@@ -414,55 +457,56 @@ def _generate_van_hanh_report(now_local) -> str:
         bl_data, _ = read_csv("backlog")
         bl_by_kho = {}
         for r in bl_data:
-            kho = r.get("kho_giao", r.get("Kho", r.get("Tên kho", "")))
-            if kho:
-                # Rút ngắn tên kho nếu quá dài
-                kho_short = kho.replace("Kho Giao Hàng Nặng - ", "").replace("Bưu Cục ", "")
+            kho     = r.get("kho_giao", "").strip()
+            aging   = int(r.get("backlog_aging", "0") or 0)
+            if kho and aging > 7:
+                kho_short = (kho.replace("Kho Giao Hàng Nặng - ", "")
+                               .replace("Bưu Cục ", ""))
                 bl_by_kho[kho_short] = bl_by_kho.get(kho_short, 0) + 1
         entries = sorted(bl_by_kho.items(), key=lambda x: -x[1])
-        total = sum(v for _, v in entries)
+        total   = sum(v for _, v in entries)
         if entries:
             msg += f"*Tổng backlog > 7 ngày:* {total:,} đơn\n*Kho cần xử lý:*\n"
             for kho, cnt in entries:
                 msg += f"• {kho}: *{cnt:,} đơn*\n"
             msg += "\n*Yêu cầu xử lý:*\n"
             msg += "• Kho rà soát từng đơn backlog > 7 ngày.\n"
-            msg += "• Xác định lý do chưa xử lý: khách hẹn, thiếu xe, sai địa chỉ, hàng lưu kho, chưa liên hệ được khách.\n"
-            msg += "• Cập nhật hướng xử lý và cam kết thời gian clear trước 16h hôm nay.\n"
+            msg += "• Xác định lý do: khách hẹn, thiếu xe, sai địa chỉ, hàng lưu kho.\n"
+            msg += "• Cam kết clear trước 16h hôm nay.\n"
         else:
             msg += "Không có kho phát sinh backlog > 7 ngày.\n"
     except Exception as e:
-        msg += f"_Lỗi đọc dữ liệu: {e}_\n"
+        msg += f"_Lỗi đọc dữ liệu backlog: {e}_\n"
     msg += "\n"
 
-    # ---- 3. HIỆU SUẤT KHO (GTC) ----
-    msg += "🏢 *3. HIỆU SUẤT KHO (GTC):*\n"
+    # ---- 3. HIỆU SUẤT KHO GTC (N-1) ----
+    msg += f"🏢 *3. HIỆU SUẤT KHO GTC (Ngày {y_str_vn}):*\n"
     try:
-        gtc_data, _ = read_csv("gtc")
-        kho_col  = next((k for k in (gtc_data[0] if gtc_data else {}) if "kho" in k.lower() or "tên" in k.lower()), None)
-        pct_col  = next((k for k in (gtc_data[0] if gtc_data else {}) if "gtc" in k.lower() or "%" in k or "tỷ lệ" in k.lower()), None)
-        if kho_col and pct_col and gtc_data:
-            scored = []
-            for r in gtc_data:
-                kho = r.get(kho_col, "")
-                pct_raw = r.get(pct_col, "0")
-                try:
-                    pct = float(str(pct_raw).strip().replace("%", "").replace(",", "."))
-                except ValueError:
-                    pct = 0.0
-                if kho:
-                    scored.append((kho, pct))
-            scored.sort(key=lambda x: -x[1])
+        # Lọc data đúng ngày N-1
+        rows_y = [r for r in gtc_data if r.get("Ngày", "").strip().startswith(y_str)]
+        scored = []
+        for r in rows_y:
+            kho     = r.get("Kho", "").replace("Kho Giao Hàng Nặng - ", "").strip()
+            pct_raw = r.get("% GTC", "0%").strip().replace("%", "").replace(",", ".")
+            try:
+                pct = float(pct_raw)
+            except ValueError:
+                pct = 0.0
+            if kho:
+                scored.append((kho, pct))
+        scored.sort(key=lambda x: -x[1])
+
+        if scored:
             tops    = scored[:3]
-            bottoms = scored[-3:] if len(scored) >= 3 else scored
-            msg += "*Top kho tốt:*\n"
+            bottoms = scored[-3:]
+            msg += "*Top kho tốt nhất:*\n"
             for kho, pct in tops:
                 msg += f" ✅ {kho}: *{pct:.2f}%*\n"
             msg += "*Kho cần cải thiện:*\n"
             for kho, pct in reversed(bottoms):
                 msg += f" ❌ {kho}: *{pct:.2f}%*\n"
         else:
-            msg += "_Chưa có dữ liệu GTC._\n"
+            msg += "_Không có dữ liệu GTC cho ngày này._\n"
     except Exception as e:
         msg += f"_Lỗi đọc dữ liệu GTC: {e}_\n"
 
