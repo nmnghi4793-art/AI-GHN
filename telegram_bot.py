@@ -1404,10 +1404,58 @@ async def run_bot():
                     pass
                 asyncio.create_task(_send_report_to_chat(chat_id, "13:30"))
 
+            async def cmd_testsheet(update, context):
+                """/testsheet — kiểm tra kết nối Google Sheet"""
+                import os, traceback
+                await update.message.reply_text("🔍 Đang kiểm tra kết nối Google Sheet...")
+                try:
+                    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+                    report_id = os.environ.get("REPORT_SHEET_ID",
+                                               "1wpWMZRAaoaQXdmTL7dcKJ5PUFrmd8vESQmHj2ysNTHc")
+                    if not sa_json:
+                        await update.message.reply_text(
+                            "❌ GOOGLE_SERVICE_ACCOUNT_JSON chưa được cấu hình!")
+                        return
+
+                    import json
+                    info = json.loads(sa_json)
+                    sa_email = info.get("client_email", "?")
+                    await update.message.reply_text(
+                        f"✅ SA_JSON hợp lệ\n📧 Email: <code>{sa_email}</code>",
+                        parse_mode="HTML")
+
+                    # Thu ghi 1 cell
+                    import asyncio as _asyncio
+                    def _test_write():
+                        from google.oauth2.service_account import Credentials
+                        from googleapiclient.discovery import build
+                        creds = Credentials.from_service_account_info(
+                            info,
+                            scopes=["https://www.googleapis.com/auth/spreadsheets"]
+                        )
+                        svc = build("sheets", "v4", credentials=creds)
+                        svc.spreadsheets().values().update(
+                            spreadsheetId=report_id,
+                            range="Sheet1!A1",
+                            valueInputOption="USER_ENTERED",
+                            body={"values": [["✅ Bot kết nối OK"]]},
+                        ).execute()
+
+                    await _asyncio.to_thread(_test_write)
+                    await update.message.reply_text(
+                        f"✅ Ghi Sheet thành công!\nSheet: https://docs.google.com/spreadsheets/d/{report_id}/edit")
+
+                except Exception as e:
+                    err = traceback.format_exc()[-1000:]
+                    await update.message.reply_text(
+                        f"❌ <b>Lỗi kết nối Sheet:</b>\n<code>{err}</code>",
+                        parse_mode="HTML")
+
             application.add_handler(CmdHandler("ping",       cmd_ping))
             application.add_handler(CmdHandler("baocao",     cmd_baocao))
             application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
-            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330")
+            application.add_handler(CmdHandler("testsheet",  cmd_testsheet))
+            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330, /testsheet")
 
 
             # Khởi chạy bot dạng polling
