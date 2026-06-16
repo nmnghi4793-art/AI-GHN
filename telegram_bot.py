@@ -1328,19 +1328,71 @@ async def run_bot():
             # Đăng ký lệnh báo cáo giao hàng
             try:
                 from telegram.ext import CommandHandler as CmdHandler
-                from giao_hang_scheduler import run_giao_hang_report, _sent_today
+                from giao_hang_scheduler import (
+                    read_source_csv, filter_rows, summarize_by_kho,
+                    find_new_orders, save_morning_snapshot,
+                    write_report_sheet, build_message,
+                    _sent_today, _morning_snapshot, TZ, REPORT_SHEET_URL,
+                    SOURCE_SPREADSHEET_ID, SA_JSON
+                )
+                import datetime as _dt
+
+                async def _send_report_to_chat(chat_id: int, mode: str):
+                    """Doc du lieu va gui bao cao thang vao chat_id."""
+                    from datetime import datetime
+                    now          = datetime.now(TZ)
+                    today        = now.date()
+                    is_afternoon = (mode == "13:30")
+                    try:
+                        rows       = await read_source_csv()
+                        filtered   = filter_rows(rows)
+                        kho_sum    = summarize_by_kho(filtered) if filtered else {}
+                        comparison = find_new_orders(filtered, today) if is_afternoon else None
+                        sheet_ok   = await write_report_sheet(
+                            filtered, kho_sum, comparison or {}, now, is_afternoon
+                        ) if filtered and SA_JSON else False
+                        msg = build_message(
+                            filtered, kho_sum, sheet_ok, now,
+                            comparison=comparison, is_afternoon=is_afternoon
+                        )
+                        # Gui bao cao vao chat noi go lenh
+                        import httpx, os
+                        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                        async with httpx.AsyncClient(timeout=30) as client:
+                            await client.post(
+                                f"https://api.telegram.org/bot{token}/sendMessage",
+                                json={"chat_id": chat_id, "text": msg,
+                                      "parse_mode": "HTML",
+                                      "disable_web_page_preview": False}
+                            )
+                        # Luu snapshot neu 09:30
+                        if mode == "09:30" and filtered:
+                            save_morning_snapshot(filtered, today)
+                        _sent_today[mode] = today
+                    except Exception as e:
+                        import httpx, os
+                        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+                        async with httpx.AsyncClient(timeout=15) as client:
+                            await client.post(
+                                f"https://api.telegram.org/bot{token}/sendMessage",
+                                json={"chat_id": chat_id,
+                                      "text": f"❌ Lỗi tổng hợp báo cáo: <code>{str(e)[:200]}</code>",
+                                      "parse_mode": "HTML"}
+                            )
 
                 async def cmd_baocao(update, context):
-                    """Lệnh /baocao — trigger báo cáo giao hàng ngay lập tức (kiểu 09:30)"""
+                    """/baocao — báo cáo đơn giao hàng ngay (kiểu 09:30)"""
+                    chat_id = update.effective_chat.id
                     await update.message.reply_text("⏳ Đang tổng hợp báo cáo đơn giao hàng...")
                     _sent_today.pop("09:30", None)
-                    asyncio.create_task(run_giao_hang_report("09:30"))
+                    asyncio.create_task(_send_report_to_chat(chat_id, "09:30"))
 
                 async def cmd_baocao1330(update, context):
-                    """Lệnh /baocao1330 — trigger báo cáo 13:30 (có so sánh đơn mới)"""
-                    await update.message.reply_text("⏳ Đang tổng hợp báo cáo + so sánh đơn mới...")
+                    """/baocao1330 — báo cáo + so sánh đơn mới vs 09:30"""
+                    chat_id = update.effective_chat.id
+                    await update.message.reply_text("⏳ Đang tổng hợp + so sánh đơn mới so với 09:30...")
                     _sent_today.pop("13:30", None)
-                    asyncio.create_task(run_giao_hang_report("13:30"))
+                    asyncio.create_task(_send_report_to_chat(chat_id, "13:30"))
 
                 application.add_handler(CmdHandler("baocao", cmd_baocao))
                 application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
