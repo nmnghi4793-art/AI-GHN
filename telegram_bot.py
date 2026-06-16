@@ -1472,6 +1472,10 @@ async def run_bot():
         log_status("WARNING: Biến TELEGRAM_BOT_TOKEN chưa được cấu hình. Bỏ qua khởi động bot.")
         return
         
+    if os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true":
+        log_status("INFO: Telegram Bot polling bị vô hiệu hóa qua biến môi trường DISABLE_TELEGRAM_POLLING.")
+        return
+        
     log_status("Đang khởi động Telegram Bot...")
     
     retry_delay = 10

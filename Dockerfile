@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY telegram_bot.py .
 COPY giao_hang_scheduler.py .
+COPY collect_money_bot.py .
+COPY collect_money_scheduler.py .
 COPY app.js .
 COPY index.html .
 COPY styles.css .
