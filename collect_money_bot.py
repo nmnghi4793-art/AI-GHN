@@ -61,7 +61,7 @@ GHN_COLLECT_URL = os.environ.get(
     "GHN_COLLECT_URL",
     "https://nhanh.ghn.vn/lastmile/receipt/collect-money-management"
 )
-CDP_URL = "http://localhost:9222"
+CDP_URL = "http://127.0.0.1:9222"
 
 def parse_int(val_str: str) -> int:
     try:
@@ -135,11 +135,17 @@ async def send_report(warehouse_names, report_data, error_warehouses):
             for emp in wh["issues"]:
                 emp_label = f"{emp['emp_code']} - {emp['emp_name']}" if emp['emp_code'] else emp['emp_name']
                 msg += f"   • {emp_label}\n"
-                msg += f"     * ĐH cần thu tiền: {emp['dh_thu_tien']} đơn\n"
-                msg += f"     * Tiền cần thu: {emp['tien_can_thu']}\n"
-                msg += f"     * ĐH cần lưu kho: {emp['dh_luu_kho']} đơn\n"
-                msg += f"     * ĐH cần bắn kiểm: {emp['dh_ban_kiem']} đơn\n"
-                msg += f"     * Hoàn thành trước: {emp['deadline']}\n"
+                if emp['dh_thu_tien'] > 0:
+                    msg += f"     * ĐH cần thu tiền: {emp['dh_thu_tien']} đơn\n"
+                    tct = emp['tien_can_thu'].strip()
+                    if tct and tct != "0" and tct != "0đ":
+                        msg += f"     * Tiền cần thu: {tct}\n"
+                if emp['dh_luu_kho'] > 0:
+                    msg += f"     * ĐH cần lưu kho: {emp['dh_luu_kho']} đơn\n"
+                if emp['dh_ban_kiem'] > 0:
+                    msg += f"     * ĐH cần bắn kiểm: {emp['dh_ban_kiem']} đơn\n"
+                if emp['deadline']:
+                    msg += f"     * Hoàn thành trước: {emp['deadline']}\n"
             msg += "\n"
             
         msg += (
@@ -158,49 +164,58 @@ async def send_report(warehouse_names, report_data, error_warehouses):
 async def run_collect_money_check():
     log.info("=== BAT DAU KIEM TRA THU TIEN - BAN KIEM ===")
     
-    # 1. Ket noi voi Chrome qua CDP port 9222
-    log.info(f"Connecting to Chrome over CDP at {CDP_URL}...")
+    # 1. Khoi dong Chrome voi session rieng de tu luu dang nhap
+    user_data_dir = os.path.join(LOG_DIR, "playwright_session")
+    log.info(f"Khoi dong trinh duyet voi profile tai: {user_data_dir}...")
+    
+    using_cdp = False
+    browser = None
+    browser_context = None
+    page = None
+    
     try:
         async with async_playwright() as p:
             try:
+                log.info(f"Dang ket noi Chrome CDP qua: {CDP_URL}...")
                 browser = await p.chromium.connect_over_cdp(CDP_URL)
-            except Exception as e:
-                err_msg = (
-                    f"❌ <b>Bot không thể kiểm tra:</b>\n"
-                    f"Không thể kết nối đến trình duyệt Chrome qua cổng debug 9222. "
-                    f"Vui lòng đảm bảo Chrome đã được khởi động bằng file debug và cổng 9222 đang mở.\n"
-                    f"Chi tiết lỗi: <code>{html.escape(str(e))}</code>"
-                )
-                log.error(f"Khong ket noi duoc CDP: {e}")
-                await send_telegram_message(err_msg)
-                return False
-
-            if not browser.contexts:
-                log.error("Khong tim thay context nao trong Chrome debug.")
-                await send_telegram_message("❌ <b>Bot không thể kiểm tra:</b> Không tìm thấy context trình duyệt Chrome.")
-                return False
+                log.info("Ket noi Chrome CDP thanh cong.")
+                using_cdp = True
                 
-            context = browser.contexts[0]
+                # Tim tab nhanh.ghn.vn dang mo hoac mo tab moi
+                context = browser.contexts[0]
+                for p_obj in context.pages:
+                    if "nhanh.ghn.vn/lastmile/receipt/collect-money-management" in p_obj.url:
+                        page = p_obj
+                        log.info("Tim thay tab nhanh.ghn.vn dang mo tren Chrome CDP.")
+                        break
+                if not page:
+                    page = await context.new_page()
+                    log.info("Khong tim thay tab nhanh.ghn.vn, da mo tab moi tren Chrome CDP.")
+            except Exception as cdp_err:
+                log.warning(f"Khong the ket noi CDP: {cdp_err}. Chuyen sang launch persistent context...")
+                try:
+                    browser_context = await p.chromium.launch_persistent_context(
+                        user_data_dir=user_data_dir,
+                        headless=False,
+                        args=[
+                            "--no-first-run",
+                            "--disable-blink-features=AutomationControlled"
+                        ],
+                        viewport={"width": 1600, "height": 900}
+                    )
+                    page = browser_context.pages[0] if browser_context.pages else await browser_context.new_page()
+                except Exception as e:
+                    err_msg = (
+                        f"❌ <b>Bot không thể khởi động trình duyệt:</b>\n"
+                        f"Chi tiết lỗi: <code>{html.escape(str(e))}</code>"
+                    )
+                    log.error(f"Khong the launch_persistent_context: {e}")
+                    await send_telegram_message(err_msg)
+                    return False
+
             
-            # Tim tab da mo san co link collect-money-management
-            page = None
-            for p_temp in context.pages:
-                if "collect-money-management" in p_temp.url:
-                    page = p_temp
-                    log.info(f"Tim thay tab GHN dang mo san: {page.url}")
-                    break
-            
-            if not page:
-                log.info(f"Khong tim thay tab dang mo. Tao tab moi...")
-                page = await context.new_page()
-                await page.set_viewport_size({"width": 1600, "height": 900})
-                await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded")
-            else:
-                log.info("Chuyen den tab dang mo...")
-                await page.bring_to_front()
-                # Neu URL chua hop le, dieu huong den URL dung
-                if "collect-money-management" not in page.url:
-                    await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded")
+            log.info(f"Mo trang kiem tra: {GHN_COLLECT_URL}")
+            await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded")
             
             # Cho page load va kiem tra phien dang nhap
             await page.wait_for_timeout(3000)
@@ -209,13 +224,29 @@ async def run_collect_money_check():
             
             # Kiem tra xem co bi redirect ve trang login khong
             if "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000):
-                log.error("Phien dang nhap GHN da het han.")
-                await send_telegram_message("❌ <b>Bot không thể kiểm tra vì phiên đăng nhập GHN đã hết hạn.</b>")
-                return False
+                log.info("Chua dang nhap GHN. Cho nguoi dung dang nhap trong 3 phut...")
+                await send_telegram_message("⚠️ <b>Bot cần đăng nhập tài khoản GHN.</b> Vui lòng hoàn tất đăng nhập trên cửa sổ Chrome vừa mở ra trên máy.")
+                
+                # Cho dang nhap
+                logged_in = False
+                for sec in range(1, 181):
+                    await asyncio.sleep(1)
+                    if "login" not in page.url.lower() and not await page.locator("input[type='password']").is_visible(timeout=500):
+                        log.info(f"Dang nhap thanh cong sau {sec} giay!")
+                        logged_in = True
+                        break
+                
+                if not logged_in:
+                    log.error("Het thoi gian cho dang nhap.")
+                    await send_telegram_message("❌ <b>Bot không thể kiểm tra vì hết thời gian chờ đăng nhập GHN.</b>")
+                    await browser_context.close()
+                    return False
+                
+                # Cho page load lai sau khi dang nhap
+                await page.wait_for_timeout(4000)
 
             # Tim o chon kho (ant-select-selector o tren cung ben phai)
             try:
-                # O chon kho thuong la phan tu ant-select hoac ant-select-selector dau tien
                 select_locator = page.locator(".ant-select-selector").first
                 await select_locator.wait_for(state="visible", timeout=10000)
                 log.info("Tim thay o chon kho.")
@@ -225,43 +256,68 @@ async def run_collect_money_check():
                 debug_path = os.path.join(LOG_DIR, "debug_collect_money_err.png")
                 await page.screenshot(path=debug_path)
                 await send_telegram_message(f"❌ <b>Bot không tìm thấy ô chọn kho trên trang.</b> Đã lưu ảnh debug tại {debug_path}.")
+                await browser_context.close()
                 return False
 
             # Click mo dropdown chon kho
             await select_locator.click()
             await page.wait_for_timeout(1500) # Cho hieu ung dropdown
             
-            # Lay danh sach cac options kho
-            options_locator = page.locator(".ant-select-dropdown .ant-select-item-option")
-            count = await options_locator.count()
+            # Lay danh sach cac options kho bang cach cuon virtual list
+            warehouse_names = []
+            seen_warehouses = set()
             
-            if count == 0:
-                # Kiem tra class khac co the dung (Fallback)
-                options_locator = page.locator(".ant-select-item-option-content")
-                count = await options_locator.count()
-                
-            if count == 0:
-                # Kiem tra dropdown co that su duoc bat khong, click lai
-                await select_locator.click()
-                await page.wait_for_timeout(1500)
+            # Đợi dropdown cuộn ảo hiển thị
+            holder_locator = page.locator(".rc-virtual-list-holder").first
+            try:
+                await holder_locator.wait_for(state="visible", timeout=5000)
+                log.info("Tim thay .rc-virtual-list-holder, bat dau cuon de lay danh sach tat ca kho...")
+            except Exception:
+                log.warning("Khong tim thay .rc-virtual-list-holder trong 5s. Lay options dang hien thi.")
+            
+            # Cuộn để tải hết
+            last_len = -1
+            no_new_count = 0
+            max_scrolls = 80
+            
+            for scroll_idx in range(max_scrolls):
                 options_locator = page.locator(".ant-select-dropdown .ant-select-item-option")
-                count = await options_locator.count()
+                opt_count = await options_locator.count()
                 
-            log.info(f"Tim thay {count} kho trong dropdown.")
+                if opt_count == 0:
+                    options_locator = page.locator(".ant-select-item-option-content")
+                    opt_count = await options_locator.count()
+                
+                for i in range(opt_count):
+                    text = await options_locator.nth(i).inner_text()
+                    text_strip = text.strip()
+                    if text_strip and text_strip not in seen_warehouses:
+                        seen_warehouses.add(text_strip)
+                        warehouse_names.append(text_strip)
+                
+                if len(seen_warehouses) == last_len:
+                    no_new_count += 1
+                    if no_new_count >= 6:
+                        break
+                else:
+                    no_new_count = 0
+                    last_len = len(seen_warehouses)
+                
+                if await holder_locator.count() > 0:
+                    await holder_locator.evaluate("el => el.scrollTop += 250")
+                    await page.wait_for_timeout(250)
+                else:
+                    break
+            
+            count = len(warehouse_names)
+            log.info(f"Tong cong da tim thay {count} kho trong dropdown: {warehouse_names}")
             if count == 0:
                 log.error("Khong doc duoc danh sach kho.")
                 await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown.</b>")
+                await browser_context.close()
                 return False
-                
-            warehouse_names = []
-            for i in range(count):
-                opt = options_locator.nth(i)
-                text = await opt.inner_text()
-                warehouse_names.append(text.strip())
             
-            log.info(f"Danh sach kho tim thay: {warehouse_names}")
-            
-            # Click lai select_locator de dong dropdown truoc khi duyet
+            # Click lai de dong dropdown
             await select_locator.click()
             await page.wait_for_timeout(500)
             
@@ -271,23 +327,27 @@ async def run_collect_money_check():
             for index, wh_name in enumerate(warehouse_names):
                 log.info(f"[{index+1}/{count}] Dang kiem tra kho: {wh_name}")
                 
-                # Mo dropdown
-                await select_locator.click()
-                await page.wait_for_timeout(1000)
-                
                 try:
-                    # Click chon kho theo index
-                    target_opt = page.locator(".ant-select-dropdown .ant-select-item-option").nth(index)
-                    await target_opt.scroll_into_view_if_needed()
-                    await target_opt.click()
-                    log.info(f"Da click chon: {wh_name}")
+                    # 1. Click vao select container de mo dropdown
+                    await select_locator.click()
+                    await page.wait_for_timeout(500)
+                    
+                    # 2. Nhap ma kho de loc (VD: "21086000")
+                    wh_code = wh_name.split(" - ")[0].strip()
+                    search_input = page.locator("input.ant-select-selection-search-input").first
+                    await search_input.evaluate("el => el.focus()")
+                    await search_input.fill(wh_code)
+                    await page.wait_for_timeout(800) # Cho danh sach loc xong
+                    
+                    # 3. Click chon ket qua dau tien trong dropdown
+                    first_option = page.locator(".ant-select-dropdown .ant-select-item-option").first
+                    await first_option.click()
+                    log.info(f"Da chon kho qua search: {wh_name}")
                 except Exception as e:
-                    log.error(f"Khong the chon kho {wh_name}: {e}")
+                    log.error(f"Khong the chon kho {wh_name} qua search: {e}")
                     error_warehouses.append(wh_name)
-                    # Chup anh debug rieng cho kho bi loi
                     debug_path = os.path.join(LOG_DIR, f"debug_err_{index}.png")
                     await page.screenshot(path=debug_path)
-                    # Try to close dropdown by clicking select box
                     try:
                         await select_locator.click()
                     except:
@@ -307,7 +367,7 @@ async def run_collect_money_check():
                 except Exception:
                     pass
                 
-                # Kiem tra xem kho nay co trống khong
+                # Kiem tra trong
                 is_empty = False
                 try:
                     empty_el = page.locator(".ant-empty").first
@@ -320,13 +380,12 @@ async def run_collect_money_check():
                 if is_empty:
                     continue
                 
-                # Lay cac dong du lieu trong bang
+                # Lay cac dong du lieu
                 rows_locator = page.locator(".ant-table-tbody tr.ant-table-row")
                 rows_count = await rows_locator.count()
                 log.info(f"Kho {wh_name} co {rows_count} dong du lieu.")
                 
                 if rows_count == 0:
-                    # Cho them mot chut (phong truong hop mang cham)
                     await page.wait_for_timeout(2500)
                     rows_count = await rows_locator.count()
                     if rows_count == 0:
@@ -343,7 +402,6 @@ async def run_collect_money_check():
                     if cells_count < 7:
                         continue
                     
-                    # Cot 1: CREP (Ma NV / Ten NV)
                     crep_text = await cells.nth(0).inner_text()
                     crep_lines = [line.strip() for line in crep_text.split("\n") if line.strip()]
                     
@@ -357,26 +415,24 @@ async def run_collect_money_check():
                             emp_code = crep_lines[0]
                         else:
                             emp_name = crep_lines[0]
-                            
-                    # Cot 2: Doi tac
-                    partner = (await cells.nth(1).inner_text()).strip()
                     
-                    # Cot 3: DH can thu tien
+                    if not emp_code and not emp_name:
+                        continue
+                        
+                    # Loai bo dong tong cong / footer
+                    name_lower = emp_name.lower()
+                    code_lower = emp_code.lower()
+                    if "tổng" in name_lower or "tổng" in code_lower or "cộng" in name_lower or "cộng" in code_lower:
+                        continue
+                            
+                    partner = (await cells.nth(1).inner_text()).strip()
                     dh_thu_tien_str = (await cells.nth(2).inner_text()).strip()
                     dh_thu_tien = parse_int(dh_thu_tien_str)
-                    
-                    # Cot 4: Tien can thu
                     tien_can_thu_str = (await cells.nth(3).inner_text()).strip()
-                    
-                    # Cot 5: DH can luu kho
                     dh_luu_kho_str = (await cells.nth(4).inner_text()).strip()
                     dh_luu_kho = parse_int(dh_luu_kho_str)
-                    
-                    # Cot 6: DH can ban kiem
                     dh_ban_kiem_str = (await cells.nth(5).inner_text()).strip()
                     dh_ban_kiem = parse_int(dh_ban_kiem_str)
-                    
-                    # Cot 7: Hoan thanh truoc
                     deadline = (await cells.nth(6).inner_text()).strip()
                     
                     if dh_thu_tien > 0 or dh_ban_kiem > 0 or dh_luu_kho > 0:
@@ -400,10 +456,24 @@ async def run_collect_money_check():
             # Gui bao cao den Telegram
             await send_report(warehouse_names, report_data, error_warehouses)
             log.info("=== HOAN THANH BOT THU TIEN - BAN KIEM ===")
+            if using_cdp:
+                await browser.disconnect()
+            else:
+                await browser_context.close()
             return True
             
     except Exception as e:
         log.exception(f"Loi nghiem trong luc chay bot: {e}")
+        if using_cdp and browser:
+            try:
+                await browser.disconnect()
+            except:
+                pass
+        elif browser_context:
+            try:
+                await browser_context.close()
+            except:
+                pass
         await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
         return False
 
