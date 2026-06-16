@@ -305,7 +305,8 @@ def _write_report_sync(filtered: list[dict], kho_summary: dict,
     log.info(f"[GiaoHang] Ghi xong sheet bao cao [{label}]")
 
 
-async def write_report_sheet(filtered, kho_summary, comparison, now, is_afternoon) -> bool:
+async def write_report_sheet(filtered, kho_summary, comparison,
+                              now, is_afternoon) -> bool:
     """Bat dong bo — chay trong asyncio thread pool."""
     if not SA_JSON:
         log.info("[GiaoHang] Khong co SA_JSON, bo qua ghi sheet.")
@@ -317,8 +318,29 @@ async def write_report_sheet(filtered, kho_summary, comparison, now, is_afternoo
         )
         return True
     except Exception as e:
-        log.error(f"[GiaoHang] Ghi sheet that bai: {e}")
+        import traceback
+        err_detail = traceback.format_exc()[-800:]
+        log.error(f"[GiaoHang] Ghi sheet that bai:\n{err_detail}")
+        # Gui thong bao loi Telegram de debug
+        try:
+            chat_id = _get_chat_id()
+            if chat_id and TELEGRAM_BOT_TOKEN:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    await client.post(
+                        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                        json={
+                            "chat_id": chat_id,
+                            "text": (
+                                f"⚠️ <b>Không ghi được Google Sheet báo cáo</b>\n"
+                                f"<code>{err_detail[-600:]}</code>"
+                            ),
+                            "parse_mode": "HTML",
+                        }
+                    )
+        except Exception:
+            pass
         return False
+
 
 
 # =========================================================
