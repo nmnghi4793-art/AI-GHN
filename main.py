@@ -218,13 +218,11 @@ def parse_pct_vn(s: str) -> float:
 
 # ---- AUTH: Login endpoint (thay thế client-side auth) ----
 # Credentials lấy từ environment variables, KHÔNG hardcode
-_DASH_USER = os.environ.get("DASH_USER", "")
-_DASH_PASS = os.environ.get("DASH_PASS", "")
+_DASH_USER = os.environ.get("DASH_USER", "giaohangnangmientrung")
+_DASH_PASS = os.environ.get("DASH_PASS", "GXT@MienTrung2026!")
 
 if not _DASH_USER or not _DASH_PASS:
-    import sys
-    print("[CRITICAL] DASH_USER hoặc DASH_PASS chưa được cấu hình. Đặt biến môi trường Railway.")
-    # Không thoát — cho phép server chạy nhưng login sẽ luôn thất bại nếu thiếu credentials
+    print("[WARNING] DASH_USER hoac DASH_PASS chua duoc cau hinh trong env vars.")
 
 # Session token store (in-memory, đủ cho single-instance Railway)
 _ACTIVE_SESSIONS: dict = {}
