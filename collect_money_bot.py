@@ -8,6 +8,7 @@ Bot giả lập thao tác trên trình duyệt Chrome (qua CDP port 9222)
 """
 
 import asyncio
+import html
 import sys
 import io
 import os
@@ -168,7 +169,7 @@ async def run_collect_money_check():
                     f"❌ <b>Bot không thể kiểm tra:</b>\n"
                     f"Không thể kết nối đến trình duyệt Chrome qua cổng debug 9222. "
                     f"Vui lòng đảm bảo Chrome đã được khởi động bằng file debug và cổng 9222 đang mở.\n"
-                    f"Chi tiết lỗi: <code>{str(e)}</code>"
+                    f"Chi tiết lỗi: <code>{html.escape(str(e))}</code>"
                 )
                 log.error(f"Khong ket noi duoc CDP: {e}")
                 await send_telegram_message(err_msg)
@@ -403,7 +404,7 @@ async def run_collect_money_check():
             
     except Exception as e:
         log.exception(f"Loi nghiem trong luc chay bot: {e}")
-        await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{str(e)[:300]}</code>")
+        await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
         return False
 
 if __name__ == "__main__":
