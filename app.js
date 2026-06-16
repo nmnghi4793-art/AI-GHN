@@ -95,9 +95,10 @@ function agingChip(days) {
 
 function priorityBadge(p) {
     if (!p) return `<span class="badge p3">--</span>`;
-    if (p.startsWith('1:')) return `<span class="badge p1">${p}</span>`;
-    if (p.startsWith('2:')) return `<span class="badge p2">${p}</span>`;
-    return `<span class="badge p3">${p}</span>`;
+    const safe = escapeHtml(p);
+    if (p.startsWith('1:')) return `<span class="badge p1">${safe}</span>`;
+    if (p.startsWith('2:')) return `<span class="badge p2">${safe}</span>`;
+    return `<span class="badge p3">${safe}</span>`;
 }
 
 function shortKho(k) {
@@ -557,7 +558,7 @@ function renderBacklogOverviewTable() {
         .slice(0, 8);
     tbody.innerHTML = sorted.map(r => `
         <tr>
-            <td style="font-weight:600">${r.kho}</td>
+            <td style="font-weight:600">${escapeHtml(r.kho)}</td>
             <td style="text-align:right;font-weight:700;color:var(--red)">${r.count.toLocaleString()}</td>
         </tr>
     `).join('');
@@ -580,7 +581,7 @@ function renderB2bOverviewTable() {
         .slice(0, 8);
     tbody.innerHTML = sorted.map(r => `
         <tr>
-            <td style="font-weight:600">${r.kho}</td>
+            <td style="font-weight:600">${escapeHtml(r.kho)}</td>
             <td style="text-align:right;font-weight:700;color:var(--orange)">${r.count.toLocaleString()}</td>
         </tr>
     `).join('');
@@ -635,13 +636,13 @@ function renderCriticalWarningsOverview() {
 
         return `
             <tr>
-                <td style="font-weight:600">${shortKho(r['kho gxt'] || r['Kho'] || '--')}</td>
+                <td style="font-weight:600">${escapeHtml(shortKho(r['kho gxt'] || r['Kho'] || '--'))}</td>
                 <td style="text-align:right;font-weight:700;color:var(--red)">${lm.toLocaleString()}</td>
                 <td style="text-align:right">${ktc.toLocaleString()}</td>
                 <td style="text-align:right;font-weight:700;color:var(--blue)">${total.toLocaleString()}</td>
-                <td><span class="badge ${nextBadgeClass}" style="font-size:10px">${nextStatus}</span></td>
+                <td><span class="badge ${nextBadgeClass}" style="font-size:10px">${escapeHtml(nextStatus)}</span></td>
                 <td style="text-align:right;font-weight:600">${r.soNgayVal}n</td>
-                <td><span class="badge ${isCritical ? 'p1' : 'waiting'}">${status}</span></td>
+                <td><span class="badge ${isCritical ? 'p1' : 'waiting'}">${escapeHtml(status)}</span></td>
             </tr>
         `;
     }).join('');
