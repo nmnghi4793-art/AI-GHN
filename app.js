@@ -2179,48 +2179,33 @@ function assembleTelegramReport() {
     if (warnCount === 0) msg += `_Không có kho nào_\n`;
     msg += `\n`;
 
-    // 2. CẢNH BÁO NV NĂNG SUẤT TỆ
-    msg += `👤 *2. CẢNH BÁO NV NĂNG SUẤT TỆ:*\n`;
+    // 2. CẢNH BÁO BACKLOG > 7 NGÀY
+    msg += `🔥 *2. CẢNH BÁO BACKLOG > 7 NGÀY:*\n`;
 
-    function getNsWorst(days, label, minVol) {
-        const allDates = [...new Set(state.nangSuatData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
-        if (!allDates.length) return `*${label}:*\n_Trống_\n`;
+    // Tính từ state.backlogData — tập hợp theo kho, sắp xếp giảm dần
+    const backlogByKho = {};
+    (state.backlogData || []).forEach(r => {
+        const kho = shortKho(r['kho_giao'] || r['Kho'] || '--');
+        if (kho && kho !== '--') backlogByKho[kho] = (backlogByKho[kho] || 0) + 1;
+    });
+    const backlogEntries = Object.entries(backlogByKho).sort((a, b) => b[1] - a[1]);
+    const totalBacklog = backlogEntries.reduce((s, [, v]) => s + v, 0);
 
-        const latestTs = parseVN(allDates[0]);
-        let filtered = [];
-
-        if (days === 1) {
-            filtered = state.nangSuatData.filter(r => r['Ngày'] === allDates[0]);
-        } else {
-            const cutoff = latestTs - (days * 24 * 60 * 60 * 1000);
-            filtered = state.nangSuatData.filter(r => parseVN(r['Ngày']) >= cutoff);
-        }
-
-        const map = {};
-        filtered.forEach(r => {
-            const id = r['driver']; if (!id) return;
-            if (!map[id]) map[id] = { name: id, prov: r['to_province_name'], vol: 0, succ: 0 };
-            const v = parseInt(r['volume'] || 0);
-            map[id].vol += v;
-            map[id].succ += (parsePct(r['Tỉ lệ GTC']) / 100) * v;
+    if (backlogEntries.length === 0) {
+        msg += `Không có kho phát sinh backlog > 7 ngày.\n`;
+    } else {
+        msg += `*Tổng backlog > 7 ngày:* ${totalBacklog.toLocaleString('vi-VN')} đơn\n`;
+        msg += `*Kho cần xử lý:*\n`;
+        backlogEntries.forEach(([kho, count]) => {
+            msg += `• ${kho}: *${count.toLocaleString('vi-VN')} đơn*\n`;
         });
-
-        const list = Object.values(map)
-            .map(d => ({ ...d, pct: d.vol > 0 ? (d.succ / d.vol * 100) : 0 }))
-            .filter(d => d.vol >= minVol)
-            .sort((a, b) => a.pct - b.pct)
-            .slice(0, 5);
-
-        let res = `*${label}:*\n`;
-        list.forEach(d => res += `• ${d.name} (${d.prov}): *${d.pct.toFixed(1)}%* (${d.vol} đơn)\n`);
-        if (list.length === 0) res += `_Trống_\n`;
-        return res;
+        msg += `\n*Yêu cầu xử lý:*\n`;
+        msg += `• Kho rà soát từng đơn backlog > 7 ngày.\n`;
+        msg += `• Xác định lý do chưa xử lý: khách hẹn, thiếu xe, sai địa chỉ, hàng lưu kho, chưa liên hệ được khách.\n`;
+        msg += `• Cập nhật hướng xử lý và cam kết thời gian clear trước 16h hôm nay.\n`;
     }
+    msg += `\n`;
 
-    msg += getNsWorst(1, "Ngày gần nhất", 30);
-    msg += "\n" + getNsWorst(7, "Tuần gần nhất", 30);
-    msg += "\n" + getNsWorst(30, "Tháng gần nhất", 30);
-    msg += "\n";
 
     // 4. HIỆU SUẤT KHO (GTC)
     msg += `🏢 *4. HIỆU SUẤT KHO (GTC):*\n`;
