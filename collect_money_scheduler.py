@@ -40,7 +40,7 @@ async def run_collect_money_scheduler():
     global _last_triggered
     log.info(f"[CollectMoney] Scheduler khoi dong (TZ={TIMEZONE_STR})")
     
-    SCHEDULE = [(22, 30, "22:30"), (23, 0, "23:00")]
+    SCHEDULE = [(21, 30, "21:30"), (22, 30, "22:30")]
     
     while True:
         try:

@@ -126,7 +126,7 @@ async def startup_event():
     try:
         from collect_money_scheduler import run_collect_money_scheduler
         asyncio.create_task(run_collect_money_scheduler())
-        print("[STARTUP] Đã kích hoạt Thu Tiền - Bắn Kiểm Scheduler (22:30 & 23:00).")
+        print("[STARTUP] Đã kích hoạt Thu Tiền - Bắn Kiểm Scheduler (21:30 & 22:30).")
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký Thu Tiền - Bắn Kiểm Scheduler: {e}")
 
