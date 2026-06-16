@@ -351,10 +351,8 @@ def build_message(filtered, kho_summary, sheet_ok, now,
     time_str = now.strftime("%d/%m/%Y %H:%M")
     label    = "13:30" if is_afternoon else "09:30"
 
-    link_part = (
-        f"\n\n📄 <b>Link chi tiết:</b>\n{REPORT_SHEET_URL}"
-        if sheet_ok else ""
-    )
+    # Luon hien thi link sheet co dinh (khong phu thuoc vao sheet_ok)
+    link_part = f"\n\n📄 <b>Link chi tiết:</b>\n{REPORT_SHEET_URL}"
 
     if not filtered:
         msg = (
