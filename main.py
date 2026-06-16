@@ -116,6 +116,31 @@ async def startup_event():
         print(f"[STARTUP ERROR] Không thể đăng ký Giao Hàng Scheduler: {e}")
 
 
+# ---- ADMIN: Test Giao Hang Report ----
+@app.get("/api/giao-hang/test", dependencies=[Depends(require_admin_key)])
+async def test_giao_hang(mode: str = "09:30"):
+    """
+    Trigger bao cao giao hang ngay lap tuc (khong can doi 09:30/13:30).
+    mode: "09:30" hoac "13:30"
+    Bao ve bang X-Admin-Key header.
+    """
+    if mode not in ("09:30", "13:30"):
+        return {"status": "error", "message": "mode phai la '09:30' hoac '13:30'"}
+    try:
+        from giao_hang_scheduler import run_giao_hang_report, _sent_today
+        # Reset trang thai de cho phep gui lai (tranh bi chặn bởi _sent_today)
+        _sent_today.pop(mode, None)
+        import asyncio
+        asyncio.create_task(run_giao_hang_report(mode))
+        return {
+            "status": "ok",
+            "message": f"Da kich hoat bao cao [{mode}]. Kiem tra Telegram sau vai giay.",
+            "mode": mode,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Frontend files (index.html, app.js, styles.css) are deployed at root alongside main.py
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend") if os.path.isdir(os.path.join(BASE_DIR, "frontend")) else BASE_DIR

@@ -1324,7 +1324,30 @@ async def run_bot():
             
             # Đăng ký handler lắng nghe tin nhắn văn bản (cho báo cáo xe off)
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-            
+
+            # Đăng ký lệnh báo cáo giao hàng
+            try:
+                from telegram.ext import CommandHandler as CmdHandler
+                from giao_hang_scheduler import run_giao_hang_report, _sent_today
+
+                async def cmd_baocao(update, context):
+                    """Lệnh /baocao — trigger báo cáo giao hàng ngay lập tức (kiểu 09:30)"""
+                    await update.message.reply_text("⏳ Đang tổng hợp báo cáo đơn giao hàng...")
+                    _sent_today.pop("09:30", None)
+                    asyncio.create_task(run_giao_hang_report("09:30"))
+
+                async def cmd_baocao1330(update, context):
+                    """Lệnh /baocao1330 — trigger báo cáo 13:30 (có so sánh đơn mới)"""
+                    await update.message.reply_text("⏳ Đang tổng hợp báo cáo + so sánh đơn mới...")
+                    _sent_today.pop("13:30", None)
+                    asyncio.create_task(run_giao_hang_report("13:30"))
+
+                application.add_handler(CmdHandler("baocao", cmd_baocao))
+                application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
+                log_status("Đã đăng ký lệnh /baocao và /baocao1330")
+            except Exception as e:
+                log_status(f"[WARN] Không đăng ký được lệnh giao hàng: {e}")
+
             # Khởi chạy bot dạng polling
             await application.initialize()
             await application.start()
@@ -1332,6 +1355,7 @@ async def run_bot():
             
             # Khởi chạy background loop cho báo cáo cảnh báo hàng ngày
             asyncio.create_task(scheduled_warning_loop(application))
+
             
             BOT_STATUS["initialized"] = True
             BOT_STATUS["running"] = True
