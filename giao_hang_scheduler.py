@@ -5,9 +5,8 @@ Scheduler tu dong gui bao cao "don can giao hom nay" qua Telegram.
 Chay cung FastAPI app nhu background task.
 
 Lich: 09:30 va 13:30 hang ngay (Asia/Ho_Chi_Minh)
-
-Doc du lieu tu Google Sheet public bang CSV export (khong can API key).
-Tuy chon: Tao Google Sheet bao cao moi neu co GOOGLE_SERVICE_ACCOUNT_JSON.
+- 09:30: Bao cao binh thuong + luu danh sach Order code lam moc
+- 13:30: Bao cao binh thuong + so sanh don moi voi 09:30
 """
 
 import os, csv, io, json, asyncio, logging
@@ -18,11 +17,11 @@ import httpx
 log = logging.getLogger(__name__)
 
 # =========================================================
-# CAU HINH — lay tu environment variables
+# CAU HINH
 # =========================================================
 TELEGRAM_BOT_TOKEN    = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-GIAO_HANG_CHAT_ID     = os.environ.get("GIAO_HANG_CHAT_ID", "")   # Chat ID rieng cho bao cao giao hang
-# Neu khong co GIAO_HANG_CHAT_ID, dung WARN_CHAT_ID hoac TELEGRAM_CHAT_ID
+GIAO_HANG_CHAT_ID     = os.environ.get("GIAO_HANG_CHAT_ID", "")
+
 def _get_chat_id():
     return (GIAO_HANG_CHAT_ID
             or os.environ.get("WARN_CHAT_ID", "")
@@ -41,17 +40,24 @@ ACTION_FILTER   = "giao"
 PRIORITY_FILTER = "1: trong hôm nay"
 
 # Cot (0-indexed): A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9
-COL_PRIORITY = 0   # A
-COL_KHO      = 2   # C
-COL_PIC      = 3   # D
-COL_ORDER    = 4   # E
-COL_ACTION   = 5   # F
-COL_KHACH    = 6   # G
-COL_DIACHI   = 7   # H
-COL_NGAY     = 8   # I
-COL_LUUKHO   = 9   # J
+COL_PRIORITY = 0  # A
+COL_KHO      = 2  # C
+COL_PIC      = 3  # D
+COL_ORDER    = 4  # E
+COL_ACTION   = 5  # F
+COL_KHACH    = 6  # G
+COL_DIACHI   = 7  # H
+COL_NGAY     = 8  # I
+COL_LUUKHO   = 9  # J
 
 SA_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+
+# =========================================================
+# TRANG THAI NOI BO
+# =========================================================
+# Luu du lieu bao cao 09:30 de so sanh voi 13:30
+# Format: { date: {"orders": list[dict], "order_codes": set[str]} }
+_morning_snapshot: dict = {}
 
 # Tranh gui trung trong cung 1 moc gio
 _sent_today: dict = {}
@@ -65,7 +71,7 @@ async def read_source_csv() -> list[dict]:
         f"https://docs.google.com/spreadsheets/d/{SOURCE_SPREADSHEET_ID}"
         f"/export?format=csv&gid={SOURCE_GID}"
     )
-    log.info(f"[GiaoHang] Doc CSV tu Sheet ID={SOURCE_SPREADSHEET_ID} GID={SOURCE_GID}")
+    log.info(f"[GiaoHang] Doc CSV: Sheet={SOURCE_SPREADSHEET_ID} GID={SOURCE_GID}")
 
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         resp = await client.get(url)
@@ -78,17 +84,15 @@ async def read_source_csv() -> list[dict]:
     rows    = list(reader)
 
     if len(rows) < 4:
-        raise RuntimeError(f"CSV qua it dong: {len(rows)} dong")
+        raise RuntimeError(f"CSV qua it dong: {len(rows)}")
 
-    # Dong 3 = header (index 2), dong 4+ = data (index 3+)
-    header = rows[2]
-    log.info(f"[GiaoHang] Header: {header[:6]}")
+    header = rows[2]  # Dong 3 = header
 
     def get(row, idx):
         return row[idx].strip() if idx < len(row) else ""
 
     data = []
-    for r in rows[3:]:
+    for r in rows[3:]:  # Dong 4+ = data
         if not any(r):
             continue
         data.append({
@@ -130,11 +134,85 @@ def summarize_by_kho(filtered: list[dict]) -> dict:
 
 
 # =========================================================
-# TAO GOOGLE SHEET BAO CAO (tuy chon - chi can Sheets API)
+# SO SANH DON MOI (13:30 vs 09:30)
 # =========================================================
+def find_new_orders(current_filtered: list[dict], today: date) -> dict:
+    """
+    So sanh don hien tai voi snapshot 09:30.
+    Tra ve:
+    {
+        "has_morning_data": bool,
+        "new_orders": list[dict],          # Cac don moi
+        "by_kho": {kho: {khach: [orders]}} # Nhom theo kho + khach
+    }
+    """
+    snapshot = _morning_snapshot.get(today)
+
+    if snapshot is None:
+        return {
+            "has_morning_data": False,
+            "new_orders": [],
+            "by_kho": {}
+        }
+
+    morning_codes = snapshot["order_codes"]
+    new_orders = [
+        r for r in current_filtered
+        if r["order"] and r["order"] not in morning_codes
+    ]
+
+    # Nhom theo kho -> khach -> list orders
+    by_kho: dict = {}
+    for r in new_orders:
+        kho   = r["kho"] or "(Chưa xác định)"
+        khach = r["khach"] or "(Chưa xác định)"
+        if kho not in by_kho:
+            by_kho[kho] = {}
+        if khach not in by_kho[kho]:
+            by_kho[kho][khach] = []
+        by_kho[kho][khach].append(r)
+
+    log.info(f"[GiaoHang] Don moi (13:30 vs 09:30): {len(new_orders)}")
+    return {
+        "has_morning_data": True,
+        "new_orders": new_orders,
+        "by_kho": by_kho
+    }
+
+
+def save_morning_snapshot(filtered: list[dict], today: date):
+    """Luu snapshot 09:30 vao bo nho."""
+    order_codes = {r["order"] for r in filtered if r["order"]}
+    _morning_snapshot[today] = {
+        "orders": filtered,
+        "order_codes": order_codes,
+    }
+    log.info(f"[GiaoHang] Da luu snapshot 09:30: {len(order_codes)} order codes")
+
+    # Xoa snapshot cu (giu toi da 2 ngay)
+    old_days = [d for d in list(_morning_snapshot.keys()) if d < today]
+    for d in old_days:
+        del _morning_snapshot[d]
+
+
+# =========================================================
+# TAO GOOGLE SHEET BAO CAO
+# =========================================================
+def _build_sheet_tabs(filtered: list[dict], kho_summary: dict,
+                      comparison: dict, is_afternoon: bool) -> list[dict]:
+    """Tao danh sach tabs cho spreadsheet."""
+    sheets_def = [
+        {"properties": {"title": "Tổng hợp theo kho", "index": 0}},
+        {"properties": {"title": "Chi tiết đơn",      "index": 1}},
+    ]
+    if is_afternoon:
+        sheets_def.append({"properties": {"title": "Đơn mới so với 09h30", "index": 2}})
+    return sheets_def
+
+
 def _create_report_sheet_sync(filtered: list[dict], kho_summary: dict,
-                              now: datetime) -> str:
-    """Dong bo — duoc goi bang asyncio.to_thread"""
+                              comparison: dict, now: datetime,
+                              is_afternoon: bool) -> str:
     from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
 
@@ -145,24 +223,25 @@ def _create_report_sheet_sync(filtered: list[dict], kho_summary: dict,
     )
     svc = build("sheets", "v4", credentials=creds)
 
+    time_label = "13h30" if is_afternoon else "09h30"
     title = (
-        f"Báo cáo đơn cần giao - {PIC_FILTER} "
-        f"- {now.strftime('%d/%m/%Y %H:%M')}"
+        f"Báo cáo đơn cần giao {time_label} "
+        f"- {PIC_FILTER} "
+        f"- {now.strftime('%d/%m/%Y')}"
     )
     body = {
         "properties": {"title": title, "locale": "vi_VN"},
-        "sheets": [
-            {"properties": {"title": "Tổng hợp theo kho", "index": 0}},
-            {"properties": {"title": "Chi tiết đơn",      "index": 1}},
-        ],
+        "sheets": _build_sheet_tabs(filtered, kho_summary, comparison, is_afternoon),
     }
     ss    = svc.spreadsheets().create(body=body, fields="spreadsheetId").execute()
     ss_id = ss["spreadsheetId"]
 
+    # Tab 1: Tong hop theo kho
     tab1  = [["Kho hiện tại", "Số đơn cần giao hôm nay"]]
     tab1 += [[k, v] for k, v in kho_summary.items()]
     tab1 += [["TỔNG CỘNG", len(filtered)]]
 
+    # Tab 2: Chi tiet don
     tab2_h = ["Mức độ ưu tiên", "Kho hiện tại", "PIC", "Order code",
               "Cần làm gì", "Khách", "Địa chỉ giao", "Ngày nhập kho", "Đã lưu kho"]
     tab2   = [tab2_h] + [
@@ -171,29 +250,112 @@ def _create_report_sheet_sync(filtered: list[dict], kho_summary: dict,
         for r in filtered
     ]
 
+    batch_data = [
+        {"range": "'Tổng hợp theo kho'!A1", "values": tab1},
+        {"range": "'Chi tiết đơn'!A1",       "values": tab2},
+    ]
+
+    # Tab 3 (chi 13:30): Don moi so voi 09h30
+    if is_afternoon:
+        new_orders = comparison.get("new_orders", [])
+        tab3_h = ["Kho hiện tại", "Khách", "Order code", "Cần làm gì",
+                  "Mức độ ưu tiên", "Ngày nhập kho", "Đã lưu kho"]
+        tab3   = [tab3_h] + [
+            [r["kho"], r["khach"], r["order"], r["action"],
+             r["priority"], r["ngay"], r["luukho"]]
+            for r in new_orders
+        ] if new_orders else [tab3_h, ["(Không có đơn mới)"]]
+        batch_data.append(
+            {"range": "'Đơn mới so với 09h30'!A1", "values": tab3}
+        )
+
     svc.spreadsheets().values().batchUpdate(
         spreadsheetId=ss_id,
-        body={"valueInputOption": "USER_ENTERED", "data": [
-            {"range": "'Tổng hợp theo kho'!A1", "values": tab1},
-            {"range": "'Chi tiết đơn'!A1",       "values": tab2},
-        ]},
+        body={"valueInputOption": "USER_ENTERED", "data": batch_data},
     ).execute()
 
-    log.info(f"[GiaoHang] Tao sheet OK: {ss_id}")
+    log.info(f"[GiaoHang] Sheet tao OK: {ss_id}")
     return f"https://docs.google.com/spreadsheets/d/{ss_id}/edit"
 
 
-async def create_report_sheet(filtered, kho_summary, now) -> str:
+async def create_report_sheet(filtered, kho_summary, comparison,
+                              now, is_afternoon) -> str:
     if not SA_JSON:
-        log.info("[GiaoHang] Khong co SA_JSON, bo qua tao sheet.")
         return ""
     try:
         return await asyncio.to_thread(
-            _create_report_sheet_sync, filtered, kho_summary, now
+            _create_report_sheet_sync,
+            filtered, kho_summary, comparison, now, is_afternoon
         )
     except Exception as e:
         log.error(f"[GiaoHang] Tao sheet that bai: {e}")
         return ""
+
+
+# =========================================================
+# BUILD TIN NHAN TELEGRAM
+# =========================================================
+def _build_comparison_section(comparison: dict) -> str:
+    """Tao phan so sanh don moi cho tin nhan 13:30."""
+    if not comparison.get("has_morning_data"):
+        return "\n\n📌 <b>Đơn mới so với báo cáo 09:30:</b> Không có dữ liệu 09:30 để so sánh."
+
+    new_orders = comparison.get("new_orders", [])
+    by_kho     = comparison.get("by_kho", {})
+
+    if not new_orders:
+        return "\n\n📌 <b>Đơn mới so với báo cáo 09:30:</b> Không phát sinh đơn mới."
+
+    lines = ["\n\n📌 <b>Đơn mới so với báo cáo 09:30:</b>"]
+    for kho, khach_map in sorted(by_kho.items()):
+        total_kho = sum(len(v) for v in khach_map.values())
+        lines.append(f"• Kho <b>{kho}</b>: có thêm <b>{total_kho}</b> đơn mới đến hạn giao.")
+        for khach, orders in sorted(khach_map.items(), key=lambda x: -len(x[1])):
+            lines.append(f"   - Khách {khach}: {len(orders)} đơn")
+
+    return "\n".join(lines)
+
+
+def build_message(filtered, kho_summary, sheet_url, now,
+                  comparison=None, is_afternoon=False) -> str:
+    time_str   = now.strftime("%d/%m/%Y %H:%M")
+    label      = "13:30" if is_afternoon else "09:30"
+
+    if not filtered:
+        msg = (
+            f"🚚 <b>BÁO CÁO ĐƠN CẦN GIAO HÔM NAY ({label})</b>\n"
+            f"PIC: {PIC_FILTER}\n"
+            f"Thời gian: {time_str}\n\n"
+            f"Hiện không có đơn cần giao trong hôm nay theo điều kiện lọc."
+        )
+        if is_afternoon and comparison:
+            msg += _build_comparison_section(comparison)
+        return msg
+
+    kho_lines = "\n".join(
+        f"{i}. {kho}: <b>{cnt}</b> đơn"
+        for i, (kho, cnt) in enumerate(kho_summary.items(), 1)
+    )
+    link_part = f"\n\n📄 <b>Link chi tiết:</b>\n{sheet_url}" if sheet_url else ""
+
+    msg = (
+        f"🚚 <b>BÁO CÁO ĐƠN CẦN GIAO HÔM NAY ({label})</b>\n"
+        f"PIC: {PIC_FILTER}\n"
+        f"Thời gian: {time_str}\n\n"
+        f"Tổng đơn cần giao: <b>{len(filtered)}</b> đơn\n\n"
+        f"📍 <b>Theo kho:</b>\n{kho_lines}"
+        f"{link_part}"
+    )
+
+    # Them phan so sanh neu la bao cao 13:30
+    if is_afternoon and comparison:
+        msg += _build_comparison_section(comparison)
+
+    msg += (
+        "\n\n<i>Yêu cầu: Các kho kiểm tra danh sách đơn, ưu tiên xử lý "
+        "trong ngày và phản hồi nếu có đơn không giao được.</i>"
+    )
+    return msg
 
 
 # =========================================================
@@ -208,9 +370,9 @@ async def send_telegram(text: str) -> bool:
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(url, json={
-                "chat_id":   chat_id,
-                "text":      text,
-                "parse_mode": "HTML",
+                "chat_id":                chat_id,
+                "text":                   text,
+                "parse_mode":             "HTML",
                 "disable_web_page_preview": False,
             })
         if r.status_code == 200:
@@ -223,65 +385,52 @@ async def send_telegram(text: str) -> bool:
         return False
 
 
-def build_message(filtered, kho_summary, sheet_url, now) -> str:
-    time_str = now.strftime("%d/%m/%Y %H:%M")
-
-    if not filtered:
-        return (
-            f"🚚 <b>BÁO CÁO ĐƠN CẦN GIAO HÔM NAY</b>\n"
-            f"PIC: {PIC_FILTER}\n"
-            f"Thời gian: {time_str}\n\n"
-            f"Hiện không có đơn cần giao trong hôm nay theo điều kiện lọc."
-        )
-
-    kho_lines = "\n".join(
-        f"{i}. {kho}: <b>{cnt}</b> đơn"
-        for i, (kho, cnt) in enumerate(kho_summary.items(), 1)
-    )
-
-    link_part = f"\n\n📄 <b>Link chi tiết:</b>\n{sheet_url}" if sheet_url else ""
-
-    return (
-        f"🚚 <b>BÁO CÁO ĐƠN CẦN GIAO HÔM NAY</b>\n"
-        f"PIC: {PIC_FILTER}\n"
-        f"Thời gian: {time_str}\n\n"
-        f"Tổng đơn cần giao: <b>{len(filtered)}</b> đơn\n\n"
-        f"📍 <b>Theo kho:</b>\n{kho_lines}"
-        f"{link_part}\n\n"
-        f"<i>Yêu cầu: Các kho kiểm tra danh sách đơn, ưu tiên xử lý trong ngày "
-        f"và phản hồi nếu có đơn không giao được.</i>"
-    )
-
-
 # =========================================================
-# LOGIC CHINH — CHAY 1 LAN
+# LOGIC CHINH
 # =========================================================
 async def run_giao_hang_report(label: str = "manual"):
     global _sent_today
-    now   = datetime.now(TZ)
-    today = now.date()
+    now          = datetime.now(TZ)
+    today        = now.date()
+    is_afternoon = (label == "13:30")
 
     if _sent_today.get(label) == today:
         log.info(f"[GiaoHang] Da gui [{label}] hom nay, bo qua.")
         return
 
-    log.info(f"[GiaoHang] === BAT DAU BAO CAO [{label}] {now.strftime('%d/%m/%Y %H:%M')} ===")
+    log.info(f"[GiaoHang] === BAT DAU [{label}] {now.strftime('%d/%m/%Y %H:%M')} ===")
 
     try:
         rows     = await read_source_csv()
         filtered = filter_rows(rows)
         kho_sum  = summarize_by_kho(filtered) if filtered else {}
 
+        # So sanh don moi (chi 13:30)
+        comparison = None
+        if is_afternoon:
+            comparison = find_new_orders(filtered, today)
+
+        # Tao Google Sheet bao cao
         sheet_url = ""
         if filtered:
-            sheet_url = await create_report_sheet(filtered, kho_sum, now)
+            sheet_url = await create_report_sheet(
+                filtered, kho_sum, comparison or {}, now, is_afternoon
+            )
 
-        msg = build_message(filtered, kho_sum, sheet_url, now)
-        ok  = await send_telegram(msg)
+        # Build va gui Telegram
+        msg = build_message(
+            filtered, kho_sum, sheet_url, now,
+            comparison=comparison, is_afternoon=is_afternoon
+        )
+        ok = await send_telegram(msg)
 
         if ok:
             _sent_today[label] = today
             log.info(f"[GiaoHang] XONG [{label}]")
+
+            # Luu snapshot sau khi gui thanh cong luc 09:30
+            if label == "09:30":
+                save_morning_snapshot(filtered, today)
         else:
             log.error(f"[GiaoHang] Gui Telegram that bai [{label}]")
 
@@ -289,7 +438,7 @@ async def run_giao_hang_report(label: str = "manual"):
         log.exception(f"[GiaoHang] Loi: {e}")
         try:
             await send_telegram(
-                f"❌ <b>Bot GHN Giao Hàng gặp lỗi</b>\n"
+                f"❌ <b>Bot GHN Giao Hàng gặp lỗi [{label}]</b>\n"
                 f"Thời gian: {now.strftime('%d/%m/%Y %H:%M')}\n"
                 f"Lỗi: <code>{str(e)[:300]}</code>"
             )
@@ -298,20 +447,17 @@ async def run_giao_hang_report(label: str = "manual"):
 
 
 # =========================================================
-# BACKGROUND LOOP — chay song song voi FastAPI
+# BACKGROUND LOOP
 # =========================================================
 async def run_giao_hang_scheduler():
-    """
-    Background task chay trong FastAPI startup.
-    Wake up moi phut, kiem tra gio gui.
-    """
+    """Background task khoi dong cung FastAPI. Wake up moi phut."""
     log.info(f"[GiaoHang] Scheduler khoi dong (TZ={TIMEZONE_STR})")
-    log.info(f"[GiaoHang] Sheet ID: {SOURCE_SPREADSHEET_ID} / GID: {SOURCE_GID}")
-    log.info(f"[GiaoHang] PIC filter: '{PIC_FILTER}'")
-    log.info(f"[GiaoHang] Chat ID: {_get_chat_id() or '(chua cau hinh)'}")
-    log.info(f"[GiaoHang] Sheets API: {'CO' if SA_JSON else 'KHONG (chi gui Telegram)'}")
+    log.info(f"[GiaoHang] Sheet: {SOURCE_SPREADSHEET_ID} / GID={SOURCE_GID}")
+    log.info(f"[GiaoHang] PIC: '{PIC_FILTER}'")
+    log.info(f"[GiaoHang] Chat: {_get_chat_id() or '(chua cau hinh)'}")
+    log.info(f"[GiaoHang] Sheets API: {'CO' if SA_JSON else 'KHONG'}")
 
-    # Lich gui: (gio, phut, label)
+    # (gio, phut, label)
     SCHEDULE = [(9, 30, "09:30"), (13, 30, "13:30")]
 
     while True:
@@ -322,4 +468,4 @@ async def run_giao_hang_scheduler():
                     await run_giao_hang_report(label)
         except Exception as e:
             log.error(f"[GiaoHang] Loi scheduler loop: {e}")
-        await asyncio.sleep(60)  # Kiem tra moi 1 phut
+        await asyncio.sleep(60)
