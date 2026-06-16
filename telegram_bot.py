@@ -1413,7 +1413,9 @@ async def run_bot():
             # Khởi chạy bot dạng polling
             await application.initialize()
             await application.start()
-            await application.updater.start_polling()
+            # drop_pending_updates=True: tránh Conflict khi restart nhiều lần
+            await application.updater.start_polling(drop_pending_updates=True)
+
             
             # Khởi chạy background loop cho báo cáo cảnh báo hàng ngày
             asyncio.create_task(scheduled_warning_loop(application))
