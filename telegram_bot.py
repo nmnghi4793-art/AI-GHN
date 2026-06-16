@@ -1325,80 +1325,90 @@ async def run_bot():
             # Đăng ký handler lắng nghe tin nhắn văn bản (cho báo cáo xe off)
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
-            # Đăng ký lệnh báo cáo giao hàng
-            try:
-                from telegram.ext import CommandHandler as CmdHandler
-                from giao_hang_scheduler import (
-                    read_source_csv, filter_rows, summarize_by_kho,
-                    find_new_orders, save_morning_snapshot,
-                    write_report_sheet, build_message,
-                    _sent_today, _morning_snapshot, TZ, REPORT_SHEET_URL,
-                    SOURCE_SPREADSHEET_ID, SA_JSON
-                )
-                import datetime as _dt
+            # ---- Lệnh /ping — kiểm tra bot có nhận lệnh không ----
+            from telegram.ext import CommandHandler as CmdHandler
 
-                async def _send_report_to_chat(chat_id: int, mode: str):
-                    """Doc du lieu va gui bao cao thang vao chat_id."""
-                    from datetime import datetime
-                    now          = datetime.now(TZ)
+            async def cmd_ping(update, context):
+                await update.message.reply_text("🟢 Bot đang hoạt động!")
+
+            # ---- Lệnh /baocao và /baocao1330 ----
+            async def _send_report_to_chat(chat_id: int, mode: str):
+                """Tổng hợp và gửi báo cáo giao hàng về đúng chat đã gõ lệnh."""
+                import os, httpx
+                from datetime import datetime
+                token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+                async def _reply(text):
+                    async with httpx.AsyncClient(timeout=20) as c:
+                        await c.post(
+                            f"https://api.telegram.org/bot{token}/sendMessage",
+                            json={"chat_id": chat_id, "text": text,
+                                  "parse_mode": "HTML",
+                                  "disable_web_page_preview": False}
+                        )
+
+                try:
+                    import giao_hang_scheduler as gs
+                    now          = datetime.now(gs.TZ)
                     today        = now.date()
                     is_afternoon = (mode == "13:30")
-                    try:
-                        rows       = await read_source_csv()
-                        filtered   = filter_rows(rows)
-                        kho_sum    = summarize_by_kho(filtered) if filtered else {}
-                        comparison = find_new_orders(filtered, today) if is_afternoon else None
-                        sheet_ok   = await write_report_sheet(
+
+                    rows       = await gs.read_source_csv()
+                    filtered   = gs.filter_rows(rows)
+                    kho_sum    = gs.summarize_by_kho(filtered) if filtered else {}
+                    comparison = gs.find_new_orders(filtered, today) if is_afternoon else None
+
+                    sheet_ok = False
+                    if filtered and gs.SA_JSON:
+                        sheet_ok = await gs.write_report_sheet(
                             filtered, kho_sum, comparison or {}, now, is_afternoon
-                        ) if filtered and SA_JSON else False
-                        msg = build_message(
-                            filtered, kho_sum, sheet_ok, now,
-                            comparison=comparison, is_afternoon=is_afternoon
                         )
-                        # Gui bao cao vao chat noi go lenh
-                        import httpx, os
-                        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-                        async with httpx.AsyncClient(timeout=30) as client:
-                            await client.post(
-                                f"https://api.telegram.org/bot{token}/sendMessage",
-                                json={"chat_id": chat_id, "text": msg,
-                                      "parse_mode": "HTML",
-                                      "disable_web_page_preview": False}
-                            )
-                        # Luu snapshot neu 09:30
-                        if mode == "09:30" and filtered:
-                            save_morning_snapshot(filtered, today)
-                        _sent_today[mode] = today
-                    except Exception as e:
-                        import httpx, os
-                        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-                        async with httpx.AsyncClient(timeout=15) as client:
-                            await client.post(
-                                f"https://api.telegram.org/bot{token}/sendMessage",
-                                json={"chat_id": chat_id,
-                                      "text": f"❌ Lỗi tổng hợp báo cáo: <code>{str(e)[:200]}</code>",
-                                      "parse_mode": "HTML"}
-                            )
 
-                async def cmd_baocao(update, context):
-                    """/baocao — báo cáo đơn giao hàng ngay (kiểu 09:30)"""
-                    chat_id = update.effective_chat.id
-                    await update.message.reply_text("⏳ Đang tổng hợp báo cáo đơn giao hàng...")
-                    _sent_today.pop("09:30", None)
-                    asyncio.create_task(_send_report_to_chat(chat_id, "09:30"))
+                    msg = gs.build_message(
+                        filtered, kho_sum, sheet_ok, now,
+                        comparison=comparison, is_afternoon=is_afternoon
+                    )
+                    await _reply(msg)
 
-                async def cmd_baocao1330(update, context):
-                    """/baocao1330 — báo cáo + so sánh đơn mới vs 09:30"""
-                    chat_id = update.effective_chat.id
-                    await update.message.reply_text("⏳ Đang tổng hợp + so sánh đơn mới so với 09:30...")
-                    _sent_today.pop("13:30", None)
-                    asyncio.create_task(_send_report_to_chat(chat_id, "13:30"))
+                    if mode == "09:30" and filtered:
+                        gs.save_morning_snapshot(filtered, today)
+                    gs._sent_today[mode] = today
 
-                application.add_handler(CmdHandler("baocao", cmd_baocao))
-                application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
-                log_status("Đã đăng ký lệnh /baocao và /baocao1330")
-            except Exception as e:
-                log_status(f"[WARN] Không đăng ký được lệnh giao hàng: {e}")
+                except Exception as e:
+                    import traceback
+                    err = traceback.format_exc()[-500:]
+                    await _reply(
+                        f"❌ <b>Lỗi tổng hợp báo cáo [{mode}]</b>\n"
+                        f"<code>{err}</code>"
+                    )
+
+            async def cmd_baocao(update, context):
+                """/baocao — báo cáo đơn giao hàng ngay"""
+                chat_id = update.effective_chat.id
+                await update.message.reply_text("⏳ Đang tổng hợp báo cáo đơn giao hàng...")
+                try:
+                    import giao_hang_scheduler as gs
+                    gs._sent_today.pop("09:30", None)
+                except Exception:
+                    pass
+                asyncio.create_task(_send_report_to_chat(chat_id, "09:30"))
+
+            async def cmd_baocao1330(update, context):
+                """/baocao1330 — báo cáo + so sánh đơn mới vs 09:30"""
+                chat_id = update.effective_chat.id
+                await update.message.reply_text("⏳ Đang tổng hợp + so sánh đơn mới...")
+                try:
+                    import giao_hang_scheduler as gs
+                    gs._sent_today.pop("13:30", None)
+                except Exception:
+                    pass
+                asyncio.create_task(_send_report_to_chat(chat_id, "13:30"))
+
+            application.add_handler(CmdHandler("ping",       cmd_ping))
+            application.add_handler(CmdHandler("baocao",     cmd_baocao))
+            application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
+            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330")
+
 
             # Khởi chạy bot dạng polling
             await application.initialize()
