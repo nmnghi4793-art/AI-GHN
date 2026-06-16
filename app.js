@@ -2207,8 +2207,8 @@ function assembleTelegramReport() {
     msg += `\n`;
 
 
-    // 4. HIỆU SUẤT KHO (GTC)
-    msg += `🏢 *4. HIỆU SUẤT KHO (GTC):*\n`;
+    // 3. HIỆU SUẤT KHO (GTC)
+    msg += `🏢 *3. HIỆU SUẤT KHO (GTC):*\n`;
     const gtcPanels = document.querySelectorAll('#gtc-top-bottom .table-card');
     gtcPanels.forEach(panel => {
         const title = panel.querySelector('h3')?.innerText.trim() || 'GTC';
@@ -2227,34 +2227,6 @@ function assembleTelegramReport() {
             msg += ` ❌ ${tds[1].innerText}: *${tds[3].innerText}*\n`;
         });
     });
-
-    // 5. ĐƠN B2B ĐẾN HẠN GIAO
-    msg += `👑 *5. ĐƠN B2B ĐẾN HẠN GIAO:*\n`;
-    const b2bRows = document.querySelectorAll('#tbody-b2b tr');
-    const b2bSummary = new Map();
-    let b2bTotal = 0;
-
-    b2bRows.forEach(tr => {
-        const tds = tr.querySelectorAll('td');
-        if (tds.length < 5) return;
-
-        const priority = tds[0].innerText.toLowerCase();
-        const kho = tds[1].innerText.trim();
-        const loai = tds[4].innerText.toLowerCase();
-
-        // Điều kiện: Loại có chữ 'giao' và Ưu tiên có mã '1:'
-        if (loai.includes('giao') && priority.includes('1:')) {
-            b2bSummary.set(kho, (b2bSummary.get(kho) || 0) + 1);
-            b2bTotal++;
-        }
-    });
-
-    if (b2bTotal > 0) {
-        const sortedB2B = Array.from(b2bSummary.entries()).sort((a, b) => b[1] - a[1]);
-        sortedB2B.forEach(([k, v]) => msg += `• *${k}*: ${v} đơn\n`);
-    } else {
-        msg += `_Không có đơn B2B đến hạn_\n`;
-    }
 
     msg += `\n🔗 [Mở Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)`;
     return msg;

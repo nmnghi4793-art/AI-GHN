@@ -370,7 +370,108 @@ def generate_odo_warning_report(date_str: str, moc_time: str) -> str:
         
     return msg
 
+def _generate_van_hanh_report(now_local) -> str:
+    """
+    Tổng hợp Báo cáo Vận hành Miền Trung (gửi lúc 10:30 hằng ngày).
+    Đọc dữ liệu trực tiếp từ Google Sheets qua read_csv của main.py.
+    Gồm 3 mục: KHO NGHIÊM TRỌNG, BACKLOG >7 ngày, HIỆU SUẤT KHO (GTC).
+    """
+    try:
+        from main import read_csv
+    except ImportError:
+        return "⚠️ Không load được dữ liệu vận hành (main module unavailable)."
+
+    date_str = now_local.strftime("%d/%m/%Y")
+    time_str = now_local.strftime("%H:%M:%S")
+    msg = f"📢 *BÁO CÁO VẬN HÀNH MIỀN TRUNG*\n⏱ _{date_str} {time_str}_\n\n"
+
+    # ---- 1. KHO NGHIÊM TRỌNG ----
+    msg += "🚨 *1. KHO NGHIÊM TRỌNG (>5 NGÀY):*\n"
+    try:
+        warn_data, _ = read_csv("warnings")
+        critical = []
+        for r in warn_data:
+            kho = r.get("Tên kho", r.get("ten_kho", ""))
+            days_raw = r.get("Số ngày trở về ngày thường",
+                             r.get("so_ngay", r.get("so ngay", "")))
+            try:
+                days = int(str(days_raw).strip()) if days_raw else 0
+            except ValueError:
+                days = 0
+            if days > 5:
+                critical.append(f"• *{kho}*: {days} ngày")
+        if critical:
+            msg += "\n".join(critical[:10]) + "\n"
+        else:
+            msg += "_Không có kho nào_\n"
+    except Exception as e:
+        msg += f"_Lỗi đọc dữ liệu: {e}_\n"
+    msg += "\n"
+
+    # ---- 2. CẢNH BÁO BACKLOG > 7 NGÀY ----
+    msg += "🔥 *2. CẢNH BÁO BACKLOG > 7 NGÀY:*\n"
+    try:
+        bl_data, _ = read_csv("backlog")
+        bl_by_kho = {}
+        for r in bl_data:
+            kho = r.get("kho_giao", r.get("Kho", r.get("Tên kho", "")))
+            if kho:
+                # Rút ngắn tên kho nếu quá dài
+                kho_short = kho.replace("Kho Giao Hàng Nặng - ", "").replace("Bưu Cục ", "")
+                bl_by_kho[kho_short] = bl_by_kho.get(kho_short, 0) + 1
+        entries = sorted(bl_by_kho.items(), key=lambda x: -x[1])
+        total = sum(v for _, v in entries)
+        if entries:
+            msg += f"*Tổng backlog > 7 ngày:* {total:,} đơn\n*Kho cần xử lý:*\n"
+            for kho, cnt in entries:
+                msg += f"• {kho}: *{cnt:,} đơn*\n"
+            msg += "\n*Yêu cầu xử lý:*\n"
+            msg += "• Kho rà soát từng đơn backlog > 7 ngày.\n"
+            msg += "• Xác định lý do chưa xử lý: khách hẹn, thiếu xe, sai địa chỉ, hàng lưu kho, chưa liên hệ được khách.\n"
+            msg += "• Cập nhật hướng xử lý và cam kết thời gian clear trước 16h hôm nay.\n"
+        else:
+            msg += "Không có kho phát sinh backlog > 7 ngày.\n"
+    except Exception as e:
+        msg += f"_Lỗi đọc dữ liệu: {e}_\n"
+    msg += "\n"
+
+    # ---- 3. HIỆU SUẤT KHO (GTC) ----
+    msg += "🏢 *3. HIỆU SUẤT KHO (GTC):*\n"
+    try:
+        gtc_data, _ = read_csv("gtc")
+        kho_col  = next((k for k in (gtc_data[0] if gtc_data else {}) if "kho" in k.lower() or "tên" in k.lower()), None)
+        pct_col  = next((k for k in (gtc_data[0] if gtc_data else {}) if "gtc" in k.lower() or "%" in k or "tỷ lệ" in k.lower()), None)
+        if kho_col and pct_col and gtc_data:
+            scored = []
+            for r in gtc_data:
+                kho = r.get(kho_col, "")
+                pct_raw = r.get(pct_col, "0")
+                try:
+                    pct = float(str(pct_raw).strip().replace("%", "").replace(",", "."))
+                except ValueError:
+                    pct = 0.0
+                if kho:
+                    scored.append((kho, pct))
+            scored.sort(key=lambda x: -x[1])
+            tops    = scored[:3]
+            bottoms = scored[-3:] if len(scored) >= 3 else scored
+            msg += "*Top kho tốt:*\n"
+            for kho, pct in tops:
+                msg += f" ✅ {kho}: *{pct:.2f}%*\n"
+            msg += "*Kho cần cải thiện:*\n"
+            for kho, pct in reversed(bottoms):
+                msg += f" ❌ {kho}: *{pct:.2f}%*\n"
+        else:
+            msg += "_Chưa có dữ liệu GTC._\n"
+    except Exception as e:
+        msg += f"_Lỗi đọc dữ liệu GTC: {e}_\n"
+
+    msg += "\n🔗 [Mở Dashboard Chi Tiết](https://ai-ghn-gxt.up.railway.app/)"
+    return msg
+
+
 async def scheduled_warning_loop(application):
+
     print("[BOT] Scheduled warning loop started.")
     tz_utc_7 = dt.timezone(dt.timedelta(hours=7))
     
@@ -397,7 +498,23 @@ async def scheduled_warning_loop(application):
                     return True
                 return False
             
+            # Mốc 10:30 - Báo cáo vận hành hằng ngày (BÁO CÁO VẬN HÀNH MIỀN TRUNG)
+            if should_send(10, 30, current_date, "10:30"):
+                try:
+                    van_hanh_msg = _generate_van_hanh_report(now_local)
+                    await application.bot.send_message(
+                        chat_id=warn_chat_id,
+                        text=van_hanh_msg,
+                        parse_mode="Markdown",
+                        disable_web_page_preview=False
+                    )
+                    sent_keys.add(f"{current_date}|10:30")
+                    print(f"[BOT] Van hanh report 10:30 sent for {current_date}")
+                except Exception as e:
+                    print(f"[BOT ERROR] Van hanh report 10:30 failed: {e}")
+
             # Mốc 22:00 - Báo cáo ngày hôm nay (Day N)
+
             if should_send(22, 0, current_date, "22:00"):
                 report_msg = generate_odo_warning_report(current_date, "22:00")
                 await application.bot.send_message(
