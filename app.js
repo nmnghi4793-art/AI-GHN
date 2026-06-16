@@ -2299,24 +2299,40 @@ async function sendCustomTelegramMessage() {
         const adminKey = localStorage.getItem('ghn_admin_key') || '';
         const resp = await fetch('/api/telegram/report', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('ghn_token') || ''}`
+            },
             body: JSON.stringify({ message: message, key: adminKey })
         });
-        const result = await resp.json();
 
-        if (result.status === 'success') {
+        let result = {};
+        try {
+            result = await resp.json();
+        } catch (_) {
+            result = { status: 'error', message: `Server trả về HTTP ${resp.status}` };
+        }
+
+        if (resp.ok && result.status === 'success') {
             alert('✅ Tin nhắn đã được gửi thành công!');
             closeTelegramModal();
         } else {
-            alert('❌ Lỗi: ' + result.message);
+            // FastAPI trả về {"detail": "..."}, các error tự viết trả về {"message": "..."}
+            const errMsg = result.message || result.detail || `HTTP ${resp.status}`;
+            if (resp.status === 401 || resp.status === 403) {
+                alert('❌ Không có quyền gửi Telegram.\n\nKiểm tra:\n• Bạn đã truy cập ?key=<ADMIN_KEY> để bật chế độ admin chưa?\n• Admin Key trong Railway Variables có đúng không?');
+            } else {
+                alert('❌ Lỗi gửi Telegram: ' + errMsg);
+            }
         }
     } catch (e) {
-        alert('❌ Không thể kết nối với server.');
+        alert('❌ Không thể kết nối với server.\n\nChi tiết: ' + e.message);
     } finally {
         sendBtn.innerHTML = originalText;
         sendBtn.disabled = false;
     }
 }
+
 
 function compileQuickReport() {
     const textarea = document.getElementById('telegram-custom-msg');
