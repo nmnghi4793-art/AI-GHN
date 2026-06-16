@@ -122,6 +122,14 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký Giao Hàng Scheduler: {e}")
 
+    # --- Collect Money Scheduler ---
+    try:
+        from collect_money_scheduler import run_collect_money_scheduler
+        asyncio.create_task(run_collect_money_scheduler())
+        print("[STARTUP] Đã kích hoạt Thu Tiền - Bắn Kiểm Scheduler (22:30 & 23:00).")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký Thu Tiền - Bắn Kiểm Scheduler: {e}")
+
 
 # ---- ADMIN: Test Giao Hang Report ----
 @app.get("/api/giao-hang/test", dependencies=[Depends(require_admin_key)])
@@ -143,6 +151,27 @@ async def test_giao_hang(mode: str = "09:30"):
             "status": "ok",
             "message": f"Da kich hoat bao cao [{mode}]. Kiem tra Telegram sau vai giay.",
             "mode": mode,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+# ---- ADMIN: Test Collect Money Report ----
+@app.get("/api/collect-money/test", dependencies=[Depends(require_admin_key)])
+async def test_collect_money():
+    """
+    Trigger bao cao thu tien - ban kiem ngay lap tuc.
+    Bao ve bang X-Admin-Key header.
+    """
+    try:
+        from collect_money_scheduler import run_collect_money_report, _sent_today
+        # Reset trang thai de cho phep gui lai (tranh bi chặn bởi _sent_today)
+        _sent_today.pop("test", None)
+        import asyncio
+        asyncio.create_task(run_collect_money_report("test"))
+        return {
+            "status": "ok",
+            "message": "Da kich hoat bao cao thu tien - ban kiem. Kiem tra Telegram sau vai giay.",
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
