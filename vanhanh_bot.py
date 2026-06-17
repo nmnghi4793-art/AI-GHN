@@ -141,10 +141,19 @@ def load_state() -> dict:
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                if "active_tickets" not in data:
+                    data["active_tickets"] = {}
+                if "last_summary_sent" not in data:
+                    data["last_summary_sent"] = ""
+                # Chuẩn hóa trạng thái của các phiếu cũ để có cờ notified
+                for ticket in data["active_tickets"].values():
+                    if "notified" not in ticket:
+                        ticket["notified"] = True
+                return data
         except Exception as e:
             log.error(f"Loi doc file state: {e}")
-    return {"active_tickets": {}}
+    return {"active_tickets": {}, "last_summary_sent": ""}
 
 def save_state(state: dict):
     try:
@@ -163,10 +172,6 @@ async def run_vanhanh_check() -> bool:
 
     state = load_state()
     active_tickets = state.get("active_tickets", {})
-
-    # Chuyển đổi tất cả phiếu tồn hiện tại thành "old" trước khi quét lần mới
-    for key in active_tickets:
-        active_tickets[key]["status"] = "old"
 
     now_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M")
     
@@ -351,18 +356,18 @@ async def run_vanhanh_check() -> bool:
                             scraped_keys.add(key)
 
                             if key in active_tickets:
-                                # Phiếu đã tồn tại từ trước -> Cập nhật thời gian kiểm tra và giữ trạng thái old
+                                # Phiếu đã tồn tại từ trước -> Cập nhật thời gian kiểm tra
                                 active_tickets[key]["last_checked"] = now_str
                                 active_tickets[key]["detail"] = formatted_line
                             else:
-                                # Phiếu mới phát sinh
+                                # Phiếu mới phát sinh -> Mặc định notified = False
                                 active_tickets[key] = {
                                     "warehouse": wh_name,
                                     "ticket_type": col_type,
                                     "detail": formatted_line,
                                     "first_detected": now_str,
                                     "last_checked": now_str,
-                                    "status": "new"
+                                    "notified": False
                                 }
 
                         # Click đóng popup
@@ -383,12 +388,56 @@ async def run_vanhanh_check() -> bool:
             await browser.close()
             log.info(f"Quet xong. So phieu ton hien tai: {len(active_tickets)}")
 
-            # Gửi báo cáo qua Telegram nếu có phiếu tồn
-            if active_tickets:
-                await build_and_send_telegram_report(active_tickets, now_str)
+            # --- PHÂN PHỐI GỬI TELEGRAM THEO KHUNG GIỜ ---
+            # Chỉ gửi tin nhắn từ 07:00 đến 22:00
+            now_dt = datetime.now(TZ)
+            is_allowed_hours = (7 <= now_dt.hour < 22)
+            log.info(f"Khung gio hien tai: {now_dt.strftime('%H:%M')}. Cho phep gui Telegram: {is_allowed_hours}")
+
+            if is_allowed_hours:
+                # 1. Gửi cảnh báo phiếu mới (notified == False)
+                new_tickets = {k: v for k, v in active_tickets.items() if not v.get("notified", False)}
+                if new_tickets:
+                    log.info(f"Phat hien {len(new_tickets)} phieu moi. Gui Telegram ngay...")
+                    sent = await send_new_tickets_report(new_tickets, now_str)
+                    if sent:
+                        # Cập nhật notified = True cho các phiếu đã báo
+                        for k in new_tickets:
+                            active_tickets[k]["notified"] = True
+                        state["active_tickets"] = active_tickets
+                        save_state(state)
+                else:
+                    log.info("Khong co phieu moi can bao ngay.")
+
+                # 2. Gửi báo cáo tổng hợp 2 tiếng/lần
+                last_summary_sent_str = state.get("last_summary_sent", "")
+                should_send_summary = False
+                if last_summary_sent_str:
+                    try:
+                        last_sent_dt = datetime.fromisoformat(last_summary_sent_str)
+                        time_diff = (now_dt - last_sent_dt).total_seconds()
+                        if time_diff >= 7200: # 120 minutes (2 hours)
+                            should_send_summary = True
+                    except Exception as ex:
+                        log.warning(f"Loi parse last_summary_sent '{last_summary_sent_str}': {ex}")
+                        should_send_summary = True
+                else:
+                    # Chua tung gui bao cao tong hop -> Thiet lap mốc gửi ngay
+                    should_send_summary = True
+
+                if should_send_summary:
+                    if active_tickets:
+                        log.info(f"Den moc 2 tieng. Gui bao cao tong hop ({len(active_tickets)} phieu ton)...")
+                        await send_summary_report(active_tickets, now_str)
+                    else:
+                        log.info("Den moc 2 tieng nhung khong co phieu ton. Bo qua gui bao cao tong hop.")
+                    
+                    # Cap nhat moc thoi gian gui bao cao tong hop
+                    state["last_summary_sent"] = now_dt.isoformat()
+                    save_state(state)
             else:
-                log.info("Khong co phieu ton. Bo qua gui tin nhan Telegram.")
-            
+                log.info("Ngoai khung gio 07:00 - 22:00. Khong gui bat ky tin nhan nao, giu nguyen các cờ notified=False.")
+
             return True
 
     except Exception as e:
@@ -396,12 +445,38 @@ async def run_vanhanh_check() -> bool:
         await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
         return False
 
-async def build_and_send_telegram_report(active_tickets: dict, now_str: str):
-    # Nhóm phiếu tồn theo bưu cục
-    by_wh = {}
-    total_new = 0
-    total_old = 0
+async def send_new_tickets_report(new_tickets: dict, now_str: str) -> bool:
+    grouped = {}
+    for ticket in new_tickets.values():
+        wh = ticket["warehouse"]
+        t_type = ticket["ticket_type"]
+        group_key = (wh, t_type)
+        if group_key not in grouped:
+            grouped[group_key] = []
+        grouped[group_key].append(ticket)
+        
+    blocks = []
+    for (wh, t_type), tickets in sorted(grouped.items(), key=lambda x: (x[0][0], x[0][1])):
+        detail_lines = [f"• {t['detail']}" for t in tickets]
+        block = (
+            f"Kho: {html.escape(wh)}\n"
+            f"Loại phiếu: {html.escape(t_type)}\n"
+            f"Số phiếu mới: {len(tickets)}\n\n"
+            f"Chi tiết:\n"
+            + "\n".join(detail_lines)
+        )
+        blocks.append(block)
+        
+    msg = (
+        f"🆕 <b>PHIẾU MỚI PHÁT SINH</b>\n"
+        f"Thời gian phát hiện: {now_str}\n\n"
+        + "\n\n".join(blocks) + "\n\n"
+        f"Yêu cầu kho kiểm tra và xử lý ngay."
+    )
+    return await send_telegram_message(msg)
 
+async def send_summary_report(active_tickets: dict, now_str: str) -> bool:
+    by_wh = {}
     for ticket in active_tickets.values():
         wh = ticket["warehouse"]
         if wh not in by_wh:
@@ -414,53 +489,39 @@ async def build_and_send_telegram_report(active_tickets: dict, now_str: str):
         if t_type in by_wh[wh]["counts"]:
             by_wh[wh]["counts"][t_type] += 1
             
-        if ticket["status"] == "new":
-            total_new += 1
-        else:
-            total_old += 1
-
-    # Tạo nội dung báo cáo chi tiết
     detail_blocks = []
     idx = 1
-    
     for wh_name, info in sorted(by_wh.items()):
-        wh_tickets = info["tickets"]
         counts = info["counts"]
+        tickets = info["tickets"]
         
-        block = (
-            f"{idx}. <b>{html.escape(wh_name)}</b>\n"
-            f"   Tổng: <b>{len(wh_tickets)}</b> phiếu\n"
-            f"   • Hồi giao: {counts['Hồi giao']} | Hồi lấy: {counts['Hồi lấy']} | Hồi trả: {counts['Hồi trả']}\n"
-        )
-        
-        # Tách phiếu mới và cũ
-        new_lines = [f"   • {t['detail']}" for t in wh_tickets if t["status"] == "new"]
-        old_lines = [f"   • {t['detail']} — phát hiện từ {t['first_detected'].split(' ')[1]}" for t in wh_tickets if t["status"] == "old"]
-        
-        if new_lines:
-            block += "   🆕 <b>Phiếu mới:</b>\n" + "\n".join(new_lines) + "\n"
-        if old_lines:
-            block += "   🔁 <b>Phiếu cũ chưa xử lý:</b>\n" + "\n".join(old_lines) + "\n"
+        ticket_lines = []
+        for t in tickets:
+            first_detected_time = t["first_detected"]
+            if " " in first_detected_time:
+                first_detected_time = first_detected_time.split(" ")[1]
+            ticket_lines.append(f"• {t['detail']} — phát hiện từ {first_detected_time}")
             
+        block = (
+            f"{idx}. {html.escape(wh_name)}\n"
+            f"- Hồi giao: {counts['Hồi giao']}\n"
+            f"- Hồi lấy: {counts['Hồi lấy']}\n"
+            f"- Hồi trả: {counts['Hồi trả']}\n\n"
+            f"Phiếu tồn:\n"
+            + "\n".join(ticket_lines)
+        )
         detail_blocks.append(block)
         idx += 1
-
+        
     msg = (
-        f"🚨 <b>BÁO CÁO TỒN PHIẾU VẬN HÀNH GXT</b>\n"
-        f"Thời gian kiểm tra: {now_str}\n\n"
-        f"<b>Tổng quan:</b>\n"
-        f"• Tổng kho đã kiểm tra: 25\n"
-        f"• Số kho còn phiếu tồn: {len(by_wh)} kho\n"
-        f"• Tổng phiếu tồn: {len(active_tickets)} phiếu\n"
-        f"• Phiếu mới phát sinh: {total_new}\n"
-        f"• Phiếu cũ chưa xử lý: {total_old}\n\n"
-        f"<b>Chi tiết:</b>\n\n"
-        + "\n".join(detail_blocks) +
-        f"<b>Yêu cầu xử lý:</b>\n"
-        f"Các kho có phiếu tồn cần kiểm tra và xử lý ngay. Nếu phiếu cũ vẫn còn tồn, quản lý kho cần phản hồi lý do chưa hoàn tất."
+        f"🔁 <b>TỔNG HỢP PHIẾU TỒN CHƯA XỬ LÝ</b>\n"
+        f"Thời gian: {now_str}\n\n"
+        f"Tổng kho còn phiếu: {len(by_wh)}\n"
+        f"Tổng phiếu tồn: {len(active_tickets)}\n\n"
+        f"Chi tiết theo kho:\n"
+        + "\n\n".join(detail_blocks)
     )
-    
-    await send_telegram_message(msg)
+    return await send_telegram_message(msg)
 
 if __name__ == "__main__":
     asyncio.run(run_vanhanh_check())
