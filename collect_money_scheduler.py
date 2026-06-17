@@ -38,6 +38,16 @@ async def run_collect_money_report(label: str = "manual"):
 
 async def run_collect_money_scheduler():
     global _last_triggered
+    
+    # Tự động vô hiệu hóa nếu chạy trên Cloud (Linux) hoặc có cấu hình tắt
+    is_disabled_env = os.environ.get("DISABLE_COLLECT_MONEY_SCHEDULER", "").lower() == "true"
+    is_polling_disabled = os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true"
+    is_cloud = os.name != "nt"  # nt đại diện cho Windows local
+    
+    if is_disabled_env or is_polling_disabled or is_cloud:
+        log.info("[CollectMoney] Scheduler bị vô hiệu hóa (chạy trên Cloud/Linux hoặc cấu hình tắt).")
+        return
+
     log.info(f"[CollectMoney] Scheduler khoi dong (TZ={TIMEZONE_STR})")
     
     SCHEDULE = [(21, 0, "21:00"), (22, 0, "22:00"), (23, 0, "23:00")]
