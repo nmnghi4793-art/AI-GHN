@@ -127,6 +127,14 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký Thu Tiền - Bắn Kiểm Scheduler: {e}")
 
+    # --- Van Hanh Scheduler ---
+    try:
+        from vanhanh_scheduler import run_vanhanh_scheduler
+        asyncio.create_task(run_vanhanh_scheduler())
+        print("[STARTUP] Đã kích hoạt Báo Cáo Tồn Phiếu Vận Hành GXT (Mỗi 5 phút).")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký Báo Cáo Tồn Phiếu Vận Hành GXT Scheduler: {e}")
+
 
 # ---- ADMIN: Test Giao Hang Report ----
 @app.get("/api/giao-hang/test", dependencies=[Depends(require_admin_key)])

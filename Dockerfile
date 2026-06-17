@@ -6,12 +6,17 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Cài đặt Chromium và các thư viện hệ thống cần thiết cho Playwright
+RUN playwright install --with-deps chromium
+
 # Copy source code chính
 COPY main.py .
 COPY telegram_bot.py .
 COPY giao_hang_scheduler.py .
 COPY collect_money_bot.py .
 COPY collect_money_scheduler.py .
+COPY vanhanh_bot.py .
+COPY vanhanh_scheduler.py .
 COPY app.js .
 COPY index.html .
 COPY styles.css .
