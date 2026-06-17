@@ -930,35 +930,30 @@
 
                 <!-- Advanced Filters -->
                 <div class="section-filters ghn-filter-row" style="display:flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                    <div id="filter-vung-wrap-day" style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
                         <label for="filter-vung-day" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Ngày</label>
-                        <select id="filter-vung-day" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('day')">
-                            <option value="">Tất cả ngày</option>
+                        <select id="filter-vung-day" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="renderNangSuatVungSection()">
+                            <option value="">Ngày gần nhất</option>
                         </select>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                    <div id="filter-vung-wrap-week" style="display:none; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
                         <label for="filter-vung-week" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Tuần</label>
-                        <select id="filter-vung-week" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('week')">
-                            <option value="">Tất cả tuần</option>
+                        <select id="filter-vung-week" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="renderNangSuatVungSection()">
+                            <option value="">Tuần gần nhất</option>
                         </select>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                    <div id="filter-vung-wrap-month" style="display:none; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
                         <label for="filter-vung-month" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Tháng</label>
-                        <select id="filter-vung-month" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('month')">
-                            <option value="">Tất cả tháng</option>
+                        <select id="filter-vung-month" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="renderNangSuatVungSection()">
+                            <option value="">Tháng gần nhất</option>
                         </select>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
-                        <label for="filter-vung-year" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Năm</label>
-                        <select id="filter-vung-year" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('year')">
-                            <option value="">Tất cả năm</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
-                        <label for="filter-vung-region" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Vùng</label>
-                        <select id="filter-vung-region" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('region')">
-                            <option value="">Tất cả vùng</option>
-                        </select>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 180px;">
+                        <label style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Vùng</label>
+                        <div class="ghn-filter-container" id="multi-vung-region" style="width: 100%;">
+                            <div class="ghn-filter-selected" id="label-vung-region" onclick="toggleMultiselect('vung-region')" style="height: 38px; display: flex; align-items: center; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; justify-content: space-between;">Chọn Vùng...</div>
+                            <div class="ghn-filter-menu" id="menu-vung-region" style="max-height: 200px; overflow-y: auto;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -975,34 +970,56 @@
                     <div class="stat-card" style="background:#E3F2FD;border:1px solid #90CAF9">
                         <div class="stat-icon" style="background:#90CAF9;color:#0D47A1"><i class="fa-solid fa-trophy"></i></div>
                         <div class="stat-details">
-                            <h3>Vùng Năng Suất Cao Nhất</h3>
+                            <h3>Vùng Tỷ Lệ GTC Cao Nhất</h3>
                             <h2 id="ns-vung-best" style="color:#0D47A1;font-size:1rem">--</h2>
-                            <p class="stat-sub" id="ns-vung-best-val">-- đơn/giờ</p>
+                            <p class="stat-sub" id="ns-vung-best-val">--%</p>
                         </div>
                     </div>
                     <div class="stat-card" style="background:#FFEBEE;border:1px solid #FFCDD2">
                         <div class="stat-icon" style="background:#FFCDD2;color:#B71C1C"><i class="fa-solid fa-triangle-exclamation"></i></div>
                         <div class="stat-details">
-                            <h3>Vùng Năng Suất Thấp Nhất</h3>
+                            <h3>Vùng Tỷ Lệ GTC Thấp Nhất</h3>
                             <h2 id="ns-vung-worst" style="color:#B71C1C;font-size:1rem">--</h2>
-                            <p class="stat-sub" id="ns-vung-worst-val">-- đơn/giờ</p>
+                            <p class="stat-sub" id="ns-vung-worst-val">--%</p>
                         </div>
                     </div>
                     <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFCC80">
                         <div class="stat-icon" style="background:#FFCC80;color:#E65100"><i class="fa-solid fa-gauge-high"></i></div>
                         <div class="stat-details">
-                            <h3>Năng Suất Trung Bình Toàn Vùng</h3>
+                            <h3>Tỷ Lệ GTC Trung Bình Toàn Vùng</h3>
                             <h2 id="ns-vung-avg" style="color:#E65100">--</h2>
-                            <p class="stat-sub">Đơn/giờ/nhân viên</p>
+                            <p class="stat-sub">Hiệu suất giao thành công</p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Chart Section -->
+                <div class="chart-card" style="margin-bottom:18px">
+                    <div class="chart-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <h3><i class="fa-solid fa-chart-column" style="color:var(--blue)"></i> So Sánh Tỷ Lệ GTC Theo Vùng</h3>
+                        <!-- horizontal tab bar for chart period -->
+                        <div class="kpi-tab-bar" style="margin-bottom:0;">
+                            <button class="kpi-tab-btn active" id="btn-vung-chart-day" onclick="switchVungChartPeriod('day')">
+                                Ngày
+                            </button>
+                            <button class="kpi-tab-btn" id="btn-vung-chart-week" onclick="switchVungChartPeriod('week')">
+                                Tuần
+                            </button>
+                            <button class="kpi-tab-btn" id="btn-vung-chart-month" onclick="switchVungChartPeriod('month')">
+                                Tháng
+                            </button>
+                        </div>
+                    </div>
+                    <div style="position:relative; min-height:300px; margin-top:15px;">
+                        <canvas id="chart-gtc-by-vung"></canvas>
                     </div>
                 </div>
 
                 <!-- Table -->
                 <div class="table-card">
                     <div class="table-header">
-                        <h3><i class="fa-solid fa-map-location-dot" style="color:var(--blue)"></i> Năng Suất Theo Vùng</h3>
-                        <span style="font-size:12px;color:var(--text3);font-style:italic">Dữ liệu phân tích năng suất đa chiều theo Vùng</span>
+                        <h3><i class="fa-solid fa-map-location-dot" style="color:var(--blue)"></i> Hiệu Suất GTC Theo Vùng</h3>
+                        <span style="font-size:12px;color:var(--text3);font-style:italic">Dữ liệu phân tích tỷ lệ GTC đa chiều theo Vùng</span>
                     </div>
                     <div class="table-scroll" style="max-height:none">
                         <table class="data-table" id="table-ns-vung">
@@ -1012,10 +1029,9 @@
                                     <th style="text-align:right">Số kho</th>
                                     <th style="text-align:right">Tổng GTC</th>
                                     <th style="text-align:right">Tổng nhân sự</th>
-                                    <th style="text-align:right">Năng suất ngày</th>
-                                    <th style="text-align:right">Năng suất tuần</th>
-                                    <th style="text-align:right">Năng suất tháng</th>
-                                    <th style="text-align:right">Năng suất năm</th>
+                                    <th style="text-align:right">Tỷ lệ GTC ngày</th>
+                                    <th style="text-align:right">Tỷ lệ GTC tuần</th>
+                                    <th style="text-align:right">Tỷ lệ GTC tháng</th>
                                     <th>Kho tốt nhất</th>
                                     <th>Kho thấp nhất</th>
                                     <th style="text-align:center">Đánh giá</th>
@@ -1024,15 +1040,15 @@
                                 </tr>
                             </thead>
                             <tbody id="tbody-ns-vung">
-                                <tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                                <tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <div style="margin-top:14px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:12px;color:var(--text2)">
                         <strong style="color:var(--blue)"><i class="fa-solid fa-circle-info"></i> Cách tính:</strong>
                         <span style="margin-left:8px">
-                            Năng suất vùng = Tổng đơn GTC ÷ Tổng nhân sự của các kho trong vùng &nbsp;|&nbsp;
-                            🟢 Cao ≥ 5 &nbsp;|&nbsp; 🟡 Trung bình ≥ 3 &nbsp;|&nbsp; 🔴 Thấp &lt; 3
+                            Tỷ lệ GTC vùng = (Tổng đơn GTC ÷ Tổng đơn gán) × 100 &nbsp;|&nbsp;
+                            🟢 Cao ≥ 90% &nbsp;|&nbsp; 🟡 Trung bình ≥ 80% &nbsp;|&nbsp; 🔴 Thấp &lt; 80%
                         </span>
                     </div>
                 </div>

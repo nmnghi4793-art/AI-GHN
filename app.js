@@ -652,11 +652,13 @@ function renderCriticalWarningsOverview() {
 let gtcTimeMode = 'day';
 let selectedGtcVals = [];
 let selectedGtcKhos = [];
+let vungTimeMode = 'day';
+let selectedVungRegions = [];
 
 window.toggleMultiselect = function (mode) {
     const allMenus = document.querySelectorAll('.ghn-filter-menu');
     let targetId = 'menu-gtc-' + mode;
-    if (mode.startsWith('dt-') || mode.startsWith('ns-')) {
+    if (mode.startsWith('dt-') || mode.startsWith('ns-') || mode === 'vung-region') {
         targetId = 'menu-' + mode;
     }
     allMenus.forEach(m => {
@@ -2442,8 +2444,112 @@ function compileQuickReport() {
 document.getElementById('telegram-btn')?.addEventListener('click', openTelegramModal);
 document.getElementById('close-telegram-modal')?.addEventListener('click', closeTelegramModal);
 document.getElementById('cancel-telegram-modal')?.addEventListener('click', closeTelegramModal);
-document.getElementById('telegram-btn-compile')?.addEventListener('click', compileQuickReport);
-document.getElementById('telegram-btn-send-custom')?.addEventListener('click', sendCustomTelegramMessage);
+window.switchVungChartPeriod = function(period) {
+    vungTimeMode = period;
+    ['day', 'week', 'month'].forEach(p => {
+        const btn = document.getElementById('btn-vung-chart-' + p);
+        if (btn) {
+            if (p === period) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+    
+    const dayWrap = document.getElementById('filter-vung-wrap-day');
+    const weekWrap = document.getElementById('filter-vung-wrap-week');
+    const monthWrap = document.getElementById('filter-vung-wrap-month');
+    
+    if (dayWrap) dayWrap.style.display = (period === 'day' ? 'flex' : 'none');
+    if (weekWrap) weekWrap.style.display = (period === 'week' ? 'flex' : 'none');
+    if (monthWrap) monthWrap.style.display = (period === 'month' ? 'flex' : 'none');
+    
+    renderNangSuatVungSection();
+};
+
+function populateVungRegionMultiselect() {
+    const menu = document.getElementById('menu-vung-region');
+    if (!menu || menu.children.length > 0) return;
+    
+    const regions = [...new Set((state.khoGxtData || []).map(r => (r['Vùng'] || r['vung'] || '').trim()).filter(Boolean))].sort();
+    
+    menu.innerHTML = '';
+    regions.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'ghn-filter-item';
+        
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `chk-vung-region-${r}`;
+        chk.value = r;
+        chk.setAttribute('onchange', `window.updateVungRegionFilter()`);
+        
+        const lbl = document.createElement('label');
+        lbl.htmlFor = chk.id;
+        lbl.textContent = r;
+        
+        item.appendChild(chk);
+        item.appendChild(lbl);
+        menu.appendChild(item);
+    });
+}
+
+window.updateVungRegionFilter = function() {
+    const menu = document.getElementById('menu-vung-region');
+    if (!menu) return;
+    const checks = menu.querySelectorAll('input[type="checkbox"]:checked');
+    selectedVungRegions = Array.from(checks).map(c => c.value);
+    
+    const label = document.getElementById('label-vung-region');
+    if (label) {
+        if (selectedVungRegions.length === 0) {
+            label.innerText = 'Chọn Vùng...';
+        } else {
+            label.innerText = `${selectedVungRegions.length} vùng đã chọn`;
+        }
+    }
+    
+    const items = Array.from(menu.querySelectorAll('.ghn-filter-item'));
+    items.sort((a, b) => {
+        const chkA = a.querySelector('input').checked;
+        const chkB = b.querySelector('input').checked;
+        return (chkA === chkB) ? 0 : (chkA ? -1 : 1);
+    });
+    items.forEach(item => menu.appendChild(item));
+    
+    renderNangSuatVungSection();
+};
+
+function populateVungSelects() {
+    const daySelect = document.getElementById('filter-vung-day');
+    const weekSelect = document.getElementById('filter-vung-week');
+    const monthSelect = document.getElementById('filter-vung-month');
+    
+    if (!daySelect) return;
+    
+    if (daySelect.options.length <= 1) {
+        const days = [...new Set((state.gtcData || []).map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
+        days.forEach(d => daySelect.add(new Option(d, d)));
+    }
+    
+    if (weekSelect && weekSelect.options.length <= 1) {
+        const weeks = [...new Set((state.gtcData || []).map(r => {
+            const ts = parseVN(r['Ngày']);
+            return ts ? getWeekNumber(new Date(ts)) : null;
+        }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+        weeks.forEach(w => weekSelect.add(new Option('Tuần ' + (w.includes('-W') ? w.split('-W')[1] : w) + ' (' + w.split('-W')[0] + ')', w)));
+    }
+    
+    if (monthSelect && monthSelect.options.length <= 1) {
+        const months = [...new Set((state.gtcData || []).map(r => {
+            const ts = parseVN(r['Ngày']);
+            if (!ts) return null;
+            const d = new Date(ts);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+        months.forEach(m => monthSelect.add(new Option('Tháng ' + m, m)));
+    }
+    
+    populateVungRegionMultiselect();
+}
 
 /**
  * Chuyển tab bên trong section GTC & Năng Suất
@@ -2476,84 +2582,10 @@ function toYYYYMMDD(dateStr) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-window.changeVungFilter = function(type) {
-    const dayEl = document.getElementById('filter-vung-day');
-    const weekEl = document.getElementById('filter-vung-week');
-    const monthEl = document.getElementById('filter-vung-month');
-    const yearEl = document.getElementById('filter-vung-year');
-    
-    if (!dayEl) return;
-    
-    if (type === 'day' && dayEl.value) {
-        weekEl.value = '';
-        monthEl.value = '';
-        yearEl.value = '';
-    } else if (type === 'week' && weekEl.value) {
-        dayEl.value = '';
-        monthEl.value = '';
-        yearEl.value = '';
-    } else if (type === 'month' && monthEl.value) {
-        dayEl.value = '';
-        weekEl.value = '';
-        yearEl.value = '';
-    } else if (type === 'year' && yearEl.value) {
-        dayEl.value = '';
-        weekEl.value = '';
-        monthEl.value = '';
-    }
-    renderNangSuatVungSection();
-};
 
-function populateVungSelects() {
-    const daySelect = document.getElementById('filter-vung-day');
-    const weekSelect = document.getElementById('filter-vung-week');
-    const monthSelect = document.getElementById('filter-vung-month');
-    const yearSelect = document.getElementById('filter-vung-year');
-    const regionSelect = document.getElementById('filter-vung-region');
-    
-    if (!daySelect) return;
-    
-    if (daySelect.options.length <= 1) {
-        const days = [...new Set((state.gtcData || []).map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
-        days.forEach(d => daySelect.add(new Option(d, d)));
-    }
-    
-    if (weekSelect.options.length <= 1) {
-        const weeks = [...new Set((state.gtcData || []).map(r => {
-            const ts = parseVN(r['Ngày']);
-            return ts ? getWeekNumber(new Date(ts)) : null;
-        }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-        weeks.forEach(w => weekSelect.add(new Option('Tuần ' + (w.includes('-W') ? w.split('-W')[1] : w) + ' (' + w.split('-W')[0] + ')', w)));
-    }
-    
-    if (monthSelect.options.length <= 1) {
-        const months = [...new Set((state.gtcData || []).map(r => {
-            const ts = parseVN(r['Ngày']);
-            if (!ts) return null;
-            const d = new Date(ts);
-            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-        months.forEach(m => monthSelect.add(new Option('Tháng ' + m, m)));
-    }
-    
-    if (yearSelect.options.length <= 1) {
-        const years = [...new Set((state.gtcData || []).map(r => {
-            const ts = parseVN(r['Ngày']);
-            if (!ts) return null;
-            const d = new Date(ts);
-            return String(d.getFullYear());
-        }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-        years.forEach(y => yearSelect.add(new Option('Năm ' + y, y)));
-    }
-    
-    if (regionSelect.options.length <= 1) {
-        const regions = [...new Set((state.khoGxtData || []).map(r => (r['Vùng'] || r['vung'] || '').trim()).filter(Boolean))].sort();
-        regions.forEach(r => regionSelect.add(new Option(r, r)));
-    }
-}
 
-function getGtcForPeriod(vung, scope, periodKey, nameToVung) {
-    if (!periodKey) return 0;
+function getGtcAndGanForPeriod(vung, scope, periodKey, nameToVung) {
+    if (!periodKey) return { gtc: 0, gan: 0 };
     const filtered = (state.gtcData || []).filter(r => {
         const rowVung = nameToVung[r['Kho']] || nameToVung[shortKho(r['Kho'])] || 'Chưa xác định';
         if (rowVung !== vung) return false;
@@ -2569,18 +2601,89 @@ function getGtcForPeriod(vung, scope, periodKey, nameToVung) {
         } else if (scope === 'month') {
             const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
             return m === periodKey;
-        } else if (scope === 'year') {
-            return String(d.getFullYear()) === periodKey;
         }
         return false;
     });
     
-    let sum = 0;
+    let sumGtc = 0;
+    let sumGan = 0;
     filtered.forEach(r => {
         const donGtc = parseInt(String(r['Số Đơn GTC'] || r['Số đơn GTC'] || '0').replace(/[^0-9]/g, '')) || 0;
-        sum += donGtc;
+        const donGan = parseInt(String(r['Số đơn gán'] || r['Số Đơn Gán'] || '0').replace(/[^0-9]/g, '')) || 0;
+        sumGtc += donGtc;
+        sumGan += donGan;
     });
-    return sum;
+    return { gtc: sumGtc, gan: sumGan };
+}
+
+function renderVungGtcChart(renderedEntries) {
+    destroyChart('vungGtc');
+    const canvas = document.getElementById('chart-gtc-by-vung');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const labels = renderedEntries.map(([vung]) => vung);
+    const values = renderedEntries.map(([, v]) => v.activeRate !== null ? parseFloat(v.activeRate.toFixed(2)) : 0);
+    
+    const regionColors = {
+        'Miền Trung': '#0288d1',
+        'Miền Nam': '#e91e63',
+        'Miền Bắc 1': '#4caf50',
+        'Miền Bắc 2': '#ff9800',
+        'Vùng 1': '#0288d1',
+        'Vùng 2': '#4caf50',
+        'Vùng 3': '#ff9800',
+        'Vùng 4': '#e91e63'
+    };
+    const fallbackColors = ['#0288d1', '#e91e63', '#4caf50', '#ff9800', '#9c27b0', '#009688'];
+    const colors = labels.map((l, i) => regionColors[l] || fallbackColors[i % fallbackColors.length]);
+    
+    charts.vungGtc = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Tỷ lệ GTC (%)',
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 6,
+                barPercentage: 0.5,
+                maxBarThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Tỷ lệ GTC: ${context.raw}%`;
+                        }
+                    }
+                },
+                datalabels: {
+                    display: true,
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#333',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: v => v + '%'
+                }
+            },
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { callback: v => v + '%' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
 }
 
 function renderNangSuatVungSection() {
@@ -2606,20 +2709,35 @@ function renderNangSuatVungSection() {
         }
     });
 
+    // Reset filters of other periods to prevent conflicts before reading values
+    const daySelect = document.getElementById('filter-vung-day');
+    const weekSelect = document.getElementById('filter-vung-week');
+    const monthSelect = document.getElementById('filter-vung-month');
+    if (daySelect && weekSelect && monthSelect) {
+        if (vungTimeMode === 'day') {
+            weekSelect.value = '';
+            monthSelect.value = '';
+        } else if (vungTimeMode === 'week') {
+            daySelect.value = '';
+            monthSelect.value = '';
+        } else if (vungTimeMode === 'month') {
+            daySelect.value = '';
+            weekSelect.value = '';
+        }
+    }
+
     // Điền giá trị vào các dropdown filter
     populateVungSelects();
 
     // Đọc các giá trị filter đang chọn
-    const selDay = document.getElementById('filter-vung-day')?.value || '';
-    const selWeek = document.getElementById('filter-vung-week')?.value || '';
-    const selMonth = document.getElementById('filter-vung-month')?.value || '';
-    const selYear = document.getElementById('filter-vung-year')?.value || '';
-    const selRegion = document.getElementById('filter-vung-region')?.value || '';
+    const selDay = daySelect?.value || '';
+    const selWeek = weekSelect?.value || '';
+    const selMonth = monthSelect?.value || '';
 
     // --- 2. Xác định các danh sách thời gian có sẵn ---
     const gtcData = state.gtcData || [];
     if (!gtcData.length) {
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu GTC</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu GTC</td></tr>';
         return;
     }
     const allDays = [...new Set(gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
@@ -2638,28 +2756,15 @@ function renderNangSuatVungSection() {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
 
-    const allYears = [...new Set(gtcData.map(r => {
-        const ts = parseVN(r['Ngày']);
-        if (!ts) return null;
-        const d = new Date(ts);
-        return String(d.getFullYear());
-    }).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-
     // --- 3. Xác định Kỳ đang hoạt động và Kỳ trước đó ---
-    let activePeriod = 'day';
-    let currPeriodKey = latestDate;
-    if (selDay) {
-        activePeriod = 'day';
-        currPeriodKey = selDay;
-    } else if (selWeek) {
-        activePeriod = 'week';
-        currPeriodKey = selWeek;
-    } else if (selMonth) {
-        activePeriod = 'month';
-        currPeriodKey = selMonth;
-    } else if (selYear) {
-        activePeriod = 'year';
-        currPeriodKey = selYear;
+    let activePeriod = vungTimeMode;
+    let currPeriodKey = '';
+    if (activePeriod === 'day') {
+        currPeriodKey = selDay || latestDate;
+    } else if (activePeriod === 'week') {
+        currPeriodKey = selWeek || allWeeks[0] || '';
+    } else if (activePeriod === 'month') {
+        currPeriodKey = selMonth || allMonths[0] || '';
     }
 
     let prevPeriodKey = '';
@@ -2672,17 +2777,42 @@ function renderNangSuatVungSection() {
     } else if (activePeriod === 'month') {
         const currIdx = allMonths.indexOf(currPeriodKey);
         if (currIdx !== -1 && currIdx < allMonths.length - 1) prevPeriodKey = allMonths[currIdx + 1];
-    } else if (activePeriod === 'year') {
-        const currIdx = allYears.indexOf(currPeriodKey);
-        if (currIdx !== -1 && currIdx < allYears.length - 1) prevPeriodKey = allYears[currIdx + 1];
     }
 
-    // --- 4. Thiết lập các giá trị mốc cho Day, Week, Month, Year hiện tại để tính Năng suất 4 khoảng thời gian ---
-    const latestDObj = new Date(parseVN(latestDate));
-    const targetDay_YYYYMMDD = toYYYYMMDD(selDay || latestDate);
-    const targetWeek = selWeek || getWeekNumber(latestDObj);
-    const targetMonth = selMonth || (latestDObj.getFullYear() + '-' + String(latestDObj.getMonth() + 1).padStart(2, '0'));
-    const targetYear = selYear || String(latestDObj.getFullYear());
+    // --- 4. Thiết lập các giá trị mốc cho Day, Week, Month hiện tại ---
+    let targetDay_YYYYMMDD = '';
+    let targetWeek = '';
+    let targetMonth = '';
+
+    if (activePeriod === 'day') {
+        targetDay_YYYYMMDD = toYYYYMMDD(currPeriodKey);
+        const ts = parseVN(currPeriodKey);
+        targetWeek = ts ? getWeekNumber(new Date(ts)) : '';
+        targetMonth = ts ? new Date(ts).getFullYear() + '-' + String(new Date(ts).getMonth() + 1).padStart(2, '0') : '';
+    } else if (activePeriod === 'week') {
+        targetWeek = currPeriodKey;
+        const daysInWeek = allDays.filter(day => {
+            const ts = parseVN(day);
+            return ts ? getWeekNumber(new Date(ts)) === currPeriodKey : false;
+        });
+        const lastDayInWeek = daysInWeek[0] || latestDate;
+        targetDay_YYYYMMDD = toYYYYMMDD(lastDayInWeek);
+        const ts = parseVN(lastDayInWeek);
+        targetMonth = ts ? new Date(ts).getFullYear() + '-' + String(new Date(ts).getMonth() + 1).padStart(2, '0') : '';
+    } else if (activePeriod === 'month') {
+        targetMonth = currPeriodKey;
+        const daysInMonth = allDays.filter(day => {
+            const ts = parseVN(day);
+            if (!ts) return false;
+            const d = new Date(ts);
+            const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            return m === currPeriodKey;
+        });
+        const lastDayInMonth = daysInMonth[0] || latestDate;
+        targetDay_YYYYMMDD = toYYYYMMDD(lastDayInMonth);
+        const ts = parseVN(lastDayInMonth);
+        targetWeek = ts ? getWeekNumber(new Date(ts)) : '';
+    }
 
     // Khởi tạo vungMap
     const vungMap = {};
@@ -2692,56 +2822,68 @@ function renderNangSuatVungSection() {
                 vung: v,
                 khoSet: new Set(),
                 totalGtc: 0,
+                totalGan: 0,
                 totalStaff: 0,
-                totalNs: null,
                 warehouseGtcMap: {},
+                warehouseGanMap: {},
                 khoList: [],
                 
-                // 4 Scopes
-                gtc_day: 0, staff_day: 0, ns_day: null,
-                gtc_week: 0, staff_week: 0, ns_week: null,
-                gtc_month: 0, staff_month: 0, ns_month: null,
-                gtc_year: 0, staff_year: 0, ns_year: null
+                // 3 Scopes
+                gtc_day: 0, gan_day: 0, rate_day: null,
+                gtc_week: 0, gan_week: 0, rate_week: null,
+                gtc_month: 0, gan_month: 0, rate_month: null,
+                
+                activeRate: null
             };
         }
     });
 
-    // --- 5. Tính toán GTC cho các khoảng thời gian ---
+    // --- 5. Tính toán GTC & Gán cho các khoảng thời gian ---
     gtcData.forEach(r => {
         const vung = nameToVung[r['Kho']] || nameToVung[shortKho(r['Kho'])] || 'Chưa xác định';
         const ts = parseVN(r['Ngày']);
         if (!ts) return;
         const d = new Date(ts);
         const donGtc = parseInt(String(r['Số Đơn GTC'] || r['Số đơn GTC'] || '0').replace(/[^0-9]/g, '')) || 0;
+        const donGan = parseInt(String(r['Số đơn gán'] || r['Số Đơn Gán'] || '0').replace(/[^0-9]/g, '')) || 0;
 
         const rowDay = toYYYYMMDD(r['Ngày']);
         const rowWeek = getWeekNumber(d);
         const rowMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        const rowYear = String(d.getFullYear());
 
-        // Accumulate GTC into 4 scopes
-        if (rowDay === targetDay_YYYYMMDD) vungMap[vung].gtc_day += donGtc;
-        if (rowWeek === targetWeek) vungMap[vung].gtc_week += donGtc;
-        if (rowMonth === targetMonth) vungMap[vung].gtc_month += donGtc;
-        if (rowYear === targetYear) vungMap[vung].gtc_year += donGtc;
+        // Tích lũy cho 3 khoảng thời gian
+        if (rowDay === targetDay_YYYYMMDD) {
+            vungMap[vung].gtc_day += donGtc;
+            vungMap[vung].gan_day += donGan;
+        }
+        if (rowWeek === targetWeek) {
+            vungMap[vung].gtc_week += donGtc;
+            vungMap[vung].gan_week += donGan;
+        }
+        if (rowMonth === targetMonth) {
+            vungMap[vung].gtc_month += donGtc;
+            vungMap[vung].gan_month += donGan;
+        }
 
-        // Match active period for standard cards and best/worst calculations
+        // Kiểm tra khớp với kỳ đang hoạt động
         let matchActive = false;
         if (activePeriod === 'day' && rowDay === targetDay_YYYYMMDD) matchActive = true;
         if (activePeriod === 'week' && rowWeek === currPeriodKey) matchActive = true;
         if (activePeriod === 'month' && rowMonth === currPeriodKey) matchActive = true;
-        if (activePeriod === 'year' && rowYear === currPeriodKey) matchActive = true;
 
         if (matchActive) {
             vungMap[vung].totalGtc += donGtc;
+            vungMap[vung].totalGan += donGan;
             const whName = shortKho(r['Kho']);
             if (!vungMap[vung].warehouseGtcMap[whName]) vungMap[vung].warehouseGtcMap[whName] = 0;
+            if (!vungMap[vung].warehouseGanMap[whName]) vungMap[vung].warehouseGanMap[whName] = 0;
             vungMap[vung].warehouseGtcMap[whName] += donGtc;
+            vungMap[vung].warehouseGanMap[whName] += donGan;
             vungMap[vung].khoSet.add(whName);
         }
     });
 
-    // --- 6. Tính toán Nhân sự cho các khoảng thời gian ---
+    // --- 6. Tính toán Nhân sự cho kỳ hoạt động ---
     const nsData = state.nangSuatData || [];
     nsData.forEach(r => {
         let vung = idToVung[(r['hub_id'] || '').trim()];
@@ -2760,20 +2902,11 @@ function renderNangSuatVungSection() {
         const rowDay = toYYYYMMDD(r['Ngày']);
         const rowWeek = getWeekNumber(d);
         const rowMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        const rowYear = String(d.getFullYear());
 
-        // Accumulate staff into 4 scopes
-        if (rowDay === targetDay_YYYYMMDD) vungMap[vung].staff_day += 1;
-        if (rowWeek === targetWeek) vungMap[vung].staff_week += 1;
-        if (rowMonth === targetMonth) vungMap[vung].staff_month += 1;
-        if (rowYear === targetYear) vungMap[vung].staff_year += 1;
-
-        // Match active period
         let matchActive = false;
         if (activePeriod === 'day' && rowDay === targetDay_YYYYMMDD) matchActive = true;
         if (activePeriod === 'week' && rowWeek === currPeriodKey) matchActive = true;
         if (activePeriod === 'month' && rowMonth === currPeriodKey) matchActive = true;
-        if (activePeriod === 'year' && rowYear === currPeriodKey) matchActive = true;
 
         if (matchActive) {
             vungMap[vung].totalStaff += 1;
@@ -2784,116 +2917,135 @@ function renderNangSuatVungSection() {
         }
     });
 
-    // --- 7. Tính Năng suất cho từng khoảng và gán activeNs ---
+    // --- 7. Tính Tỷ lệ GTC cho từng khoảng và gán activeRate ---
     Object.keys(vungMap).forEach(vung => {
         const v = vungMap[vung];
-        v.ns_day   = v.staff_day   > 0 ? v.gtc_day   / v.staff_day   : null;
-        v.ns_week  = v.staff_week  > 0 ? v.gtc_week  / v.staff_week  : null;
-        v.ns_month = v.staff_month > 0 ? v.gtc_month / v.staff_month : null;
-        v.ns_year  = v.staff_year  > 0 ? v.gtc_year  / v.staff_year  : null;
+        v.rate_day   = v.gan_day   > 0 ? (v.gtc_day   / v.gan_day)   * 100 : null;
+        v.rate_week  = v.gan_week  > 0 ? (v.gtc_week  / v.gan_week)  * 100 : null;
+        v.rate_month = v.gan_month > 0 ? (v.gtc_month / v.gan_month) * 100 : null;
 
-        if (activePeriod === 'day')   v.totalNs = v.ns_day;
-        if (activePeriod === 'week')  v.totalNs = v.ns_week;
-        if (activePeriod === 'month') v.totalNs = v.ns_month;
-        if (activePeriod === 'year')  v.totalNs = v.ns_year;
+        if (activePeriod === 'day')   v.activeRate = v.rate_day;
+        if (activePeriod === 'week')  v.activeRate = v.rate_week;
+        if (activePeriod === 'month') v.activeRate = v.rate_month;
 
-        v.khoList = Object.entries(v.warehouseGtcMap).map(([k, val]) => ({ kho: k, gtc: val }));
+        v.khoList = Object.keys(v.warehouseGtcMap).map(whName => {
+            const whGtc = v.warehouseGtcMap[whName] || 0;
+            const whGan = v.warehouseGanMap[whName] || 0;
+            const whRate = whGan > 0 ? (whGtc / whGan) * 100 : 0;
+            return { kho: whName, gtc: whGtc, gan: whGan, rate: whRate };
+        });
     });
 
-    // Lọc các vùng active
+    // Lọc các vùng active có dữ liệu GTC hoặc Gán
     const activeVungEntries = Object.entries(vungMap)
-        .filter(([, v]) => v.totalGtc > 0 || v.totalStaff > 0)
+        .filter(([, v]) => v.totalGtc > 0 || v.totalGan > 0)
         .sort((a, b) => b[1].totalGtc - a[1].totalGtc);
 
     if (!activeVungEntries.length) {
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text3)">Không tìm thấy dữ liệu vùng phù hợp với bộ lọc đang chọn.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu GTC cho kỳ được chọn.</td></tr>';
         return;
     }
 
-    // --- 8. Tính các thẻ Card Tổng quan (dựa trên toàn bộ active regions của filter thời gian) ---
-    const nsEntries = activeVungEntries.filter(([, v]) => v.totalNs !== null);
-    const globalAvgNs = nsEntries.length > 0 ? nsEntries.reduce((s, [, v]) => s + v.totalNs, 0) / nsEntries.length : null;
-    const bestEntry   = nsEntries.length > 0 ? nsEntries.reduce((a, b) => b[1].totalNs > a[1].totalNs ? b : a) : null;
-    const worstEntry  = nsEntries.length > 0 ? nsEntries.reduce((a, b) => b[1].totalNs < a[1].totalNs ? b : a) : null;
+    // --- 8. Áp dụng bộ lọc vùng đa chọn ---
+    let renderedEntries = activeVungEntries;
+    if (selectedVungRegions.length > 0) {
+        renderedEntries = activeVungEntries.filter(([vung]) => selectedVungRegions.includes(vung));
+    }
+
+    if (!renderedEntries.length) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Không tìm thấy dữ liệu vùng phù hợp với bộ lọc đang chọn.</td></tr>';
+        return;
+    }
+
+    // --- 9. Vẽ biểu đồ so sánh vùng ---
+    renderVungGtcChart(renderedEntries);
+
+    // --- 10. Tính các thẻ Card Tổng quan (dựa trên các vùng hiển thị của kỳ đang chọn) ---
+    const rateEntries = renderedEntries.filter(([, v]) => v.activeRate !== null);
+    
+    // Tỷ lệ GTC trung bình toàn vùng: weighted average
+    const sumGtcAll = rateEntries.reduce((s, [, v]) => s + v.totalGtc, 0);
+    const sumGanAll = rateEntries.reduce((s, [, v]) => s + v.totalGan, 0);
+    const globalAvgRate = sumGanAll > 0 ? (sumGtcAll / sumGanAll) * 100 : null;
+
+    const bestEntry   = rateEntries.length > 0 ? rateEntries.reduce((a, b) => b[1].activeRate > a[1].activeRate ? b : a) : null;
+    const worstEntry  = rateEntries.length > 0 ? rateEntries.reduce((a, b) => b[1].activeRate < a[1].activeRate ? b : a) : null;
 
     const worstVungName = worstEntry ? worstEntry[0] : '';
     const bestVungName = bestEntry ? bestEntry[0] : '';
 
     const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    setEl('ns-vung-total',     activeVungEntries.length);
+    setEl('ns-vung-total',     renderedEntries.length);
     setEl('ns-vung-best',      bestEntry ? bestEntry[0] : '--');
-    setEl('ns-vung-best-val',  bestEntry ? bestEntry[1].totalNs.toFixed(2) + ' đơn/GTC/NV' : '--');
+    setEl('ns-vung-best-val',  bestEntry ? bestEntry[1].activeRate.toFixed(2) + '%' : '--%');
     setEl('ns-vung-worst',     worstEntry ? worstEntry[0] : '--');
-    setEl('ns-vung-worst-val', worstEntry ? worstEntry[1].totalNs.toFixed(2) + ' đơn/GTC/NV' : '--');
-    setEl('ns-vung-avg',       globalAvgNs !== null ? globalAvgNs.toFixed(2) : '--');
+    setEl('ns-vung-worst-val', worstEntry ? worstEntry[1].activeRate.toFixed(2) + '%' : '--%');
+    setEl('ns-vung-avg',       globalAvgRate !== null ? globalAvgRate.toFixed(2) + '%' : '--%');
 
-    // --- 9. Bộ lọc Vùng hiển thị ---
-    let renderedEntries = activeVungEntries;
-    if (selRegion) {
-        renderedEntries = activeVungEntries.filter(([vung]) => vung === selRegion);
-    }
-
-    // --- 10. Render bảng ---
-    function ratingBadge(ns) {
-        if (ns === null || ns === undefined) return '<span style="color:var(--text3);font-size:12px">Chưa đủ dữ liệu NV</span>';
-        if (ns >= 5.0) return '<span class="badge" style="background:#E8F5E9;color:#1B5E20">🟢 Cao</span>';
-        if (ns >= 3.0) return '<span class="badge" style="background:#FFFDE7;color:#F57F17">🟡 Trung bình</span>';
+    // --- 11. Render bảng dữ liệu ---
+    function ratingBadge(rate) {
+        if (rate === null || rate === undefined) return '<span style="color:var(--text3);font-size:12px">Chưa đủ dữ liệu</span>';
+        if (rate >= 90.0) return '<span class="badge" style="background:#E8F5E9;color:#1B5E20">🟢 Tốt</span>';
+        if (rate >= 80.0) return '<span class="badge" style="background:#FFFDE7;color:#F57F17">🟡 Trung bình</span>';
         return '<span class="badge" style="background:#FFEBEE;color:#B71C1C">🔴 Thấp</span>';
     }
 
     tbody.innerHTML = renderedEntries.map(([vung, v]) => {
-        const khosSorted = [...v.khoList].sort((a, b) => b.gtc - a.gtc);
+        const khosSorted = [...v.khoList].sort((a, b) => b.rate - a.rate);
         const bestKho    = khosSorted[0];
         const worstKho   = khosSorted.length > 1 ? khosSorted[khosSorted.length - 1] : null;
 
-        const nsDayStr   = v.ns_day !== null ? v.ns_day.toFixed(2) : '<span style="color:var(--text3)">Chưa đủ dữ liệu NV</span>';
-        const nsWeekStr  = v.ns_week !== null ? v.ns_week.toFixed(2) : '<span style="color:var(--text3)">Chưa đủ dữ liệu NV</span>';
-        const nsMonthStr = v.ns_month !== null ? v.ns_month.toFixed(2) : '<span style="color:var(--text3)">Chưa đủ dữ liệu NV</span>';
-        const nsYearStr  = v.ns_year !== null ? v.ns_year.toFixed(2) : '<span style="color:var(--text3)">Chưa đủ dữ liệu NV</span>';
+        const rateDayStr   = v.rate_day !== null ? v.rate_day.toFixed(2) + '%' : '<span style="color:var(--text3)">Chưa đủ dữ liệu</span>';
+        const rateWeekStr  = v.rate_week !== null ? v.rate_week.toFixed(2) + '%' : '<span style="color:var(--text3)">Chưa đủ dữ liệu</span>';
+        const rateMonthStr = v.rate_month !== null ? v.rate_month.toFixed(2) + '%' : '<span style="color:var(--text3)">Chưa đủ dữ liệu</span>';
 
-        const nsVal = v.totalNs;
-        let evaluation = ratingBadge(nsVal);
+        const rateCurrent = v.activeRate;
+        let evaluation = ratingBadge(rateCurrent);
         let warningText = '--';
         let actionText = '';
 
-        if (nsVal === null || nsVal === undefined) {
-            actionText = 'Chưa đủ dữ liệu nhân sự để đánh giá hành động.';
+        const worstKhoName = worstKho ? worstKho.kho : 'kho thấp nhất';
+
+        if (rateCurrent === null || rateCurrent === undefined) {
+            actionText = 'Chưa đủ dữ liệu để đánh giá hành động.';
         } else {
             const isLowestInNetwork = (worstVungName && vung === worstVungName);
+            const isHighestInNetwork = (bestVungName && vung === bestVungName);
             
-            // Tính toán giảm GTC so với kỳ trước
-            const gtcCurrent = v.totalGtc;
-            const gtcPrevious = getGtcForPeriod(vung, activePeriod, prevPeriodKey, nameToVung);
-            let isGtcDropped = false;
-            let dropPct = 0;
-            if (gtcPrevious > 0 && gtcCurrent < gtcPrevious * 0.85 && (gtcPrevious - gtcCurrent) >= 10) {
-                isGtcDropped = true;
-                dropPct = Math.round((gtcPrevious - gtcCurrent) / gtcPrevious * 100);
+            // Tính toán giảm tỷ lệ GTC so với kỳ trước
+            const prevData = getGtcAndGanForPeriod(vung, activePeriod, prevPeriodKey, nameToVung);
+            const ratePrevious = prevData.gan > 0 ? (prevData.gtc / prevData.gan) * 100 : null;
+            
+            let isRateDropped = false;
+            let dropDiff = 0;
+            if (ratePrevious !== null && rateCurrent < ratePrevious - 1.0) { // Giảm trên 1%
+                isRateDropped = true;
+                dropDiff = ratePrevious - rateCurrent;
             }
 
             if (isLowestInNetwork) {
-                warningText = `⚠️ Vùng ${vung} đang có năng suất thấp, đạt ${nsVal.toFixed(2)} đơn/GTC/NV. Đây là vùng thấp nhất trong kỳ đang chọn. Cần rà soát kho có năng suất thấp và kiểm tra tình trạng nhân sự, xe, backlog.`;
-            } else if (isGtcDropped) {
-                warningText = `📉 GTC giảm mạnh (-${dropPct}%)`;
-            } else if (nsVal < 3.0) {
-                warningText = `⚠️ Năng suất thấp (<3)`;
+                warningText = `⚠️ Vùng ${vung} có tỷ lệ GTC thấp nhất (${rateCurrent.toFixed(1)}%). Cần theo dõi.`;
+            } else if (isRateDropped) {
+                warningText = `📉 Hiệu suất giảm so với kỳ trước (-${dropDiff.toFixed(1)}%)`;
+            } else if (rateCurrent < 80.0) {
+                warningText = `⚠️ Tỷ lệ GTC thấp (<80%)`;
             }
 
             if (isLowestInNetwork) {
-                actionText = `🚨 Vùng đang thấp nhất toàn mạng. Cần ưu tiên họp nhanh với Team Lead vùng, xác định kho kéo giảm năng suất và đưa ra kế hoạch cải thiện trong ngày.`;
-            } else if (nsVal >= 5.0) {
-                actionText = `✅ Vùng đang vận hành tốt. Duy trì năng suất hiện tại, tiếp tục theo dõi các kho có dấu hiệu giảm GTC.`;
-            } else if (nsVal >= 3.0) {
-                actionText = `🟡 Vùng cần theo dõi. Rà soát các kho có năng suất thấp, kiểm tra tồn hàng, backlog và tình trạng xe.`;
+                actionText = `🚨 Vùng thấp nhất toàn mạng. Cần khẩn trương rà soát kho ${worstKhoName}, kiểm tra backlog, nhân sự giao nhận, điều phối đội xe GXT và năng lực giao hàng.`;
+            } else if (isHighestInNetwork || rateCurrent >= 90.0) {
+                actionText = `✅ Hiệu suất tốt. Duy trì tỷ lệ GTC hiện tại, rà soát kho ${worstKhoName} để chủ động phòng ngừa rủi ro backlog.`;
+            } else if (rateCurrent >= 80.0) {
+                actionText = `🟡 Hiệu suất trung bình. Cần rà soát kho ${worstKhoName}, kiểm tra backlog tồn đọng, tình trạng xe và khả năng giao.`;
             } else {
-                actionText = `🔴 Vùng năng suất thấp. Cần kiểm tra ngay kho thấp nhất trong vùng, rà soát nhân sự giao nhận, xe GXT, backlog và đơn chưa giao. Đề xuất tăng năng suất hoặc điều phối hỗ trợ trong ngày.`;
+                actionText = `🔴 Hiệu suất thấp. Cần tập trung cải thiện kho ${worstKhoName}, giải phóng backlog, bổ sung nhân sự, điều phối xe và nâng cao năng lực giao hàng.`;
             }
         }
 
         const staffStr = v.totalStaff > 0 ? v.totalStaff.toLocaleString('vi-VN') : '<span style="color:var(--text3)">--</span>';
         
         let rowStyle = '';
-        if (nsVal !== null) {
+        if (rateCurrent !== null) {
             if (bestVungName && vung === bestVungName) {
                 rowStyle = 'background-color: rgba(232, 245, 233, 0.4);';
             } else if (worstVungName && vung === worstVungName) {
@@ -2908,12 +3060,11 @@ function renderNangSuatVungSection() {
             <td style="text-align:right">${v.khoSet.size}</td>
             <td style="text-align:right;font-weight:600">${v.totalGtc.toLocaleString('vi-VN')}</td>
             <td style="text-align:right">${staffStr}</td>
-            <td style="text-align:right;font-weight:600">${nsDayStr}</td>
-            <td style="text-align:right;font-weight:600">${nsWeekStr}</td>
-            <td style="text-align:right;font-weight:600">${nsMonthStr}</td>
-            <td style="text-align:right;font-weight:600">${nsYearStr}</td>
-            <td style="color:var(--green);font-weight:600">${escapeHtml(bestKho ? bestKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${bestKho ? bestKho.gtc.toLocaleString('vi-VN') + ' đơn' : ''}</small></td>
-            <td style="color:var(--red)">${escapeHtml(worstKho ? worstKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${worstKho ? worstKho.gtc.toLocaleString('vi-VN') + ' đơn' : ''}</small></td>
+            <td style="text-align:right;font-weight:600">${rateDayStr}</td>
+            <td style="text-align:right;font-weight:600">${rateWeekStr}</td>
+            <td style="text-align:right;font-weight:600">${rateMonthStr}</td>
+            <td style="color:var(--green);font-weight:600">${escapeHtml(bestKho ? bestKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${bestKho ? bestKho.rate.toFixed(1) + '%' : ''}</small></td>
+            <td style="color:var(--red)">${escapeHtml(worstKho ? worstKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${worstKho ? worstKho.rate.toFixed(1) + '%' : ''}</small></td>
             <td style="text-align:center">${evaluation}</td>
             <td style="font-size:11px;max-width:200px;white-space:normal;word-break:break-word;">${warningDisp}</td>
             <td style="font-size:11px;max-width:240px;white-space:normal;word-break:break-word;font-weight:500;">${actionText}</td>
