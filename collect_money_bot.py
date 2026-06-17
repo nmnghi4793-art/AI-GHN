@@ -272,6 +272,9 @@ async def run_collect_money_check():
             try:
                 await holder_locator.wait_for(state="visible", timeout=5000)
                 log.info("Tim thay .rc-virtual-list-holder, bat dau cuon de lay danh sach tat ca kho...")
+                # Reset cuộn lên đầu trước khi quét để tránh việc lưu trạng thái cuộn ở cuối từ phiên trước
+                await holder_locator.evaluate("el => el.scrollTop = 0")
+                await page.wait_for_timeout(500)
             except Exception:
                 log.warning("Khong tim thay .rc-virtual-list-holder trong 5s. Lay options dang hien thi.")
             
@@ -457,7 +460,7 @@ async def run_collect_money_check():
             await send_report(warehouse_names, report_data, error_warehouses)
             log.info("=== HOAN THANH BOT THU TIEN - BAN KIEM ===")
             if using_cdp:
-                await browser.disconnect()
+                await browser.close()
             else:
                 await browser_context.close()
             return True
@@ -466,7 +469,7 @@ async def run_collect_money_check():
         log.exception(f"Loi nghiem trong luc chay bot: {e}")
         if using_cdp and browser:
             try:
-                await browser.disconnect()
+                await browser.close()
             except:
                 pass
         elif browser_context:
