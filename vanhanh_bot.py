@@ -318,20 +318,48 @@ async def run_vanhanh_check() -> bool:
                             
                             # Trích xuất mã phiếu/Order code (VD: #691000047773)
                             m_ticket = re.search(r'#(\d+)', line_text)
-                            ticket_code = m_ticket.group(1) if m_ticket else line_text
+                            ticket_code_raw = m_ticket.group(0) if m_ticket else ""
+                            ticket_id_only = m_ticket.group(1) if m_ticket else line_text
                             
-                            key = f"{wh_name}_{col_type}_{ticket_code}"
+                            # Lấy href link của mã phiếu
+                            href = await t_el.get_attribute("href")
+                            
+                            # Tách phần còn lại của dòng chữ sau mã phiếu
+                            rest_text = line_text
+                            if ticket_code_raw and line_text.startswith(ticket_code_raw):
+                                rest_text = line_text[len(ticket_code_raw):].strip()
+                            elif ticket_id_only and line_text.startswith(ticket_id_only):
+                                rest_text = line_text[len(ticket_id_only):].strip()
+                            
+                            import html
+                            escaped_code = html.escape(ticket_code_raw if ticket_code_raw else ticket_id_only)
+                            escaped_rest = html.escape(rest_text)
+                            
+                            formatted_line = f"{escaped_code} {escaped_rest}"
+                            if href:
+                                # Resolve relative link
+                                if not href.startswith("http://") and not href.startswith("https://"):
+                                    base_url = VANHANH_URL.rstrip('/')
+                                    if not href.startswith("/"):
+                                        href = "/" + href
+                                    full_link = f"{base_url}{href}"
+                                else:
+                                    full_link = href
+                                formatted_line = f'<a href="{full_link}">{escaped_code}</a> {escaped_rest}'
+                            
+                            key = f"{wh_name}_{col_type}_{ticket_id_only}"
                             scraped_keys.add(key)
 
                             if key in active_tickets:
                                 # Phiếu đã tồn tại từ trước -> Cập nhật thời gian kiểm tra và giữ trạng thái old
                                 active_tickets[key]["last_checked"] = now_str
+                                active_tickets[key]["detail"] = formatted_line
                             else:
                                 # Phiếu mới phát sinh
                                 active_tickets[key] = {
                                     "warehouse": wh_name,
                                     "ticket_type": col_type,
-                                    "detail": line_text,
+                                    "detail": formatted_line,
                                     "first_detected": now_str,
                                     "last_checked": now_str,
                                     "status": "new"
@@ -400,7 +428,7 @@ async def build_and_send_telegram_report(active_tickets: dict, now_str: str):
         counts = info["counts"]
         
         block = (
-            f"{idx}. <b>{wh_name}</b>\n"
+            f"{idx}. <b>{html.escape(wh_name)}</b>\n"
             f"   Tổng: <b>{len(wh_tickets)}</b> phiếu\n"
             f"   • Hồi giao: {counts['Hồi giao']} | Hồi lấy: {counts['Hồi lấy']} | Hồi trả: {counts['Hồi trả']}\n"
         )
