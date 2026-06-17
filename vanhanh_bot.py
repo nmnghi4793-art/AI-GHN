@@ -312,7 +312,7 @@ async def run_vanhanh_check() -> bool:
                         for t_idx in range(ticket_count):
                             t_el = ticket_nums.nth(t_idx)
                             # Lấy phần tử cha bao bọc để lấy đầy đủ dòng chữ
-                            parent_text = await page.evaluate("el => el.parentElement.innerText", t_el)
+                            parent_text = await t_el.evaluate("el => el.parentElement.innerText")
                             line_text = parent_text.strip()
                             line_text = re.sub(r'\s+', ' ', line_text) # Làm sạch khoảng trắng thừa
                             
