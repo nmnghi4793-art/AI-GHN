@@ -1,0 +1,732 @@
+2026-06-16 23:24:35,093 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:24:35,104 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:24:35,105 [INFO] Connecting to Chrome over CDP at http://localhost:9222...
+2026-06-16 23:24:35,866 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://localhost:9222
+
+2026-06-16 23:24:37,029 [INFO] HTTP Request: POST https://api.telegram.org/botPASTE_TOKEN_CUA_BAN_VAO_DAY/sendMessage "HTTP/1.1 404 Not Found"
+2026-06-16 23:24:37,032 [ERROR] Gui Telegram that bai (status=404): {"ok":false,"error_code":404,"description":"Not Found"}
+2026-06-16 23:26:27,667 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:26:27,678 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:26:27,678 [INFO] Connecting to Chrome over CDP at http://localhost:9222...
+2026-06-16 23:26:28,342 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://localhost:9222
+
+2026-06-16 23:26:29,418 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 400 Bad Request"
+2026-06-16 23:26:29,426 [ERROR] Gui Telegram that bai (status=400): {"ok":false,"error_code":400,"description":"Bad Request: can't parse entities: Unsupported start tag \"ws\" at byte offset 320"}
+2026-06-16 23:27:29,275 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:27:29,286 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:27:29,287 [INFO] Connecting to Chrome over CDP at http://localhost:9222...
+2026-06-16 23:27:29,939 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://localhost:9222
+
+2026-06-16 23:27:31,178 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 400 Bad Request"
+2026-06-16 23:27:31,185 [ERROR] Gui Telegram that bai (status=400): {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+2026-06-16 23:30:13,972 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:30:13,983 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:30:13,983 [INFO] Connecting to Chrome over CDP at http://localhost:9222...
+2026-06-16 23:30:14,642 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://localhost:9222
+
+2026-06-16 23:30:16,146 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:30:16,148 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:31:21,239 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:31:21,251 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:31:21,251 [INFO] Connecting to Chrome over CDP at http://localhost:9222...
+2026-06-16 23:31:21,906 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED ::1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://localhost:9222
+
+2026-06-16 23:31:23,240 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:31:23,242 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:32:39,791 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:32:39,803 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:32:39,803 [INFO] Connecting to Chrome over CDP at http://127.0.0.1:9222...
+2026-06-16 23:32:40,160 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED 127.0.0.1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222
+
+2026-06-16 23:32:41,460 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:32:41,462 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:34:47,004 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:34:47,015 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:34:47,015 [INFO] Connecting to Chrome over CDP at http://127.0.0.1:9222...
+2026-06-16 23:34:47,383 [ERROR] Khong ket noi duoc CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED 127.0.0.1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222
+
+2026-06-16 23:34:48,772 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:34:48,774 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:36:50,043 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:36:50,054 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:36:50,054 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:36:51,604 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:36:55,296 [INFO] Page URL hien tai: https://sso-v2.ghn.vn/internal/login/?app_key=efb07642-c37b-4318-8a6f-a221f64770a5&redirect_uri=https://nhanh.ghn.vn/lastmile/sso-login-v2?authorcode=
+2026-06-16 23:36:55,296 [INFO] Chua dang nhap GHN. Cho nguoi dung dang nhap trong 3 phut...
+2026-06-16 23:36:56,623 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:36:56,625 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:37:47,105 [INFO] Dang nhap thanh cong sau 50 giay!
+2026-06-16 23:37:51,120 [INFO] Tim thay o chon kho.
+2026-06-16 23:37:52,697 [INFO] Tim thay 10 kho trong dropdown.
+2026-06-16 23:37:52,748 [INFO] Danh sach kho tim thay: ['21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá', '21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định', '21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng', '21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk', '21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai', '21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà', '21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An', '21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế', '21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum', '21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận']
+2026-06-16 23:37:53,285 [INFO] [1/10] Dang kiem tra kho: 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá
+2026-06-16 23:37:54,463 [INFO] Da click chon: 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá
+2026-06-16 23:37:56,997 [INFO] Kho 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá khong co du lieu (Empty).
+2026-06-16 23:37:56,998 [INFO] [2/10] Dang kiem tra kho: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:37:58,172 [INFO] Da click chon: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:38:00,701 [INFO] Kho 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định khong co du lieu (Empty).
+2026-06-16 23:38:00,701 [INFO] [3/10] Dang kiem tra kho: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:38:13,623 [ERROR] Khong the chon kho 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng: Locator.scroll_into_view_if_needed: Element is not attached to the DOM
+Call log:
+  - attempting scroll into view action
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+    - waiting 20ms
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+      - waiting 100ms
+    19 × waiting for element to be stable
+       - element is not visible
+     - retrying scroll into view action
+       - waiting 500ms
+    2 × waiting for element to be stable
+      - element is not stable
+    - retrying scroll into view action
+      - waiting 500ms
+    - waiting for element to be stable
+    - element is not visible
+  - retrying scroll into view action
+    - waiting 500ms
+    - waiting for" https://nhanh.ghn.vn/lastmile/receipt/collect-money-management" navigation to finish...
+    - navigated to "https://nhanh.ghn.vn/lastmile/receipt/collect-money-management"
+    - waiting for element to be stable
+
+2026-06-16 23:38:15,224 [INFO] [4/10] Dang kiem tra kho: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:38:46,261 [ERROR] Khong the chon kho 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk: Locator.scroll_into_view_if_needed: Timeout 29991ms exceeded.
+Call log:
+  - attempting scroll into view action
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+    - waiting 20ms
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+      - waiting 100ms
+    57 × waiting for element to be stable
+       - element is not visible
+     - retrying scroll into view action
+       - waiting 500ms
+
+2026-06-16 23:38:46,352 [INFO] [5/10] Dang kiem tra kho: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:39:17,399 [ERROR] Khong the chon kho 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai: Locator.scroll_into_view_if_needed: Timeout 29994ms exceeded.
+Call log:
+  - attempting scroll into view action
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+    - waiting 20ms
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+      - waiting 100ms
+    48 × waiting for element to be stable
+       - element is not visible
+     - retrying scroll into view action
+       - waiting 500ms
+    - waiting for element to be stable
+
+2026-06-16 23:39:18,926 [INFO] [6/10] Dang kiem tra kho: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:39:44,812 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:39:44,823 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:39:44,823 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:39:45,402 [ERROR] Khong the launch_persistent_context: BrowserType.launch_persistent_context: Opening in existing browser session. This usually means that the profile is already in use by another instance of Chromium.
+Call log:
+  - <launching> C:\Users\Admin\AppData\Local\ms-playwright\chromium-1223\chrome-win64\chrome.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --no-sandbox --no-first-run --disable-blink-features=AutomationControlled --user-data-dir=C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session --remote-debugging-pipe about:blank
+  - <launched> pid=17896
+  - [pid=17896][out] Opening in existing browser session.
+  - [pid=17896] <gracefully close start>
+  - [pid=17896] <kill>
+  - [pid=17896] <will force kill>
+  - [pid=17896] taskkill stderr: ERROR: The process "17896" not found.
+  - [pid=17896] <process did exit: exitCode=0, signal=null>
+  - [pid=17896] starting temporary directories cleanup
+  - [pid=17896] finished temporary directories cleanup
+  - [pid=17896] <gracefully close end>
+
+2026-06-16 23:39:46,738 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:39:46,741 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:39:49,992 [ERROR] Khong the chon kho 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà: Locator.scroll_into_view_if_needed: Timeout 29993ms exceeded.
+Call log:
+  - attempting scroll into view action
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+    - waiting 20ms
+    2 × waiting for element to be stable
+      - element is not visible
+    - retrying scroll into view action
+      - waiting 100ms
+    25 × waiting for element to be stable
+       - element is not visible
+     - retrying scroll into view action
+       - waiting 500ms
+    - waiting for element to be stable
+
+2026-06-16 23:39:51,348 [INFO] [7/10] Dang kiem tra kho: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:39:54,530 [ERROR] Khong the chon kho 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An: Locator.scroll_into_view_if_needed: Target page, context or browser has been closed
+Call log:
+  - attempting scroll into view action
+    - waiting for element to be stable
+    - element is not visible
+  - retrying scroll into view action
+    - waiting for element to be stable
+
+2026-06-16 23:39:54,670 [ERROR] Loi nghiem trong luc chay bot: Page.screenshot: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\collect_money_bot.py", line 292, in run_collect_money_check
+    log.info(f"Da chon kho qua search: {wh_name}")
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\async_api\_generated.py", line 10571, in screenshot
+    await self._impl_obj.screenshot(
+    ...<13 lines>...
+    )
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_page.py", line 825, in screenshot
+    encoded_binary = await self._channel.send(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+        "screenshot", self._timeout_settings.timeout, params
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.screenshot: Target page, context or browser has been closed
+2026-06-16 23:39:55,926 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:39:55,928 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:40:05,276 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:40:05,288 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:40:05,289 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:40:05,973 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:40:09,296 [INFO] Page URL hien tai: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:40:09,333 [INFO] Tim thay o chon kho.
+2026-06-16 23:40:10,926 [INFO] Tim thay 10 kho trong dropdown.
+2026-06-16 23:40:10,958 [INFO] Danh sach kho tim thay: ['21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá', '21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định', '21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng', '21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk', '21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai', '21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà', '21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An', '21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế', '21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum', '21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận']
+2026-06-16 23:40:11,479 [INFO] [1/10] Dang kiem tra kho: 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá
+2026-06-16 23:40:41,500 [ERROR] Khong the chon kho 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_1"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    40 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+
+2026-06-16 23:40:42,183 [INFO] [2/10] Dang kiem tra kho: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:41:12,198 [ERROR] Khong the chon kho 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="true" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_1"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    57 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+2026-06-16 23:41:12,283 [INFO] [3/10] Dang kiem tra kho: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:41:42,298 [ERROR] Khong the chon kho 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_7"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    32 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+2026-06-16 23:41:43,208 [INFO] [4/10] Dang kiem tra kho: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:42:13,225 [ERROR] Khong the chon kho 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="true" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_1"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    12 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+
+2026-06-16 23:42:13,318 [INFO] [5/10] Dang kiem tra kho: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:42:43,335 [ERROR] Khong the chon kho 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_1"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    41 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+2026-06-16 23:42:43,440 [INFO] [6/10] Dang kiem tra kho: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:43:13,459 [ERROR] Khong the chon kho 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà qua search: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="true" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_1"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    58 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+2026-06-16 23:43:13,552 [INFO] [7/10] Dang kiem tra kho: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:43:26,818 [ERROR] Khong the chon kho 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An qua search: Locator.click: Target page, context or browser has been closed
+Browser logs:
+
+<launching> C:\Users\Admin\AppData\Local\ms-playwright\chromium-1223\chrome-win64\chrome.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --no-sandbox --no-first-run --disable-blink-features=AutomationControlled --user-data-dir=C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session --remote-debugging-pipe about:blank
+<launched> pid=5336
+[pid=5336][err] [5336:5100:0616/234009.767:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[pid=5336][err] [5336:5100:0616/234034.356:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[pid=5336][err] [5336:5100:0616/234130.758:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[pid=5336][err] [5336:5100:0616/234308.147:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+Call log:
+  - waiting for locator("input.ant-select-selection-search-input").first
+    - locator resolved to <input value="" type="search" role="combobox" id="rc_select_0" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list" aria-owns="rc_select_0_list" aria-controls="rc_select_0_list" class="ant-select-selection-search-input" aria-activedescendant="rc_select_0_list_0"/>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    25 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <span> 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình …</span> from <span class="ant-select-selection-item">…</span> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+2026-06-16 23:43:26,960 [ERROR] Loi nghiem trong luc chay bot: Page.screenshot: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\collect_money_bot.py", line 297, in run_collect_money_check
+    await page.screenshot(path=debug_path)
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\async_api\_generated.py", line 10571, in screenshot
+    await self._impl_obj.screenshot(
+    ...<13 lines>...
+    )
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_page.py", line 825, in screenshot
+    encoded_binary = await self._channel.send(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+        "screenshot", self._timeout_settings.timeout, params
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.screenshot: Target page, context or browser has been closed
+2026-06-16 23:43:27,237 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:43:27,250 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:43:27,250 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:43:27,912 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:43:28,266 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:43:28,269 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:43:31,214 [INFO] Page URL hien tai: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:43:31,249 [INFO] Tim thay o chon kho.
+2026-06-16 23:43:32,833 [INFO] Tim thay 10 kho trong dropdown.
+2026-06-16 23:43:32,869 [INFO] Danh sach kho tim thay: ['21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá', '21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định', '21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng', '21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk', '21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai', '21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà', '21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An', '21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế', '21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum', '21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận']
+2026-06-16 23:43:33,404 [INFO] [1/10] Dang kiem tra kho: 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá
+2026-06-16 23:43:34,865 [INFO] Da chon kho qua search: 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá
+2026-06-16 23:43:37,396 [INFO] Kho 21086000 - Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá khong co du lieu (Empty).
+2026-06-16 23:43:37,396 [INFO] [2/10] Dang kiem tra kho: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:43:38,894 [INFO] Da chon kho qua search: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:43:41,447 [INFO] Kho 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định khong co du lieu (Empty).
+2026-06-16 23:43:41,447 [INFO] [3/10] Dang kiem tra kho: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:43:42,997 [INFO] Da chon kho qua search: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:43:45,543 [INFO] Kho 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng co 3 dong du lieu.
+2026-06-16 23:43:45,617 [INFO] [4/10] Dang kiem tra kho: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:43:47,119 [INFO] Da chon kho qua search: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:43:49,637 [INFO] Kho 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:43:49,637 [INFO] [5/10] Dang kiem tra kho: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:43:51,117 [INFO] Da chon kho qua search: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:43:53,671 [INFO] Kho 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai khong co du lieu (Empty).
+2026-06-16 23:43:53,671 [INFO] [6/10] Dang kiem tra kho: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:43:55,177 [INFO] Da chon kho qua search: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:43:57,724 [INFO] Kho 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà co 1 dong du lieu.
+2026-06-16 23:43:57,750 [INFO] [7/10] Dang kiem tra kho: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:43:59,237 [INFO] Da chon kho qua search: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:44:01,761 [INFO] Kho 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An khong co du lieu (Empty).
+2026-06-16 23:44:01,761 [INFO] [8/10] Dang kiem tra kho: 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế
+2026-06-16 23:44:03,238 [INFO] Da chon kho qua search: 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế
+2026-06-16 23:44:05,766 [INFO] Kho 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế khong co du lieu (Empty).
+2026-06-16 23:44:05,766 [INFO] [9/10] Dang kiem tra kho: 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum
+2026-06-16 23:44:07,261 [INFO] Da chon kho qua search: 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum
+2026-06-16 23:44:09,800 [INFO] Kho 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum khong co du lieu (Empty).
+2026-06-16 23:44:09,800 [INFO] [10/10] Dang kiem tra kho: 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận
+2026-06-16 23:44:11,290 [INFO] Da chon kho qua search: 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận
+2026-06-16 23:44:13,826 [INFO] Kho 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận khong co du lieu (Empty).
+2026-06-16 23:44:15,188 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:44:15,190 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:44:15,190 [INFO] === HOAN THANH BOT THU TIEN - BAN KIEM ===
+2026-06-16 23:48:49,872 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:48:49,885 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:48:49,885 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:48:50,555 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:48:53,909 [INFO] Page URL hien tai: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:48:53,943 [INFO] Tim thay o chon kho.
+2026-06-16 23:48:55,538 [INFO] Tim thay .rc-virtual-list-holder, bat dau cuon de lay danh sach tat ca kho...
+2026-06-16 23:48:58,775 [INFO] Tong cong da tim thay 41 kho trong dropdown: ['21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định', '21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng', '21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk', '21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai', '21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà', '21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An', '21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế', '21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum', '21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận', '21283000 - Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình', '21284000 - Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi', '21285000 - Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận', '21347000 - Kho Giao Hàng Nặng - Tuy Hoà - Phú Yên', '21386000 - Kho Giao Hàng Nặng - Hội An - Quảng Nam', '21388000 - TST HuynhDai-Thạch Hà-Hà Tĩnh', '21483000 - Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam', '21498000 - Kho Giao Hàng Nặng - Cam Ranh - Khánh Hoà', '21521000 - Kho Giao Hàng Nặng - Đông Hà - Quảng Trị', '21522000 - NutiFood Quảng Ngọc-Quảng Xương-Thanh Hóa', '21523000 - NutiFood Tế Nông-Nông Cống-Thanh Hóa', '21524000 - NutiFood Quảng Bình-Quảng Xương-Thanh Hóa', '21525000 - Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông', '21548000 - NutiFood KCN Liên Chiểu Mở Rộng-Hòa Hiệp Bắc-Liên Chiều-Đà Nẵng', '21678000 - Yody 10B KCN Hòa Khánh-Liên Chiểu-Đà Nẵng', '21682000 - Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh', '22028000 - Kho Giao Hàng Nặng - La Gi - Bình Thuận', '22057000 - Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận', '22059000 - Kho Giao Hàng Nặng - Hoà Xuân - Đà Nẵng', '22168000 - Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định', '22261000 - Shein CTY Khởi Nghiệp Thôn 1-Triệu Sơn-Thanh Hoá', '22262000 - Shein Lê Thị Khuyên Thọ Đông-Nông Cống-Thanh Hoá', '22279000 - Shopee Đường 10B KCN Hòa Khánh-Hòa Vang-Đà Nẵng', '22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk', '22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa', '22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa', '22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa', '22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi', '22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa', '22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng', '22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng', '22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk']
+2026-06-16 23:48:59,320 [INFO] [1/41] Dang kiem tra kho: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:49:00,868 [INFO] Da chon kho qua search: 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định
+2026-06-16 23:49:03,438 [INFO] Kho 21087000 - Kho Giao Hàng Nặng - Quy Nhơn - Bình Định khong co du lieu (Empty).
+2026-06-16 23:49:03,438 [INFO] [2/41] Dang kiem tra kho: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:49:04,994 [INFO] Da chon kho qua search: 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng
+2026-06-16 23:49:07,576 [INFO] Kho 21089000 - Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng co 3 dong du lieu.
+2026-06-16 23:49:07,651 [INFO] [3/41] Dang kiem tra kho: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:49:09,122 [INFO] Da chon kho qua search: 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk
+2026-06-16 23:49:11,640 [INFO] Kho 21090000 - Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:49:11,640 [INFO] [4/41] Dang kiem tra kho: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:49:13,126 [INFO] Da chon kho qua search: 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai
+2026-06-16 23:49:15,681 [INFO] Kho 21091000 - Kho Giao Hàng Nặng - Pleiku - Gia Lai khong co du lieu (Empty).
+2026-06-16 23:49:15,681 [INFO] [5/41] Dang kiem tra kho: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:49:17,180 [INFO] Da chon kho qua search: 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà
+2026-06-16 23:49:19,705 [INFO] Kho 21094000 - Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà co 1 dong du lieu.
+2026-06-16 23:49:19,730 [INFO] [6/41] Dang kiem tra kho: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:49:21,266 [INFO] Da chon kho qua search: 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An
+2026-06-16 23:49:23,804 [INFO] Kho 21095000 - Kho Giao Hàng Nặng - Vinh - Nghệ An khong co du lieu (Empty).
+2026-06-16 23:49:23,804 [INFO] [7/41] Dang kiem tra kho: 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế
+2026-06-16 23:49:25,328 [INFO] Da chon kho qua search: 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế
+2026-06-16 23:49:27,854 [INFO] Kho 21096000 - Kho Giao Hàng Nặng - Hương Thủy - Huế khong co du lieu (Empty).
+2026-06-16 23:49:27,854 [INFO] [8/41] Dang kiem tra kho: 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum
+2026-06-16 23:49:29,370 [INFO] Da chon kho qua search: 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum
+2026-06-16 23:49:31,888 [INFO] Kho 21162000 - Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum khong co du lieu (Empty).
+2026-06-16 23:49:31,889 [INFO] [9/41] Dang kiem tra kho: 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận
+2026-06-16 23:49:33,384 [INFO] Da chon kho qua search: 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận
+2026-06-16 23:49:35,939 [INFO] Kho 21163000 - Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận khong co du lieu (Empty).
+2026-06-16 23:49:35,940 [INFO] [10/41] Dang kiem tra kho: 21283000 - Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình
+2026-06-16 23:49:37,434 [INFO] Da chon kho qua search: 21283000 - Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình
+2026-06-16 23:49:39,955 [INFO] Kho 21283000 - Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình khong co du lieu (Empty).
+2026-06-16 23:49:39,955 [INFO] [11/41] Dang kiem tra kho: 21284000 - Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi
+2026-06-16 23:49:41,491 [INFO] Da chon kho qua search: 21284000 - Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi
+2026-06-16 23:49:44,049 [INFO] Kho 21284000 - Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi khong co du lieu (Empty).
+2026-06-16 23:49:44,049 [INFO] [12/41] Dang kiem tra kho: 21285000 - Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận
+2026-06-16 23:49:45,604 [INFO] Da chon kho qua search: 21285000 - Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận
+2026-06-16 23:49:48,155 [INFO] Kho 21285000 - Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận khong co du lieu (Empty).
+2026-06-16 23:49:48,155 [INFO] [13/41] Dang kiem tra kho: 21347000 - Kho Giao Hàng Nặng - Tuy Hoà - Phú Yên
+2026-06-16 23:49:49,673 [INFO] Da chon kho qua search: 21347000 - Kho Giao Hàng Nặng - Tuy Hoà - Phú Yên
+2026-06-16 23:49:52,223 [INFO] Kho 21347000 - Kho Giao Hàng Nặng - Tuy Hoà - Phú Yên khong co du lieu (Empty).
+2026-06-16 23:49:52,223 [INFO] [14/41] Dang kiem tra kho: 21386000 - Kho Giao Hàng Nặng - Hội An - Quảng Nam
+2026-06-16 23:49:53,708 [INFO] Da chon kho qua search: 21386000 - Kho Giao Hàng Nặng - Hội An - Quảng Nam
+2026-06-16 23:49:56,258 [INFO] Kho 21386000 - Kho Giao Hàng Nặng - Hội An - Quảng Nam khong co du lieu (Empty).
+2026-06-16 23:49:56,258 [INFO] [15/41] Dang kiem tra kho: 21388000 - TST HuynhDai-Thạch Hà-Hà Tĩnh
+2026-06-16 23:49:57,757 [INFO] Da chon kho qua search: 21388000 - TST HuynhDai-Thạch Hà-Hà Tĩnh
+2026-06-16 23:50:00,287 [INFO] Kho 21388000 - TST HuynhDai-Thạch Hà-Hà Tĩnh khong co du lieu (Empty).
+2026-06-16 23:50:00,287 [INFO] [16/41] Dang kiem tra kho: 21483000 - Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam
+2026-06-16 23:50:01,756 [INFO] Da chon kho qua search: 21483000 - Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam
+2026-06-16 23:50:04,309 [INFO] Kho 21483000 - Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam khong co du lieu (Empty).
+2026-06-16 23:50:04,309 [INFO] [17/41] Dang kiem tra kho: 21498000 - Kho Giao Hàng Nặng - Cam Ranh - Khánh Hoà
+2026-06-16 23:50:05,827 [INFO] Da chon kho qua search: 21498000 - Kho Giao Hàng Nặng - Cam Ranh - Khánh Hoà
+2026-06-16 23:50:08,362 [INFO] Kho 21498000 - Kho Giao Hàng Nặng - Cam Ranh - Khánh Hoà khong co du lieu (Empty).
+2026-06-16 23:50:08,362 [INFO] [18/41] Dang kiem tra kho: 21521000 - Kho Giao Hàng Nặng - Đông Hà - Quảng Trị
+2026-06-16 23:50:09,934 [INFO] Da chon kho qua search: 21521000 - Kho Giao Hàng Nặng - Đông Hà - Quảng Trị
+2026-06-16 23:50:12,467 [INFO] Kho 21521000 - Kho Giao Hàng Nặng - Đông Hà - Quảng Trị co 2 dong du lieu.
+2026-06-16 23:50:12,518 [INFO] [19/41] Dang kiem tra kho: 21522000 - NutiFood Quảng Ngọc-Quảng Xương-Thanh Hóa
+2026-06-16 23:50:14,040 [INFO] Da chon kho qua search: 21522000 - NutiFood Quảng Ngọc-Quảng Xương-Thanh Hóa
+2026-06-16 23:50:16,582 [INFO] Kho 21522000 - NutiFood Quảng Ngọc-Quảng Xương-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:50:16,582 [INFO] [20/41] Dang kiem tra kho: 21523000 - NutiFood Tế Nông-Nông Cống-Thanh Hóa
+2026-06-16 23:50:18,099 [INFO] Da chon kho qua search: 21523000 - NutiFood Tế Nông-Nông Cống-Thanh Hóa
+2026-06-16 23:50:20,620 [INFO] Kho 21523000 - NutiFood Tế Nông-Nông Cống-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:50:20,620 [INFO] [21/41] Dang kiem tra kho: 21524000 - NutiFood Quảng Bình-Quảng Xương-Thanh Hóa
+2026-06-16 23:50:22,148 [INFO] Da chon kho qua search: 21524000 - NutiFood Quảng Bình-Quảng Xương-Thanh Hóa
+2026-06-16 23:50:24,681 [INFO] Kho 21524000 - NutiFood Quảng Bình-Quảng Xương-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:50:24,681 [INFO] [22/41] Dang kiem tra kho: 21525000 - Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông
+2026-06-16 23:50:26,190 [INFO] Da chon kho qua search: 21525000 - Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông
+2026-06-16 23:50:28,708 [INFO] Kho 21525000 - Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông khong co du lieu (Empty).
+2026-06-16 23:50:28,708 [INFO] [23/41] Dang kiem tra kho: 21548000 - NutiFood KCN Liên Chiểu Mở Rộng-Hòa Hiệp Bắc-Liên Chiều-Đà Nẵng
+2026-06-16 23:50:30,237 [INFO] Da chon kho qua search: 21548000 - NutiFood KCN Liên Chiểu Mở Rộng-Hòa Hiệp Bắc-Liên Chiều-Đà Nẵng
+2026-06-16 23:50:32,771 [INFO] Kho 21548000 - NutiFood KCN Liên Chiểu Mở Rộng-Hòa Hiệp Bắc-Liên Chiều-Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:50:32,771 [INFO] [24/41] Dang kiem tra kho: 21678000 - Yody 10B KCN Hòa Khánh-Liên Chiểu-Đà Nẵng
+2026-06-16 23:50:34,303 [INFO] Da chon kho qua search: 21678000 - Yody 10B KCN Hòa Khánh-Liên Chiểu-Đà Nẵng
+2026-06-16 23:50:36,844 [INFO] Kho 21678000 - Yody 10B KCN Hòa Khánh-Liên Chiểu-Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:50:36,845 [INFO] [25/41] Dang kiem tra kho: 21682000 - Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh
+2026-06-16 23:50:38,359 [INFO] Da chon kho qua search: 21682000 - Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh
+2026-06-16 23:50:40,888 [INFO] Kho 21682000 - Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh khong co du lieu (Empty).
+2026-06-16 23:50:40,888 [INFO] [26/41] Dang kiem tra kho: 22028000 - Kho Giao Hàng Nặng - La Gi - Bình Thuận
+2026-06-16 23:50:42,408 [INFO] Da chon kho qua search: 22028000 - Kho Giao Hàng Nặng - La Gi - Bình Thuận
+2026-06-16 23:50:44,954 [INFO] Kho 22028000 - Kho Giao Hàng Nặng - La Gi - Bình Thuận khong co du lieu (Empty).
+2026-06-16 23:50:44,954 [INFO] [27/41] Dang kiem tra kho: 22057000 - Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận
+2026-06-16 23:50:46,488 [INFO] Da chon kho qua search: 22057000 - Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận
+2026-06-16 23:50:49,023 [INFO] Kho 22057000 - Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận khong co du lieu (Empty).
+2026-06-16 23:50:49,023 [INFO] [28/41] Dang kiem tra kho: 22059000 - Kho Giao Hàng Nặng - Hoà Xuân - Đà Nẵng
+2026-06-16 23:50:50,538 [INFO] Da chon kho qua search: 22059000 - Kho Giao Hàng Nặng - Hoà Xuân - Đà Nẵng
+2026-06-16 23:50:53,091 [INFO] Kho 22059000 - Kho Giao Hàng Nặng - Hoà Xuân - Đà Nẵng co 1 dong du lieu.
+2026-06-16 23:50:53,122 [INFO] [29/41] Dang kiem tra kho: 22168000 - Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định
+2026-06-16 23:50:54,620 [INFO] Da chon kho qua search: 22168000 - Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định
+2026-06-16 23:50:57,177 [INFO] Kho 22168000 - Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định khong co du lieu (Empty).
+2026-06-16 23:50:57,177 [INFO] [30/41] Dang kiem tra kho: 22261000 - Shein CTY Khởi Nghiệp Thôn 1-Triệu Sơn-Thanh Hoá
+2026-06-16 23:50:58,720 [INFO] Da chon kho qua search: 22261000 - Shein CTY Khởi Nghiệp Thôn 1-Triệu Sơn-Thanh Hoá
+2026-06-16 23:51:01,249 [INFO] Kho 22261000 - Shein CTY Khởi Nghiệp Thôn 1-Triệu Sơn-Thanh Hoá khong co du lieu (Empty).
+2026-06-16 23:51:01,250 [INFO] [31/41] Dang kiem tra kho: 22262000 - Shein Lê Thị Khuyên Thọ Đông-Nông Cống-Thanh Hoá
+2026-06-16 23:51:02,772 [INFO] Da chon kho qua search: 22262000 - Shein Lê Thị Khuyên Thọ Đông-Nông Cống-Thanh Hoá
+2026-06-16 23:51:05,303 [INFO] Kho 22262000 - Shein Lê Thị Khuyên Thọ Đông-Nông Cống-Thanh Hoá khong co du lieu (Empty).
+2026-06-16 23:51:05,303 [INFO] [32/41] Dang kiem tra kho: 22279000 - Shopee Đường 10B KCN Hòa Khánh-Hòa Vang-Đà Nẵng
+2026-06-16 23:51:06,843 [INFO] Da chon kho qua search: 22279000 - Shopee Đường 10B KCN Hòa Khánh-Hòa Vang-Đà Nẵng
+2026-06-16 23:51:09,369 [INFO] Kho 22279000 - Shopee Đường 10B KCN Hòa Khánh-Hòa Vang-Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:51:09,370 [INFO] [33/41] Dang kiem tra kho: 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk
+2026-06-16 23:51:10,882 [INFO] Da chon kho qua search: 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk
+2026-06-16 23:51:13,423 [INFO] Kho 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:51:13,423 [INFO] [34/41] Dang kiem tra kho: 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:51:14,948 [INFO] Da chon kho qua search: 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:51:17,473 [INFO] Kho 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:51:17,473 [INFO] [35/41] Dang kiem tra kho: 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa
+2026-06-16 23:51:19,008 [INFO] Da chon kho qua search: 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa
+2026-06-16 23:51:21,552 [INFO] Kho 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:51:21,552 [INFO] [36/41] Dang kiem tra kho: 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa
+2026-06-16 23:51:23,093 [INFO] Da chon kho qua search: 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa
+2026-06-16 23:51:25,617 [INFO] Kho 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:51:25,617 [INFO] [37/41] Dang kiem tra kho: 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi
+2026-06-16 23:51:27,128 [INFO] Da chon kho qua search: 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi
+2026-06-16 23:51:29,648 [INFO] Kho 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi khong co du lieu (Empty).
+2026-06-16 23:51:29,648 [INFO] [38/41] Dang kiem tra kho: 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:51:31,173 [INFO] Da chon kho qua search: 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:51:33,701 [INFO] Kho 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:51:33,701 [INFO] [39/41] Dang kiem tra kho: 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng
+2026-06-16 23:51:35,263 [INFO] Da chon kho qua search: 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng
+2026-06-16 23:51:37,809 [INFO] Kho 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:51:37,809 [INFO] [40/41] Dang kiem tra kho: 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng
+2026-06-16 23:51:39,285 [INFO] Da chon kho qua search: 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng
+2026-06-16 23:51:41,836 [INFO] Kho 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:51:41,836 [INFO] [41/41] Dang kiem tra kho: 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk
+2026-06-16 23:51:43,372 [INFO] Da chon kho qua search: 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk
+2026-06-16 23:51:45,900 [INFO] Kho 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:51:47,268 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:51:47,272 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:51:47,272 [INFO] === HOAN THANH BOT THU TIEN - BAN KIEM ===
+2026-06-16 23:55:20,905 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:55:20,917 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:55:20,917 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:55:21,270 [INFO] Dang ket noi Chrome CDP qua: http://127.0.0.1:9222...
+2026-06-16 23:55:21,282 [WARNING] Khong the ket noi CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED 127.0.0.1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222
+. Chuyen sang launch persistent context...
+2026-06-16 23:55:21,635 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:55:24,964 [INFO] Page URL hien tai: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:55:25,002 [INFO] Tim thay o chon kho.
+2026-06-16 23:55:26,604 [INFO] Tim thay .rc-virtual-list-holder, bat dau cuon de lay danh sach tat ca kho...
+2026-06-16 23:55:28,479 [INFO] Tong cong da tim thay 9 kho trong dropdown: ['22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk', '22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa', '22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa', '22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa', '22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi', '22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa', '22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng', '22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng', '22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk']
+2026-06-16 23:55:29,005 [INFO] [1/9] Dang kiem tra kho: 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk
+2026-06-16 23:55:30,510 [INFO] Da chon kho qua search: 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk
+2026-06-16 23:55:33,031 [INFO] Kho 22280000 - Shein Lô C21 - C24 KCN Hòa Phú-Buôn Ma Thuột-Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:55:33,031 [INFO] [2/9] Dang kiem tra kho: 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:55:34,554 [INFO] Da chon kho qua search: 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:55:37,092 [INFO] Kho 22281000 - Shein 24 Đường Số 1-Hoằng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:55:37,092 [INFO] [3/9] Dang kiem tra kho: 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa
+2026-06-16 23:55:38,620 [INFO] Da chon kho qua search: 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa
+2026-06-16 23:55:41,172 [INFO] Kho 22300000 - Shein KCN Bãi Bùi-Lang Chánh-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:55:41,172 [INFO] [4/9] Dang kiem tra kho: 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa
+2026-06-16 23:55:49,925 [INFO] Da chon kho qua search: 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa
+2026-06-16 23:55:52,473 [INFO] Kho 22377000 - Shein Thị Trấn Bút Sơn-Hoàng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:55:52,473 [INFO] [5/9] Dang kiem tra kho: 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi
+2026-06-16 23:56:02,942 [INFO] Da chon kho qua search: 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi
+2026-06-16 23:56:05,476 [INFO] Kho 22378000 - Concung342 Phạm Văn Đồng-Nghĩa Hành-Quảng Ngãi khong co du lieu (Empty).
+2026-06-16 23:56:05,476 [INFO] [6/9] Dang kiem tra kho: 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:56:15,954 [INFO] Da chon kho qua search: 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa
+2026-06-16 23:56:18,491 [INFO] Kho 22379000 - Shein Nhà 29 đường 4-Hoằng Hóa-Thanh Hóa khong co du lieu (Empty).
+2026-06-16 23:56:18,491 [INFO] [7/9] Dang kiem tra kho: 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng
+2026-06-16 23:56:26,935 [INFO] Da chon kho qua search: 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng
+2026-06-16 23:56:29,474 [INFO] Kho 22602000 - Kho Lấy Hàng tại điểm Samsung Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:56:29,474 [INFO] [8/9] Dang kiem tra kho: 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng
+2026-06-16 23:56:39,929 [INFO] Da chon kho qua search: 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng
+2026-06-16 23:56:42,447 [INFO] Kho 22764000 - Kho Lấy Hàng tại điểm Aqua Đà Nẵng khong co du lieu (Empty).
+2026-06-16 23:56:42,447 [INFO] [9/9] Dang kiem tra kho: 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk
+2026-06-16 23:56:50,935 [INFO] Da chon kho qua search: 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk
+2026-06-16 23:56:53,452 [INFO] Kho 22782000 - Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk khong co du lieu (Empty).
+2026-06-16 23:56:54,827 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:56:54,830 [INFO] Gui Telegram thanh cong.
+2026-06-16 23:56:54,830 [INFO] === HOAN THANH BOT THU TIEN - BAN KIEM ===
+2026-06-16 23:57:15,096 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-16 23:57:15,109 [INFO] === BAT DAU KIEM TRA THU TIEN - BAN KIEM ===
+2026-06-16 23:57:15,109 [INFO] Khoi dong trinh duyet voi profile tai: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\playwright_session...
+2026-06-16 23:57:15,465 [INFO] Dang ket noi Chrome CDP qua: http://127.0.0.1:9222...
+2026-06-16 23:57:15,478 [WARNING] Khong the ket noi CDP: BrowserType.connect_over_cdp: connect ECONNREFUSED 127.0.0.1:9222
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222
+. Chuyen sang launch persistent context...
+2026-06-16 23:57:15,828 [INFO] Mo trang kiem tra: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:57:19,136 [INFO] Page URL hien tai: https://nhanh.ghn.vn/lastmile/receipt/collect-money-management
+2026-06-16 23:57:19,172 [INFO] Tim thay o chon kho.
+2026-06-16 23:57:20,772 [INFO] Tim thay .rc-virtual-list-holder, bat dau cuon de lay danh sach tat ca kho...
+2026-06-16 23:57:22,376 [ERROR] Loi nghiem trong luc chay bot: Page.wait_for_timeout: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\collect_money_bot.py", line 311, in run_collect_money_check
+    await page.wait_for_timeout(250)
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\async_api\_generated.py", line 12301, in wait_for_timeout
+    await self._impl_obj.wait_for_timeout(timeout=to_milliseconds(timeout))
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_page.py", line 1127, in wait_for_timeout
+    await self._main_frame.wait_for_timeout(timeout)
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_frame.py", line 894, in wait_for_timeout
+    await self._channel.send("waitForTimeout", None, {"waitTimeout": timeout})
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\playwright\_impl\_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TargetClosedError: Page.wait_for_timeout: Target page, context or browser has been closed
+2026-06-16 23:57:23,718 [INFO] HTTP Request: POST https://api.telegram.org/bot8969802246:AAFxr5Do11LxlT62AbdKNkWBxfJINKrpNi0/sendMessage "HTTP/1.1 200 OK"
+2026-06-16 23:57:23,720 [INFO] Gui Telegram thanh cong.
+2026-06-17 13:04:59,010 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] Sheet nguon: 1AxoVdTpPcYn49qqWzmlYzWsKWk8v9UahErtBntBqn6g / GID=566926461
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] Sheet bao cao: https://docs.google.com/spreadsheets/d/1wpWMZRAaoaQXdmTL7dcKJ5PUFrmd8vESQmHj2ysNTHc/edit
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] PIC: 'Nguyễn Minh Nghị'
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] Chat: -1002712779761
+2026-06-17 13:04:59,718 [INFO] [GiaoHang] Sheets API: KHONG (chi gui Telegram, khong ghi sheet)
+2026-06-17 13:04:59,718 [INFO] [CollectMoney] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)
+2026-06-17 13:24:14,915 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] Sheet nguon: 1AxoVdTpPcYn49qqWzmlYzWsKWk8v9UahErtBntBqn6g / GID=566926461
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] Sheet bao cao: https://docs.google.com/spreadsheets/d/1wpWMZRAaoaQXdmTL7dcKJ5PUFrmd8vESQmHj2ysNTHc/edit
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] PIC: 'Nguyễn Minh Nghị'
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] Chat: -1002712779761
+2026-06-17 13:24:15,607 [INFO] [GiaoHang] Sheets API: KHONG (chi gui Telegram, khong ghi sheet)
+2026-06-17 13:24:15,607 [INFO] [CollectMoney] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)
+2026-06-17 13:24:45,560 [INFO] Loaded environment variables from: C:\Users\Admin\.gemini\antigravity\scratch\ghn_dashboard\.env
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] Sheet nguon: 1AxoVdTpPcYn49qqWzmlYzWsKWk8v9UahErtBntBqn6g / GID=566926461
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] Sheet bao cao: https://docs.google.com/spreadsheets/d/1wpWMZRAaoaQXdmTL7dcKJ5PUFrmd8vESQmHj2ysNTHc/edit
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] PIC: 'Nguyễn Minh Nghị'
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] Chat: -1002712779761
+2026-06-17 13:24:46,200 [INFO] [GiaoHang] Sheets API: KHONG (chi gui Telegram, khong ghi sheet)
+2026-06-17 13:24:46,200 [INFO] [CollectMoney] Scheduler khoi dong (TZ=Asia/Ho_Chi_Minh)

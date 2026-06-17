@@ -928,6 +928,40 @@
             <!-- ===== TAB PANEL 3: NĂNG SUẤT VÙNG ===== -->
             <div id="gtc-panel-nangsuatvung" class="gtc-tab-pane" style="display:none">
 
+                <!-- Advanced Filters -->
+                <div class="section-filters ghn-filter-row" style="display:flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                        <label for="filter-vung-day" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Ngày</label>
+                        <select id="filter-vung-day" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('day')">
+                            <option value="">Tất cả ngày</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                        <label for="filter-vung-week" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Tuần</label>
+                        <select id="filter-vung-week" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('week')">
+                            <option value="">Tất cả tuần</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                        <label for="filter-vung-month" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Tháng</label>
+                        <select id="filter-vung-month" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('month')">
+                            <option value="">Tất cả tháng</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                        <label for="filter-vung-year" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Năm</label>
+                        <select id="filter-vung-year" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('year')">
+                            <option value="">Tất cả năm</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 140px;">
+                        <label for="filter-vung-region" style="font-size:11px; font-weight:700; color:var(--text1);">Chọn Vùng</label>
+                        <select id="filter-vung-region" class="filter-select" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px;" onchange="changeVungFilter('region')">
+                            <option value="">Tất cả vùng</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Summary Cards -->
                 <div class="overview-cards" id="ns-vung-cards" style="margin-bottom:20px">
                     <div class="stat-card" style="background:#E8F5E9;border:1px solid #A5D6A7">
@@ -968,7 +1002,7 @@
                 <div class="table-card">
                     <div class="table-header">
                         <h3><i class="fa-solid fa-map-location-dot" style="color:var(--blue)"></i> Năng Suất Theo Vùng</h3>
-                        <span style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên dữ liệu ngày gần nhất — ghép kho GTC với vùng từ sheet Kho GXT</span>
+                        <span style="font-size:12px;color:var(--text3);font-style:italic">Dữ liệu phân tích năng suất đa chiều theo Vùng</span>
                     </div>
                     <div class="table-scroll" style="max-height:none">
                         <table class="data-table" id="table-ns-vung">
@@ -976,16 +1010,21 @@
                                 <tr>
                                     <th>Vùng</th>
                                     <th style="text-align:right">Số kho</th>
-                                    <th style="text-align:right">Tổng GTC (đơn)</th>
-                                    <th style="text-align:right">Tổng Nhân Sự</th>
-                                    <th style="text-align:right">Năng Suất TB<br><small>(đơn/giờ/NV)</small></th>
-                                    <th>Kho Tốt Nhất</th>
-                                    <th>Kho Thấp Nhất</th>
-                                    <th style="text-align:center">Đánh Giá</th>
+                                    <th style="text-align:right">Tổng GTC</th>
+                                    <th style="text-align:right">Tổng nhân sự</th>
+                                    <th style="text-align:right">Năng suất ngày</th>
+                                    <th style="text-align:right">Năng suất tuần</th>
+                                    <th style="text-align:right">Năng suất tháng</th>
+                                    <th style="text-align:right">Năng suất năm</th>
+                                    <th>Kho tốt nhất</th>
+                                    <th>Kho thấp nhất</th>
+                                    <th style="text-align:center">Đánh giá</th>
+                                    <th>Cảnh báo</th>
+                                    <th>Đề xuất hành động</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-ns-vung">
-                                <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                                <tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -993,7 +1032,7 @@
                         <strong style="color:var(--blue)"><i class="fa-solid fa-circle-info"></i> Cách tính:</strong>
                         <span style="margin-left:8px">
                             Năng suất vùng = Tổng đơn GTC ÷ Tổng nhân sự của các kho trong vùng &nbsp;|&nbsp;
-                            🟢 Cao ≥ 1.5 &nbsp;|&nbsp; 🟡 Trung bình ≥ 0.8 &nbsp;|&nbsp; 🔴 Thấp &lt; 0.8
+                            🟢 Cao ≥ 5 &nbsp;|&nbsp; 🟡 Trung bình ≥ 3 &nbsp;|&nbsp; 🔴 Thấp &lt; 3
                         </span>
                     </div>
                 </div>
