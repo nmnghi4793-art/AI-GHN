@@ -496,8 +496,13 @@ async def run_giao_hang_report(label: str = "manual"):
 # =========================================================
 # BACKGROUND LOOP
 # =========================================================
+
+# Luu vet trigger de tranh chay trung trong cung mot phut
+_last_triggered: set = set()
+
 async def run_giao_hang_scheduler():
     """Background task khoi dong cung FastAPI."""
+    global _last_triggered
     log.info(f"[GiaoHang] Scheduler khoi dong (TZ={TIMEZONE_STR})")
     log.info(f"[GiaoHang] Sheet nguon: {SOURCE_SPREADSHEET_ID} / GID={SOURCE_GID}")
     log.info(f"[GiaoHang] Sheet bao cao: {REPORT_SHEET_URL}")
@@ -509,10 +514,17 @@ async def run_giao_hang_scheduler():
 
     while True:
         try:
-            now = datetime.now(TZ)
+            now   = datetime.now(TZ)
+            today = now.date()
             for h, m, label in SCHEDULE:
                 if now.hour == h and now.minute == m:
-                    await run_giao_hang_report(label)
+                    trigger_key = (today, h, m)
+                    if trigger_key not in _last_triggered:
+                        _last_triggered.add(trigger_key)
+                        # Don dep trigger key cu (ngay truoc)
+                        _last_triggered = {k for k in _last_triggered if k[0] >= today}
+                        log.info(f"[GiaoHang] Kich hoat scheduler cho khung gio {label}")
+                        asyncio.create_task(run_giao_hang_report(label))
         except Exception as e:
             log.error(f"[GiaoHang] Loi loop: {e}")
-        await asyncio.sleep(60)
+        await asyncio.sleep(15)  # Kiem tra moi 15 giay de chinh xac hon
