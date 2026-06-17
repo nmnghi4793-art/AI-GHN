@@ -256,6 +256,7 @@ function renderAll() {
         { name: 'ReturnsFDChart', fn: renderReturnsFDChart },
         { name: 'PersonnelSection', fn: renderPersonnelSection },
         { name: 'NangSuatSection', fn: renderNangSuatSection },
+        { name: 'NangSuatVungSection', fn: renderNangSuatVungSection },
         { name: 'WarningsSection', fn: renderWarningsSection },
         { name: 'XeGxtSection', fn: renderXeGxtSection },
         { name: 'XeSuCoSection', fn: renderXeSuCoSection },
@@ -2472,15 +2473,22 @@ function renderNangSuatVungSection() {
     const tbody = document.getElementById('tbody-ns-vung');
     if (!tbody) return;
 
-    // --- 1. Xây bảng kho → vùng từ khoGxtData (cột G = "Vùng") ---
-    const khoToVung = {};
+    // --- 1. Xây dựng hai bản đồ ánh xạ từ khoGxtData ---
+    const nameToVung = {};
+    const idToVung = {};
+
     (state.khoGxtData || []).forEach(row => {
-        const khoName  = (row['Tên Kho GXT'] || row['kho gxt'] || row['Tên'] || '').trim();
-        const vung     = (row['Vùng'] || row['vung'] || '').trim();
-        const mapped   = vung || 'Chưa xác định';
+        const idKho   = (row['ID Kho'] || '').trim();
+        const khoName = (row['Tên Kho GXT'] || row['kho gxt'] || row['Tên'] || '').trim();
+        const vung    = (row['Vùng'] || row['vung'] || '').trim();
+        const mapped  = vung || 'Chưa xác định';
+        
         if (khoName) {
-            khoToVung[khoName] = mapped;
-            khoToVung[shortKho(khoName)] = mapped;
+            nameToVung[khoName] = mapped;
+            nameToVung[shortKho(khoName)] = mapped;
+        }
+        if (idKho) {
+            idToVung[idKho] = mapped;
         }
     });
 
@@ -2494,60 +2502,107 @@ function renderNangSuatVungSection() {
     const latestDate = allDates[0];
     const latestRows = gtcData.filter(r => r['Ngày'] === latestDate);
 
-    // --- 3. Tổng hợp theo vùng ---
+    // --- 3. Khởi tạo cấu trúc tổng hợp theo vùng ---
     const vungMap = {};
+    
+    // Đảm bảo tất cả các vùng trong khoGxtData đều được khởi tạo
+    Object.values(nameToVung).forEach(v => {
+        if (!vungMap[v]) {
+            vungMap[v] = {
+                vung: v,
+                khoSet: new Set(),
+                totalGtc: 0,
+                khoList: [],
+                totalNsSum: 0,
+                totalStaff: 0,
+                totalNs: null
+            };
+        }
+    });
+
+    // --- 4. Tổng hợp GTC theo Vùng (đồng bộ theo Tên Kho GXT) ---
     latestRows.forEach(r => {
         const khoFull  = (r['Kho'] || '').trim();
         const khoShort = shortKho(khoFull);
-        let vung = khoToVung[khoFull] || khoToVung[khoShort];
+        let vung = nameToVung[khoFull] || nameToVung[khoShort];
         if (!vung) {
             // Fuzzy match
-            const found = Object.keys(khoToVung).find(k => k && khoShort && (k.includes(khoShort) || khoShort.includes(k)));
-            vung = found ? khoToVung[found] : 'Chưa xác định';
+            const found = Object.keys(nameToVung).find(k => k && khoShort && (k.includes(khoShort) || khoShort.includes(k)));
+            vung = found ? nameToVung[found] : 'Chưa xác định';
         }
         const donGtc = parseInt(String(r['Số Đơn GTC'] || r['Số đơn GTC'] || '0').replace(/[^0-9]/g, '')) || 0;
-        if (!vungMap[vung]) vungMap[vung] = { khoSet: new Set(), totalGtc: 0, khoList: [] };
+        
+        if (!vungMap[vung]) {
+            vungMap[vung] = {
+                vung: vung,
+                khoSet: new Set(),
+                totalGtc: 0,
+                khoList: [],
+                totalNsSum: 0,
+                totalStaff: 0,
+                totalNs: null
+            };
+        }
         vungMap[vung].khoSet.add(khoShort || khoFull);
         vungMap[vung].totalGtc += donGtc;
         vungMap[vung].khoList.push({ kho: khoShort || khoFull, gtc: donGtc });
     });
 
-    // --- 4. Ghép năng suất NV từ nangSuatData (ngày gần nhất) ---
+    // --- 5. Tổng hợp Năng Suất NV theo Vùng (đồng bộ theo ID Kho) ---
     const nsData  = state.nangSuatData || [];
     const nsDates = [...new Set(nsData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
     const nsLatest = nsDates[0];
     const nsRows   = nsLatest ? nsData.filter(r => r['Ngày'] === nsLatest) : [];
 
-    const khoNsMap = {};
     nsRows.forEach(r => {
-        const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
-        const vol = parseFloat(r['avg_delivery_volume_per_hour'] || 0);
-        if (kho && vol > 0) {
-            if (!khoNsMap[kho]) khoNsMap[kho] = { sumVol: 0, count: 0 };
-            khoNsMap[kho].sumVol += vol;
-            khoNsMap[kho].count  += 1;
+        const idKho = (r['hub_id'] || '').trim();
+        const vol   = parseFloat((r['avg_delivery_volume_per_hour'] || '0').toString().replace(',', '.'));
+        const khoFull = (r['kho gxt'] || r['Kho'] || '').trim();
+        const khoShort = shortKho(khoFull);
+        
+        if (vol > 0) {
+            let vung = null;
+            if (idKho) {
+                vung = idToVung[idKho];
+            }
+            // Fallback sang tên kho nếu không tìm thấy bằng ID
+            if (!vung) {
+                vung = nameToVung[khoFull] || nameToVung[khoShort];
+                if (!vung) {
+                    const found = Object.keys(nameToVung).find(k => k && khoShort && (k.includes(khoShort) || khoShort.includes(k)));
+                    vung = found ? nameToVung[found] : 'Chưa xác định';
+                }
+            }
+            
+            if (!vungMap[vung]) {
+                vungMap[vung] = {
+                    vung: vung,
+                    khoSet: new Set(),
+                    totalGtc: 0,
+                    khoList: [],
+                    totalNsSum: 0,
+                    totalStaff: 0,
+                    totalNs: null
+                };
+            }
+            vungMap[vung].totalNsSum += vol;
+            vungMap[vung].totalStaff += 1;
+            if (khoShort && khoShort !== '--') {
+                vungMap[vung].khoSet.add(khoShort);
+            }
         }
     });
 
+    // Tính toán năng suất trung bình (totalNs) cho từng vùng
     Object.keys(vungMap).forEach(vung => {
-        let totalNsSum = 0, totalStaff = 0;
-        vungMap[vung].khoList.forEach(khoInfo => {
-            const ns = khoNsMap[khoInfo.kho];
-            if (ns && ns.count > 0) {
-                const avgKhoNs = ns.sumVol / ns.count;
-                totalNsSum += avgKhoNs * ns.count;
-                totalStaff += ns.count;
-                khoInfo.ns = avgKhoNs;
-            } else {
-                khoInfo.ns = null;
-            }
-        });
-        vungMap[vung].totalNs    = totalStaff > 0 ? totalNsSum / totalStaff : null;
-        vungMap[vung].totalStaff = totalStaff;
+        const v = vungMap[vung];
+        v.totalNs = v.totalStaff > 0 ? v.totalNsSum / v.totalStaff : null;
     });
 
-    // --- 5. Sắp xếp vùng theo totalGtc giảm dần ---
-    const vungEntries = Object.entries(vungMap).sort((a, b) => b[1].totalGtc - a[1].totalGtc);
+    // Lọc bỏ các vùng không có bất kỳ dữ liệu GTC và Năng Suất nào hoạt động
+    const vungEntries = Object.entries(vungMap)
+        .filter(([, v]) => v.totalGtc > 0 || v.totalStaff > 0)
+        .sort((a, b) => b[1].totalGtc - a[1].totalGtc);
 
     if (!vungEntries.length) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Không có dữ liệu vùng. Kiểm tra sheet Kho GXT có cột "Vùng" chưa.</td></tr>';

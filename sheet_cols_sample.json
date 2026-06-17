@@ -1,0 +1,88 @@
+{
+  "kho_gxt": {
+    "keys": [
+      "ID Kho",
+      "ID",
+      "Tên",
+      "Số điện thoại",
+      "Tên Kho GXT",
+      "Team Lead",
+      "Vùng",
+      "Tỉnh",
+      "Diện Tích",
+      "Địa chỉ kho",
+      "Link GGM",
+      "Tình trạng",
+      "ID Kho sài chung",
+      "Tên kho sài chung"
+    ],
+    "sample": {
+      "ID Kho": "21086000",
+      "ID": "3079920",
+      "Tên": "Lê Thanh Hải",
+      "Số điện thoại": "963635882",
+      "Tên Kho GXT": "Kho Giao Hàng Nặng - Đông Thọ - Thanh Hóa",
+      "Team Lead": "3144824 - Nguyễn Tuấn Anh",
+      "Vùng": "Miền Trung 01",
+      "Tỉnh": "Thanh Hoá",
+      "Diện Tích": "750",
+      "Địa chỉ kho": "Lô số 47 + 48 Khu G thuộc KCN Đình Hương - Tây Bắc Ga , Phường Đông Cường , Thành Phố Thành Hoá , Tỉnh Thanh Hoá",
+      "Link GGM": "Link",
+      "Tình trạng": "Độc Lập",
+      "ID Kho sài chung": "",
+      "Tên kho sài chung": ""
+    }
+  },
+  "gtc": {
+    "keys": [
+      "STT",
+      "Kho",
+      "Ngày",
+      "KL gán",
+      "Số đơn gán",
+      "Số đơn GTC",
+      "% GTC"
+    ],
+    "sample": {
+      "STT": "1",
+      "Kho": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
+      "Ngày": "2026-05-04 - Thứ 2",
+      "KL gán": "17.548",
+      "Số đơn gán": "341",
+      "Số đơn GTC": "307",
+      "% GTC": "90,03%"
+    }
+  },
+  "nang_suat": {
+    "keys": [
+      "Ngày",
+      "hub_id",
+      "driver",
+      "volume",
+      "success_volume",
+      "first_3_delivery",
+      "last_3_delivery",
+      "avg_delivery_volume_per_hour",
+      "to_province_name",
+      "stop",
+      "Tỉ lệ GTC",
+      "%Đơn >20kg Gán",
+      "%Đơn >20kg GTC"
+    ],
+    "sample": {
+      "Ngày": "9 thg 6, 2026",
+      "hub_id": "21096000",
+      "driver": "3125188 - Phạm Ngọc Hiếu",
+      "volume": "12",
+      "success_volume": "12",
+      "first_3_delivery": "19:08, 19:08, 19:08",
+      "last_3_delivery": "19:08, 19:08, 19:08",
+      "avg_delivery_volume_per_hour": "12",
+      "to_province_name": "Thừa Thiên Huế",
+      "stop": "1.734",
+      "Tỉ lệ GTC": "100,00%",
+      "%Đơn >20kg Gán": "100,00%",
+      "%Đơn >20kg GTC": "100,00%"
+    }
+  }
+}
