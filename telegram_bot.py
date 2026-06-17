@@ -557,41 +557,8 @@ async def scheduled_warning_loop(application):
                 except Exception as e:
                     print(f"[BOT ERROR] Van hanh report 10:30 failed: {e}")
 
-            # Mốc 22:00 - Báo cáo ngày hôm nay (Day N)
-
-            if should_send(22, 0, current_date, "22:00"):
-                report_msg = generate_odo_warning_report(current_date, "22:00")
-                await application.bot.send_message(
-                    chat_id=warn_chat_id,
-                    text=report_msg,
-                    parse_mode="HTML"
-                )
-                sent_keys.add(f"{current_date}|22:00")
-                print(f"[BOT] Daily warning report 22:00 sent for {current_date}")
-                
-            # Mốc 23:00 - Báo cáo ngày hôm nay (Day N)
-            elif should_send(23, 0, current_date, "23:00"):
-                report_msg = generate_odo_warning_report(current_date, "23:00")
-                await application.bot.send_message(
-                    chat_id=warn_chat_id,
-                    text=report_msg,
-                    parse_mode="HTML"
-                )
-                sent_keys.add(f"{current_date}|23:00")
-                print(f"[BOT] Daily warning report 23:00 sent for {current_date}")
-                
-            # Mốc 09:00 - Báo cáo ngày hôm qua (Day N-1)
-            elif should_send(9, 0, current_date, "09:00"):
-                yesterday_local = now_local - dt.timedelta(days=1)
-                yesterday_date_str = yesterday_local.strftime("%d/%m/%Y")
-                report_msg = generate_odo_warning_report(yesterday_date_str, "09:00 (N+1)")
-                await application.bot.send_message(
-                    chat_id=warn_chat_id,
-                    text=report_msg,
-                    parse_mode="HTML"
-                )
-                sent_keys.add(f"{current_date}|09:00")
-                print(f"[BOT] Morning warning report 09:00 sent for {yesterday_date_str}")
+            # ODO warning schedules (22:00, 23:00, 09:00) have been removed as requested.
+            pass
                     
         except Exception as e:
             print(f"[BOT ERROR] Error in scheduled warning loop: {e}")
@@ -649,9 +616,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not message or not message.text:
         return
         
-    # Nếu là chat riêng tư (private) và không phải lệnh/báo cáo off xe
-    off_report = parse_off_report(message.text)
-    if not off_report and message.chat.type == "private" and not message.text.startswith('/'):
+    # Nếu là chat riêng tư (private)
+    if message.chat.type == "private" and not message.text.startswith('/'):
         warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
         # Kiểm tra xem người chat riêng với bot có phải admin của group nhận cảnh báo không
         try:
@@ -674,39 +640,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await message.reply_text(f"❌ Gửi tin nhắn vào nhóm thất bại: {e}")
             return
-            
-    if off_report:
-        registered_khos = get_gxt_vehicles_count()
-        id_kho = off_report["id_kho"]
-        ten_kho = off_report["ten_kho"]
-        
-        matched_kho = None
-        if id_kho:
-            matched_kho = registered_khos.get(id_kho)
-            
-        if not matched_kho and ten_kho:
-            for k_key, k_val in registered_khos.items():
-                if ten_kho.lower() in k_val["ten_kho"].lower() or k_val["ten_kho"].lower() in ten_kho.lower():
-                    matched_kho = k_val
-                    break
-                    
-        if matched_kho:
-            off_report["id_kho"] = matched_kho["id_kho"]
-            off_report["ten_kho"] = matched_kho["ten_kho"]
-            
-        save_local_state(off_report["ngay"], off_report=off_report)
-        
-        ten_display = off_report["ten_kho"] if off_report["ten_kho"] else "Chưa rõ tên"
-        id_display = f" (ID: {off_report['id_kho']})" if off_report["id_kho"] else ""
-        
-        await message.reply_text(
-            f"✅ <b>ĐÃ GHI NHẬN THÔNG TIN XE OFF!</b>\n\n"
-            f"📍 <b>Kho</b>: {html.escape(ten_display)}{html.escape(id_display)}\n"
-            f"📅 <b>Ngày</b>: {html.escape(off_report['ngay'])}\n"
-            f"🚫 <b>Số xe off</b>: {off_report['off_count']} xe\n\n"
-            f"Cuối ngày BOT sẽ tự động trừ xe off khi tổng hợp báo cáo ODO.",
-            parse_mode="HTML"
-        )
 
 def clean_line_prefix(line: str) -> str:
     line = line.strip()
@@ -1484,10 +1417,7 @@ async def run_bot():
             # Khởi tạo application
             application = Application.builder().token(token).build()
             
-            # Đăng ký handler lắng nghe tin nhắn có hình ảnh
-            application.add_handler(MessageHandler(filters.PHOTO, handle_odo_submission))
-            
-            # Đăng ký handler lắng nghe tin nhắn văn bản (cho báo cáo xe off)
+            # Đăng ký handler lắng nghe tin nhắn văn bản
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
             # ---- Lệnh /ping — kiểm tra bot có nhận lệnh không ----

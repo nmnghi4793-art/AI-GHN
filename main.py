@@ -105,10 +105,7 @@ async def startup_event():
     import asyncio
     # --- Telegram Bot ---
     try:
-        try:
-            from backend.telegram_bot import run_bot
-        except ImportError:
-            from telegram_bot import run_bot
+        from telegram_bot import run_bot
         asyncio.create_task(run_bot())
         print("[STARTUP] Đã kích hoạt background task cho Telegram Bot.")
     except Exception as e:
