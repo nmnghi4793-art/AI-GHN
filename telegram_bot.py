@@ -1616,11 +1616,23 @@ async def run_bot():
                         f"❌ <b>Lỗi kết nối Sheet:</b>\n<code>{err}</code>",
                         parse_mode="HTML")
 
+            async def cmd_kiemtra(update, context):
+                """/kiemtra — chạy kiểm tra thu tiền - bắn kiểm ngay lập tức"""
+                chat_id = update.effective_chat.id
+                await update.message.reply_text("⏳ Đang khởi động Bot kiểm tra thu tiền - bắn kiểm. Quá trình này có thể mất từ 1-2 phút, báo cáo sẽ được gửi vào nhóm sau khi hoàn tất...")
+                try:
+                    from collect_money_bot import run_collect_money_check
+                    asyncio.create_task(run_collect_money_check())
+                except Exception as e:
+                    await update.message.reply_text(f"❌ Có lỗi xảy ra khi khởi chạy bot: {e}")
+
             application.add_handler(CmdHandler("ping",       cmd_ping))
             application.add_handler(CmdHandler("baocao",     cmd_baocao))
             application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
             application.add_handler(CmdHandler("testsheet",  cmd_testsheet))
-            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330, /testsheet")
+            application.add_handler(CmdHandler("kiemtra",    cmd_kiemtra))
+            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330, /testsheet, /kiemtra")
+
 
 
             # Khởi chạy bot dạng polling
