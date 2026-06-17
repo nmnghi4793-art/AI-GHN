@@ -2446,18 +2446,158 @@ document.getElementById('telegram-btn-send-custom')?.addEventListener('click', s
 
 /**
  * Chuyển tab bên trong section GTC & Năng Suất
- * @param {'gtc'|'nangsuat'} tab
+ * @param {'gtc'|'nangsuat'|'nangsuatvung'} tab
  */
 function switchGtcTab(tab) {
     // Ẩn tất cả panels
     document.getElementById('gtc-panel-gtc').style.display = 'none';
     document.getElementById('gtc-panel-nangsuat').style.display = 'none';
+    const vungPanel = document.getElementById('gtc-panel-nangsuatvung');
+    if (vungPanel) vungPanel.style.display = 'none';
     // Bỏ active khỏi tất cả tab buttons
     document.getElementById('tab-btn-gtc').classList.remove('active');
     document.getElementById('tab-btn-nangsuat').classList.remove('active');
+    const vungBtn = document.getElementById('tab-btn-nangsuatvung');
+    if (vungBtn) vungBtn.classList.remove('active');
     // Hiển thị panel được chọn + đánh dấu active
-    document.getElementById('gtc-panel-' + tab).style.display = 'block';
-    document.getElementById('tab-btn-' + tab).classList.add('active');
+    const panelEl = document.getElementById('gtc-panel-' + tab);
+    if (panelEl) panelEl.style.display = 'block';
+    const btnEl = document.getElementById('tab-btn-' + tab);
+    if (btnEl) btnEl.classList.add('active');
+    // Khi chuyển sang tab Năng Suất Vùng → render ngay
+    if (tab === 'nangsuatvung') renderNangSuatVungSection();
+}
+
+function renderNangSuatVungSection() {
+    const tbody = document.getElementById('tbody-ns-vung');
+    if (!tbody) return;
+
+    // --- 1. Xây bảng kho → vùng từ khoGxtData (cột G = "Vùng") ---
+    const khoToVung = {};
+    (state.khoGxtData || []).forEach(row => {
+        const khoName  = (row['Tên Kho GXT'] || row['kho gxt'] || row['Tên'] || '').trim();
+        const vung     = (row['Vùng'] || row['vung'] || '').trim();
+        const mapped   = vung || 'Chưa xác định';
+        if (khoName) {
+            khoToVung[khoName] = mapped;
+            khoToVung[shortKho(khoName)] = mapped;
+        }
+    });
+
+    // --- 2. Lọc GTC data ngày gần nhất ---
+    const gtcData = state.gtcData || [];
+    if (!gtcData.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu GTC</td></tr>';
+        return;
+    }
+    const allDates  = [...new Set(gtcData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
+    const latestDate = allDates[0];
+    const latestRows = gtcData.filter(r => r['Ngày'] === latestDate);
+
+    // --- 3. Tổng hợp theo vùng ---
+    const vungMap = {};
+    latestRows.forEach(r => {
+        const khoFull  = (r['Kho'] || '').trim();
+        const khoShort = shortKho(khoFull);
+        let vung = khoToVung[khoFull] || khoToVung[khoShort];
+        if (!vung) {
+            // Fuzzy match
+            const found = Object.keys(khoToVung).find(k => k && khoShort && (k.includes(khoShort) || khoShort.includes(k)));
+            vung = found ? khoToVung[found] : 'Chưa xác định';
+        }
+        const donGtc = parseInt(String(r['Số Đơn GTC'] || r['Số đơn GTC'] || '0').replace(/[^0-9]/g, '')) || 0;
+        if (!vungMap[vung]) vungMap[vung] = { khoSet: new Set(), totalGtc: 0, khoList: [] };
+        vungMap[vung].khoSet.add(khoShort || khoFull);
+        vungMap[vung].totalGtc += donGtc;
+        vungMap[vung].khoList.push({ kho: khoShort || khoFull, gtc: donGtc });
+    });
+
+    // --- 4. Ghép năng suất NV từ nangSuatData (ngày gần nhất) ---
+    const nsData  = state.nangSuatData || [];
+    const nsDates = [...new Set(nsData.map(r => r['Ngày']).filter(Boolean))].sort((a, b) => parseVN(b) - parseVN(a));
+    const nsLatest = nsDates[0];
+    const nsRows   = nsLatest ? nsData.filter(r => r['Ngày'] === nsLatest) : [];
+
+    const khoNsMap = {};
+    nsRows.forEach(r => {
+        const kho = shortKho(r['kho gxt'] || r['Kho'] || '');
+        const vol = parseFloat(r['avg_delivery_volume_per_hour'] || 0);
+        if (kho && vol > 0) {
+            if (!khoNsMap[kho]) khoNsMap[kho] = { sumVol: 0, count: 0 };
+            khoNsMap[kho].sumVol += vol;
+            khoNsMap[kho].count  += 1;
+        }
+    });
+
+    Object.keys(vungMap).forEach(vung => {
+        let totalNsSum = 0, totalStaff = 0;
+        vungMap[vung].khoList.forEach(khoInfo => {
+            const ns = khoNsMap[khoInfo.kho];
+            if (ns && ns.count > 0) {
+                const avgKhoNs = ns.sumVol / ns.count;
+                totalNsSum += avgKhoNs * ns.count;
+                totalStaff += ns.count;
+                khoInfo.ns = avgKhoNs;
+            } else {
+                khoInfo.ns = null;
+            }
+        });
+        vungMap[vung].totalNs    = totalStaff > 0 ? totalNsSum / totalStaff : null;
+        vungMap[vung].totalStaff = totalStaff;
+    });
+
+    // --- 5. Sắp xếp vùng theo totalGtc giảm dần ---
+    const vungEntries = Object.entries(vungMap).sort((a, b) => b[1].totalGtc - a[1].totalGtc);
+
+    if (!vungEntries.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Không có dữ liệu vùng. Kiểm tra sheet Kho GXT có cột "Vùng" chưa.</td></tr>';
+        return;
+    }
+
+    // --- 6. Summary cards ---
+    const nsEntries  = vungEntries.filter(([, v]) => v.totalNs !== null);
+    const globalAvgNs = nsEntries.length > 0 ? nsEntries.reduce((s, [, v]) => s + v.totalNs, 0) / nsEntries.length : null;
+    const bestEntry   = nsEntries.length > 0 ? nsEntries.reduce((a, b) => b[1].totalNs > a[1].totalNs ? b : a) : null;
+    const worstEntry  = nsEntries.length > 0 ? nsEntries.reduce((a, b) => b[1].totalNs < a[1].totalNs ? b : a) : null;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('ns-vung-total',     vungEntries.length);
+    setEl('ns-vung-best',      bestEntry   ? bestEntry[0]                         : '--');
+    setEl('ns-vung-best-val',  bestEntry   ? bestEntry[1].totalNs.toFixed(2) + ' đơn/giờ' : '--');
+    setEl('ns-vung-worst',     worstEntry  ? worstEntry[0]                        : '--');
+    setEl('ns-vung-worst-val', worstEntry  ? worstEntry[1].totalNs.toFixed(2) + ' đơn/giờ' : '--');
+    setEl('ns-vung-avg',       globalAvgNs !== null ? globalAvgNs.toFixed(2) : '--');
+
+    // --- 7. Render bảng ---
+    function ratingBadge(ns) {
+        if (ns === null || ns === undefined) return '<span style="color:var(--text3);font-size:12px">Chưa đủ dữ liệu NV</span>';
+        if (ns >= 1.5) return '<span class="badge" style="background:#E8F5E9;color:#1B5E20">🟢 Cao</span>';
+        if (ns >= 0.8) return '<span class="badge" style="background:#FFFDE7;color:#F57F17">🟡 Trung bình</span>';
+        return '<span class="badge" style="background:#FFEBEE;color:#B71C1C">🔴 Thấp</span>';
+    }
+
+    tbody.innerHTML = vungEntries.map(([vung, v]) => {
+        const khosSorted = [...v.khoList].sort((a, b) => b.gtc - a.gtc);
+        const bestKho    = khosSorted[0];
+        const worstKho   = khosSorted.length > 1 ? khosSorted[khosSorted.length - 1] : null;
+        const nsDisp     = v.totalNs !== null ? v.totalNs.toFixed(2) : null;
+        const nsColor    = v.totalNs !== null ? (v.totalNs >= 1.5 ? '#1B5E20' : v.totalNs >= 0.8 ? '#F57F17' : '#B71C1C') : 'var(--text3)';
+        const staffStr   = v.totalStaff > 0 ? v.totalStaff.toLocaleString('vi-VN') : '<span style="color:var(--text3)">--</span>';
+        const nsCell     = nsDisp !== null
+            ? `<span style="font-weight:700;color:${nsColor}">${nsDisp}</span>`
+            : '<span style="font-size:12px;color:var(--text3)">Chưa đủ dữ liệu NV</span>';
+
+        return `<tr>
+            <td style="font-weight:700;color:var(--blue)">${escapeHtml(vung)}</td>
+            <td style="text-align:right">${v.khoSet.size}</td>
+            <td style="text-align:right;font-weight:600">${v.totalGtc.toLocaleString('vi-VN')}</td>
+            <td style="text-align:right">${staffStr}</td>
+            <td style="text-align:right">${nsCell}</td>
+            <td style="color:var(--green);font-weight:600">${escapeHtml(bestKho ? bestKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${bestKho ? bestKho.gtc.toLocaleString('vi-VN') + ' đơn' : ''}</small></td>
+            <td style="color:var(--red)">${escapeHtml(worstKho ? worstKho.kho : '--')}<br><small style="color:var(--text3);font-weight:400">${worstKho ? worstKho.gtc.toLocaleString('vi-VN') + ' đơn' : ''}</small></td>
+            <td style="text-align:center">${ratingBadge(v.totalNs)}</td>
+        </tr>`;
+    }).join('');
 }
 
 /**
@@ -2488,21 +2628,22 @@ function switchCbrTab(tab) {
 
 // ---- NAVIGATION ----
 const SECTION_META = {
-    overview:  ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
-    cbr:       ['Cảnh Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
-    warnings:  ['Cảnh Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
-    forecast:  ['Cảnh Báo Rủi Ro',         'Tab Dự Báo Rủi Ro'],
-    gtc:       ['GTC và Năng Suất',       'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
-    backlog:   ['Backlog > 7 Ngày',         'Đơn hàng tồn lâu trên 7 ngày cần ưu tiên xử lý'],
-    b2b:       ['B2B & SLA',               'Theo dõi đơn B2B ưu tiên và cam kết SLA với đối tác'],
-    returns:   ['Trả Hàng & FD',            'Phân tích lý do trả hàng và freeship đảo hàng'],
-    personnel: ['Nhân Sự',                  'Danh sách nhân viên và thông tin phân công'],
-    nangsuat:  ['GTC và Năng Suất',       'Tab Năng Suất NV'],
-    khoxe:     ['Kho và Xe GXT',           'Danh sách kho, xe và xe sự cố GXT'],
-    xegxt:     ['Kho và Xe GXT',           'Tab Xe GXT'],
-    xesuco:    ['Kho và Xe GXT',           'Tab Xe Sự Cố'],
-    khogxt:    ['Kho và Xe GXT',           'Tab Kho GXT'],
-    dontao:    ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
+    overview:       ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
+    cbr:            ['Cảnh Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
+    warnings:       ['Cảnh Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
+    forecast:       ['Cảnh Báo Rủi Ro',         'Tab Dự Báo Rủi Ro'],
+    gtc:            ['GTC và Năng Suất',       'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
+    backlog:        ['Backlog > 7 Ngày',         'Đơn hàng tồn lâu trên 7 ngày cần ưu tiên xử lý'],
+    b2b:            ['B2B & SLA',               'Theo dõi đơn B2B ưu tiên và cam kết SLA với đối tác'],
+    returns:        ['Trả Hàng & FD',            'Phân tích lý do trả hàng và freeship đảo hàng'],
+    personnel:      ['Nhân Sự',                  'Danh sách nhân viên và thông tin phân công'],
+    nangsuat:       ['GTC và Năng Suất',       'Tab Năng Suất NV'],
+    nangsuatvung:   ['GTC và Năng Suất',       'Tab Năng Suất Vùng'],
+    khoxe:          ['Kho và Xe GXT',           'Danh sách kho, xe và xe sự cố GXT'],
+    xegxt:          ['Kho và Xe GXT',           'Tab Xe GXT'],
+    xesuco:         ['Kho và Xe GXT',           'Tab Xe Sự Cố'],
+    khogxt:         ['Kho và Xe GXT',           'Tab Kho GXT'],
+    dontao:         ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
 };
 
 

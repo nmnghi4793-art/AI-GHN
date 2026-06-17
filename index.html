@@ -731,6 +731,9 @@
                 <button class="kpi-tab-btn" id="tab-btn-nangsuat" onclick="switchGtcTab('nangsuat')">
                     <i class="fa-solid fa-motorcycle"></i> Năng Suất NV
                 </button>
+                <button class="kpi-tab-btn" id="tab-btn-nangsuatvung" onclick="switchGtcTab('nangsuatvung')">
+                    <i class="fa-solid fa-map-location-dot"></i> Năng Suất Vùng
+                </button>
             </div>
 
             <!-- ===== TAB PANEL 1: GTC & NĂNG SUẤT ===== -->
@@ -918,6 +921,80 @@
                             </thead>
                             <tbody id="tbody-ns-all"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== TAB PANEL 3: NĂNG SUẤT VÙNG ===== -->
+            <div id="gtc-panel-nangsuatvung" class="gtc-tab-pane" style="display:none">
+
+                <!-- Summary Cards -->
+                <div class="overview-cards" id="ns-vung-cards" style="margin-bottom:20px">
+                    <div class="stat-card" style="background:#E8F5E9;border:1px solid #A5D6A7">
+                        <div class="stat-icon" style="background:#A5D6A7;color:#1B5E20"><i class="fa-solid fa-map"></i></div>
+                        <div class="stat-details">
+                            <h3>Tổng Vùng</h3>
+                            <h2 id="ns-vung-total" style="color:#1B5E20">--</h2>
+                            <p class="stat-sub">Vùng vận hành</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#E3F2FD;border:1px solid #90CAF9">
+                        <div class="stat-icon" style="background:#90CAF9;color:#0D47A1"><i class="fa-solid fa-trophy"></i></div>
+                        <div class="stat-details">
+                            <h3>Vùng Năng Suất Cao Nhất</h3>
+                            <h2 id="ns-vung-best" style="color:#0D47A1;font-size:1rem">--</h2>
+                            <p class="stat-sub" id="ns-vung-best-val">-- đơn/giờ</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFEBEE;border:1px solid #FFCDD2">
+                        <div class="stat-icon" style="background:#FFCDD2;color:#B71C1C"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-details">
+                            <h3>Vùng Năng Suất Thấp Nhất</h3>
+                            <h2 id="ns-vung-worst" style="color:#B71C1C;font-size:1rem">--</h2>
+                            <p class="stat-sub" id="ns-vung-worst-val">-- đơn/giờ</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFCC80">
+                        <div class="stat-icon" style="background:#FFCC80;color:#E65100"><i class="fa-solid fa-gauge-high"></i></div>
+                        <div class="stat-details">
+                            <h3>Năng Suất Trung Bình Toàn Vùng</h3>
+                            <h2 id="ns-vung-avg" style="color:#E65100">--</h2>
+                            <p class="stat-sub">Đơn/giờ/nhân viên</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-map-location-dot" style="color:var(--blue)"></i> Năng Suất Theo Vùng</h3>
+                        <span style="font-size:12px;color:var(--text3);font-style:italic">Dựa trên dữ liệu ngày gần nhất — ghép kho GTC với vùng từ sheet Kho GXT</span>
+                    </div>
+                    <div class="table-scroll" style="max-height:none">
+                        <table class="data-table" id="table-ns-vung">
+                            <thead>
+                                <tr>
+                                    <th>Vùng</th>
+                                    <th style="text-align:right">Số kho</th>
+                                    <th style="text-align:right">Tổng GTC (đơn)</th>
+                                    <th style="text-align:right">Tổng Nhân Sự</th>
+                                    <th style="text-align:right">Năng Suất TB<br><small>(đơn/giờ/NV)</small></th>
+                                    <th>Kho Tốt Nhất</th>
+                                    <th>Kho Thấp Nhất</th>
+                                    <th style="text-align:center">Đánh Giá</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ns-vung">
+                                <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:14px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:12px;color:var(--text2)">
+                        <strong style="color:var(--blue)"><i class="fa-solid fa-circle-info"></i> Cách tính:</strong>
+                        <span style="margin-left:8px">
+                            Năng suất vùng = Tổng đơn GTC ÷ Tổng nhân sự của các kho trong vùng &nbsp;|&nbsp;
+                            🟢 Cao ≥ 1.5 &nbsp;|&nbsp; 🟡 Trung bình ≥ 0.8 &nbsp;|&nbsp; 🔴 Thấp &lt; 0.8
+                        </span>
                     </div>
                 </div>
             </div>
