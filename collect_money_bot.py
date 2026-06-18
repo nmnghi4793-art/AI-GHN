@@ -64,6 +64,34 @@ GHN_COLLECT_URL = os.environ.get(
 )
 CDP_URL = "http://127.0.0.1:9222"
 
+TARGET_WAREHOUSES = {
+    "22782000": "Kho Giao Hàng Nặng - Buôn Hồ - Đắk Lắk",
+    "22168000": "Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định",
+    "22059000": "Kho Giao Hàng Nặng - Hoà Xuân - Đà Nẵng",
+    "22057000": "Kho Giao Hàng Nặng - Tuy Phong - Bình Thuận",
+    "22028000": "Kho Giao Hàng Nặng - La Gi - Bình Thuận",
+    "21682000": "Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh",
+    "21525000": "Kho Giao Hàng Nặng - Gia Nghĩa - Đắk Nông",
+    "21521000": "Kho Giao Hàng Nặng - Đông Hà - Quảng Trị",
+    "21498000": "Kho Giao Hàng Nặng - Cam Ranh - Khánh Hoà",
+    "21483000": "Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam",
+    "21386000": "Kho Giao Hàng Nặng - Hội An - Quảng Nam",
+    "21347000": "Kho Giao Hàng Nặng - Tuy Hoà - Phú Yên",
+    "21285000": "Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận",
+    "21284000": "Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi",
+    "21283000": "Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình",
+    "21163000": "Kho Giao Hàng Nặng - Phan Rang - Ninh Thuận",
+    "21162000": "Kho Giao Hàng Nặng - Thắng Lợi - Kon Tum",
+    "21096000": "Kho Giao Hàng Nặng - Hương Thủy - Huế",
+    "21095000": "Kho Giao Hàng Nặng - Vinh - Nghệ An",
+    "21094000": "Kho Giao Hàng Nặng - Nha Trang - Khánh Hoà",
+    "21091000": "Kho Giao Hàng Nặng - Pleiku - Gia Lai",
+    "21090000": "Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk",
+    "21089000": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
+    "21087000": "Kho Giao Hàng Nặng - Quy Nhơn - Bình Định",
+    "21086000": "Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá"
+}
+
 def parse_int(val_str: str) -> int:
     try:
         # Trích xuất các số từ chuỗi
@@ -334,11 +362,25 @@ async def run_collect_money_check():
                 else:
                     break
             
-            count = len(warehouse_names)
-            log.info(f"Tong cong da tim thay {count} kho trong dropdown.")
-            if count == 0:
-                log.error("[ERR_DOM] Khong doc duoc danh sach kho tu dropdown Virtual List (rc-virtual-list-holder).")
-                await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown GHN.</b>")
+            # Lọc chỉ chọn các kho nằm trong danh sách 25 kho yêu cầu (Yêu cầu mới)
+            warehouses_to_check = []
+            for wh_id, wh_name in TARGET_WAREHOUSES.items():
+                found_wh = None
+                for seen_wh in seen_warehouses:
+                    if seen_wh.startswith(wh_id):
+                        found_wh = seen_wh
+                        break
+                if found_wh:
+                    warehouses_to_check.append(found_wh)
+                else:
+                    log.warning(f"Không tìm thấy kho {wh_id} - {wh_name}")
+            
+            count_to_check = len(warehouses_to_check)
+            log.info(f"Tổng cộng tìm thấy {len(seen_warehouses)} kho trên web. Đã lọc chọn {count_to_check}/{len(TARGET_WAREHOUSES)} kho cần kiểm tra.")
+            
+            if count_to_check == 0:
+                log.error("[ERR_DOM] Không tìm thấy bất kỳ kho nào trong danh sách yêu cầu hiển thị trên web.")
+                await send_telegram_message("❌ <b>Bot không tìm thấy các kho GXT Miền Trung cần kiểm tra trên trang GHN.</b>")
                 if using_cdp and browser:
                     await browser.close()
                 elif browser_context:
@@ -352,8 +394,8 @@ async def run_collect_money_check():
             report_data = []
             error_warehouses = []
             
-            for index, wh_name in enumerate(warehouse_names):
-                log.info(f"[{index+1}/{count}] Dang kiem tra kho: {wh_name}")
+            for index, wh_name in enumerate(warehouses_to_check):
+                log.info(f"[{index+1}/{count_to_check}] Dang kiem tra kho: {wh_name}")
                 
                 try:
                     # 1. Click vao select container de mo dropdown
@@ -484,10 +526,10 @@ async def run_collect_money_check():
                     })
             
             # Gui bao cao den Telegram
-            telegram_success = await send_report(warehouse_names, report_data, error_warehouses)
+            telegram_success = await send_report(warehouses_to_check, report_data, error_warehouses)
             
             # Tính toán các số liệu thống kê bắt buộc để ghi log (Yêu cầu 8)
-            total_wh_checked = len(warehouse_names)
+            total_wh_checked = len(warehouses_to_check)
             total_emp_thu_tien = 0
             total_emp_ban_kiem = 0
             total_dh_thu_tien = 0
