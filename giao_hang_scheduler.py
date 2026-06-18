@@ -51,7 +51,12 @@ REPORT_SHEET_ID  = os.environ.get(
 REPORT_SHEET_URL = f"https://docs.google.com/spreadsheets/d/{REPORT_SHEET_ID}/edit"
 
 TIMEZONE_STR = os.environ.get("TIMEZONE", "Asia/Ho_Chi_Minh")
-TZ           = ZoneInfo(TIMEZONE_STR)
+try:
+    from zoneinfo import ZoneInfo
+    TZ = ZoneInfo(TIMEZONE_STR)
+except Exception:
+    from datetime import timezone, timedelta
+    TZ = timezone(timedelta(hours=7))
 
 PIC_FILTER      = os.environ.get("GIAO_HANG_PIC", "Nguyễn Minh Nghị")
 ACTION_FILTER   = "giao"

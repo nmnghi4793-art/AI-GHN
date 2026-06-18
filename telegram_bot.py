@@ -1427,30 +1427,47 @@ async def run_bot():
                 await update.message.reply_text("🟢 Bot đang hoạt động!")
 
             # ---- Lệnh /baocao và /baocao1330 ----
+            _report_running = False
+            _report_last_run = {}  # chat_id -> timestamp (float)
+
             async def _send_report_to_chat(chat_id: int, mode: str):
-                """Tổng hợp và gửi báo cáo giao hàng về đúng chat đã gõ lệnh."""
-                import os, httpx
+                nonlocal _report_running
+                import os, httpx, time
                 from datetime import datetime
                 token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
                 async def _reply(text):
-                    async with httpx.AsyncClient(timeout=20) as c:
-                        await c.post(
-                            f"https://api.telegram.org/bot{token}/sendMessage",
-                            json={"chat_id": chat_id, "text": text,
-                                  "parse_mode": "HTML",
-                                  "disable_web_page_preview": False}
-                        )
+                    try:
+                        async with httpx.AsyncClient(timeout=30) as c:
+                            await c.post(
+                                f"https://api.telegram.org/bot{token}/sendMessage",
+                                json={"chat_id": chat_id, "text": text,
+                                      "parse_mode": "HTML",
+                                      "disable_web_page_preview": False}
+                            )
+                    except Exception as re_err:
+                        print(f"[BOT ERROR] Cannot send reply to chat {chat_id}: {re_err}")
 
                 try:
                     import giao_hang_scheduler as gs
-                    now          = datetime.now(gs.TZ)
-                    today        = now.date()
+                    
+                    # Timezone fallback
+                    tz = getattr(gs, "TZ", None)
+                    if not tz:
+                        from zoneinfo import ZoneInfo
+                        try:
+                            tz = ZoneInfo(os.environ.get("TIMEZONE", "Asia/Ho_Chi_Minh"))
+                        except Exception:
+                            from datetime import timezone, timedelta
+                            tz = timezone(timedelta(hours=7))
+
+                    now = datetime.now(tz)
+                    today = now.date()
                     is_afternoon = (mode == "13:30")
 
-                    rows       = await gs.read_source_csv()
-                    filtered   = gs.filter_rows(rows)
-                    kho_sum    = gs.summarize_by_kho(filtered) if filtered else {}
+                    rows = await gs.read_source_csv()
+                    filtered = gs.filter_rows(rows)
+                    kho_sum = gs.summarize_by_kho(filtered) if filtered else {}
                     comparison = gs.find_new_orders(filtered, today) if is_afternoon else None
 
                     sheet_ok = False
@@ -1471,16 +1488,36 @@ async def run_bot():
 
                 except Exception as e:
                     import traceback
-                    err = traceback.format_exc()[-500:]
+                    err = traceback.format_exc()[-800:]
                     await _reply(
                         f"❌ <b>Lỗi tổng hợp báo cáo [{mode}]</b>\n"
-                        f"<code>{err}</code>"
+                        f"<code>{html.escape(err)}</code>"
                     )
+                finally:
+                    _report_running = False
 
             async def cmd_baocao(update, context):
                 """/baocao — báo cáo đơn giao hàng ngay"""
+                nonlocal _report_running
                 chat_id = update.effective_chat.id
-                await update.message.reply_text("⏳ Đang tổng hợp báo cáo đơn giao hàng...")
+                import time
+
+                # Cooldown check
+                now_ts = time.time()
+                last_run = _report_last_run.get(chat_id, 0.0)
+                if now_ts - last_run < 60:
+                    await update.message.reply_text("⚠️ Bạn thao tác quá nhanh. Vui lòng đợi 1-2 phút trước khi yêu cầu báo cáo tiếp theo.")
+                    return
+
+                # Lock check
+                if _report_running:
+                    await update.message.reply_text("⚠️ Hệ thống đang xử lý một yêu cầu báo cáo khác. Vui lòng thử lại sau 1-2 phút.")
+                    return
+
+                _report_running = True
+                _report_last_run[chat_id] = now_ts
+
+                await update.message.reply_text("⏳ Đã nhận lệnh, BOT đang tạo báo cáo...")
                 try:
                     import giao_hang_scheduler as gs
                     gs._sent_today.pop("09:30", None)
@@ -1490,8 +1527,26 @@ async def run_bot():
 
             async def cmd_baocao1330(update, context):
                 """/baocao1330 — báo cáo + so sánh đơn mới vs 09:30"""
+                nonlocal _report_running
                 chat_id = update.effective_chat.id
-                await update.message.reply_text("⏳ Đang tổng hợp + so sánh đơn mới...")
+                import time
+
+                # Cooldown check
+                now_ts = time.time()
+                last_run = _report_last_run.get(chat_id, 0.0)
+                if now_ts - last_run < 60:
+                    await update.message.reply_text("⚠️ Bạn thao tác quá nhanh. Vui lòng đợi 1-2 phút trước khi yêu cầu báo cáo tiếp theo.")
+                    return
+
+                # Lock check
+                if _report_running:
+                    await update.message.reply_text("⚠️ Hệ thống đang xử lý một yêu cầu báo cáo khác. Vui lòng thử lại sau 1-2 phút.")
+                    return
+
+                _report_running = True
+                _report_last_run[chat_id] = now_ts
+
+                await update.message.reply_text("⏳ Đã nhận lệnh, BOT đang tạo báo cáo...")
                 try:
                     import giao_hang_scheduler as gs
                     gs._sent_today.pop("13:30", None)
