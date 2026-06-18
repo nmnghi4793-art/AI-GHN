@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 from collect_money_bot import run_collect_money_check
 
 # Setup encoding for windows stdout / log output
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if os.name == "nt":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 def load_env():
     current_dir = os.path.dirname(os.path.abspath(__file__))

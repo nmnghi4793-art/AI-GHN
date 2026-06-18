@@ -21,7 +21,8 @@ import httpx
 from playwright.async_api import async_playwright
 
 # Setup encoding for windows stdout / log output
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if os.name == "nt":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 # Configure logging
 LOG_DIR = os.path.dirname(os.path.abspath(__file__))
