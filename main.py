@@ -8,6 +8,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+def load_env():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(4):
+        env_path = os.path.join(current_dir, ".env")
+        if os.path.exists(env_path):
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+            break
+        current_dir = os.path.dirname(current_dir)
+
+load_env()
+
 from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

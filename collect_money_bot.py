@@ -73,7 +73,7 @@ def parse_int(val_str: str) -> int:
 
 async def send_telegram_message(text: str) -> bool:
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        log.error("Thieu TELEGRAM_BOT_TOKEN hoac TELEGRAM_CHAT_ID")
+        log.error("Thieu TELEGRAM_BOT_TOKEN hoac TELEGRAM_CHAT_ID trong env.")
         return False
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -89,24 +89,38 @@ async def send_telegram_message(text: str) -> bool:
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True
             })
+            
         if resp.status_code == 200:
             log.info("Gui Telegram thanh cong.")
             return True
-        log.error(f"Gui Telegram that bai (status={resp.status_code}): {resp.text}")
+            
+        # Log chi tiết lỗi Telegram theo yêu cầu 3
+        err_data = resp.json()
+        description = err_data.get("description", "")
+        error_code = err_data.get("error_code")
+        
+        if error_code == 401 or "Unauthorized" in description:
+            log.error(f"[TELEGRAM ERROR] Sai TELEGRAM_BOT_TOKEN hoac Token khong hop le. Chi tiet: {description}")
+        elif error_code == 400 and "chat not found" in description:
+            log.error(f"[TELEGRAM ERROR] Sai TELEGRAM_CHAT_ID (chat not found). Vui long kiem tra lai Chat ID: {TELEGRAM_CHAT_ID}")
+        elif error_code == 403 or "forbidden" in description.lower():
+            log.error(f"[TELEGRAM ERROR] Bot chua duoc add vao group hoac khong co quyen gui tin nhan. Chi tiet: {description}")
+        else:
+            log.error(f"[TELEGRAM ERROR] Gui tin nhan Telegram that bai (status={resp.status_code}, error_code={error_code}): {description}")
         return False
     except Exception as e:
         log.error(f"Loi gui tin nhan Telegram: {e}")
         return False
 
-async def send_report(warehouse_names, report_data, error_warehouses):
+async def send_report(warehouse_names, report_data, error_warehouses) -> bool:
     now_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M")
     
     if not report_data:
-        # Tat ca kho deu ok va hoan thanh
+        # Khong co ton
         msg = (
-            f"✅ <b>BÁO CÁO THU TIỀN - BẮN KIỂM CUỐI NGÀY</b>\n"
+            f"🚨 <b>BÁO CÁO THU TIỀN - BẮN KIỂM CUỐI NGÀY</b>\n"
             f"Thời gian: {now_str}\n\n"
-            f"Tất cả kho đã hoàn tất thu tiền và bắn kiểm. Không phát sinh tồn cần xử lý."
+            f"Không có đơn chưa thu tiền/chưa bắn kiểm."
         )
     else:
         # Tinh toan cac so lieu tong quan
@@ -117,41 +131,39 @@ async def send_report(warehouse_names, report_data, error_warehouses):
         total_dh_luu_kho = sum(sum(emp["dh_luu_kho"] for emp in wh["issues"]) for wh in report_data)
         total_dh_ban_kiem = sum(sum(emp["dh_ban_kiem"] for emp in wh["issues"]) for wh in report_data)
         
+        # Format dung theo Mau yeu cau o muc 9
         msg = (
             f"🚨 <b>BÁO CÁO THU TIỀN - BẮN KIỂM CUỐI NGÀY</b>\n"
             f"Thời gian: {now_str}\n\n"
-            f"<b>Tổng quan:</b>\n"
-            f"• Tổng kho đã kiểm tra: {total_wh_checked} kho\n"
-            f"• Kho còn tồn thu tiền/bắn kiểm: {total_wh_issues} kho\n"
-            f"• Tổng nhân viên còn tồn: {total_emp_issues} người\n"
-            f"• Tổng ĐH cần thu tiền: {total_dh_thu_tien} đơn\n"
-            f"• Tổng ĐH cần lưu kho: {total_dh_luu_kho} đơn\n"
-            f"• Tổng ĐH cần bắn kiểm: {total_dh_ban_kiem} đơn\n\n"
-            f"<b>Chi tiết theo kho:</b>\n\n"
+            f"Tổng quan:\n"
+            f"* Tổng kho đã kiểm tra: {total_wh_checked}\n"
+            f"* Kho còn tồn: {total_wh_issues}\n"
+            f"* Tổng NV còn tồn: {total_emp_issues}\n"
+            f"* Tổng ĐH cần thu tiền: {total_dh_thu_tien}\n"
+            f"* Tổng ĐH cần bắn kiểm: {total_dh_ban_kiem}\n"
+            f"* Tổng ĐH cần lưu kho: {total_dh_luu_kho}\n\n"
+            f"Chi tiết:\n\n"
         )
         
         for idx, wh in enumerate(report_data, 1):
-            msg += f"{idx}. <b>{wh['wh_name']}</b>\n"
+            msg += f"{idx}. {wh['wh_name']}\n"
             for emp in wh["issues"]:
                 emp_label = f"{emp['emp_code']} - {emp['emp_name']}" if emp['emp_code'] else emp['emp_name']
                 msg += f"   • {emp_label}\n"
                 if emp['dh_thu_tien'] > 0:
-                    msg += f"     * ĐH cần thu tiền: {emp['dh_thu_tien']} đơn\n"
+                    msg += f"     - ĐH cần thu tiền: {emp['dh_thu_tien']}\n"
                     tct = emp['tien_can_thu'].strip()
                     if tct and tct != "0" and tct != "0đ":
-                        msg += f"     * Tiền cần thu: {tct}\n"
+                        msg += f"     - Tiền cần thu: {tct}\n"
                 if emp['dh_luu_kho'] > 0:
-                    msg += f"     * ĐH cần lưu kho: {emp['dh_luu_kho']} đơn\n"
+                    msg += f"     - ĐH cần lưu kho: {emp['dh_luu_kho']}\n"
                 if emp['dh_ban_kiem'] > 0:
-                    msg += f"     * ĐH cần bắn kiểm: {emp['dh_ban_kiem']} đơn\n"
+                    msg += f"     - ĐH cần bắn kiểm: {emp['dh_ban_kiem']}\n"
                 if emp['deadline']:
-                    msg += f"     * Hoàn thành trước: {emp['deadline']}\n"
+                    msg += f"     - Hoàn thành trước: {emp['deadline']}\n"
             msg += "\n"
             
-        msg += (
-            f"Yêu cầu: Các kho/nhân viên còn tồn cần hoàn tất tích phiếu thu tiền và bắn kiểm trước khi kết thúc ca. "
-            f"Quản lý kho phản hồi tình trạng xử lý ngay trên group."
-        )
+        msg += "Yêu cầu các kho hoàn tất thu tiền/bắn kiểm trước khi kết thúc ca."
         
     if error_warehouses:
         msg += "\n\n⚠️ <b>Lỗi xảy ra:</b>"
@@ -159,12 +171,12 @@ async def send_report(warehouse_names, report_data, error_warehouses):
             msg += f"\n- Không đọc được dữ liệu kho {err_wh}, cần kiểm tra lại."
             
     # Gui tin nhan
-    await send_telegram_message(msg)
+    return await send_telegram_message(msg)
 
 async def run_collect_money_check():
+    start_time_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")
     log.info("=== BAT DAU KIEM TRA THU TIEN - BAN KIEM ===")
     
-    # 1. Khoi dong Chrome voi session rieng de tu luu dang nhap
     user_data_dir = os.path.join(LOG_DIR, "playwright_session")
     log.info(f"Khoi dong trinh duyet voi profile tai: {user_data_dir}...")
     
@@ -213,50 +225,59 @@ async def run_collect_money_check():
                     await send_telegram_message(err_msg)
                     return False
 
+            # Cải tiến mở trang GHN: thử load trang 3 lần (Yêu cầu 4)
+            load_success = False
+            for attempt in range(1, 4):
+                try:
+                    log.info(f"Mo trang kiem tra (Lan {attempt}/3): {GHN_COLLECT_URL}")
+                    await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_timeout(3000)
+                    load_success = True
+                    break
+                except Exception as goto_err:
+                    log.warning(f"Loi load trang lan {attempt}: {goto_err}")
+                    if attempt < 3:
+                        log.info("Cho 5 giay va reload lai trang...")
+                        await asyncio.sleep(5)
             
-            log.info(f"Mo trang kiem tra: {GHN_COLLECT_URL}")
-            await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded")
+            if not load_success:
+                log.error("Khong the load trang GHN sau 3 lan thu.")
+                await send_telegram_message("❌ <b>Bot không thể mở trang GHN do kết nối mạng hoặc trang load quá chậm.</b>")
+                if using_cdp and browser:
+                    await browser.close()
+                elif browser_context:
+                    await browser_context.close()
+                return False
             
-            # Cho page load va kiem tra phien dang nhap
-            await page.wait_for_timeout(3000)
             current_url = page.url
             log.info(f"Page URL hien tai: {current_url}")
             
-            # Kiem tra xem co bi redirect ve trang login khong
-            if "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000):
-                log.info("Chua dang nhap GHN. Cho nguoi dung dang nhap trong 3 phut...")
-                await send_telegram_message("⚠️ <b>Bot cần đăng nhập tài khoản GHN.</b> Vui lòng hoàn tất đăng nhập trên cửa sổ Chrome vừa mở ra trên máy.")
-                
-                # Cho dang nhap
-                logged_in = False
-                for sec in range(1, 181):
-                    await asyncio.sleep(1)
-                    if "login" not in page.url.lower() and not await page.locator("input[type='password']").is_visible(timeout=500):
-                        log.info(f"Dang nhap thanh cong sau {sec} giay!")
-                        logged_in = True
-                        break
-                
-                if not logged_in:
-                    log.error("Het thoi gian cho dang nhap.")
-                    await send_telegram_message("❌ <b>Bot không thể kiểm tra vì hết thời gian chờ đăng nhập GHN.</b>")
+            # Kiem tra xem co bi het phien dang nhap khong (Yêu cầu 4)
+            is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
+            if is_login_page:
+                log.warning("Phien dang nhap GHN da het han, can dang nhap lai.")
+                await send_telegram_message("⚠️ <b>Phiên đăng nhập GHN đã hết hạn, cần đăng nhập lại.</b> Vui lòng mở trình duyệt và hoàn tất đăng nhập GHN.")
+                if using_cdp and browser:
+                    await browser.close()
+                elif browser_context:
                     await browser_context.close()
-                    return False
-                
-                # Cho page load lai sau khi dang nhap
-                await page.wait_for_timeout(4000)
+                return False
 
             # Tim o chon kho (ant-select-selector o tren cung ben phai)
             try:
                 select_locator = page.locator(".ant-select-selector").first
-                await select_locator.wait_for(state="visible", timeout=10000)
+                await select_locator.wait_for(state="visible", timeout=15000)
                 log.info("Tim thay o chon kho.")
             except Exception as e:
-                log.error(f"Khong tim thay o chon kho: {e}")
+                log.error(f"[ERR_DOM] Khong tim thay o chon kho (selector '.ant-select-selector'). Chi tiet: {e}")
                 # Chup anh debug de kiem tra giao dien
                 debug_path = os.path.join(LOG_DIR, "debug_collect_money_err.png")
                 await page.screenshot(path=debug_path)
-                await send_telegram_message(f"❌ <b>Bot không tìm thấy ô chọn kho trên trang.</b> Đã lưu ảnh debug tại {debug_path}.")
-                await browser_context.close()
+                await send_telegram_message(f"❌ <b>Bot không tìm thấy ô chọn kho trên trang GHN.</b> Có thể giao diện đã thay đổi hoặc load quá chậm.")
+                if using_cdp and browser:
+                    await browser.close()
+                elif browser_context:
+                    await browser_context.close()
                 return False
 
             # Click mo dropdown chon kho
@@ -313,11 +334,14 @@ async def run_collect_money_check():
                     break
             
             count = len(warehouse_names)
-            log.info(f"Tong cong da tim thay {count} kho trong dropdown: {warehouse_names}")
+            log.info(f"Tong cong da tim thay {count} kho trong dropdown.")
             if count == 0:
-                log.error("Khong doc duoc danh sach kho.")
-                await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown.</b>")
-                await browser_context.close()
+                log.error("[ERR_DOM] Khong doc duoc danh sach kho tu dropdown Virtual List (rc-virtual-list-holder).")
+                await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown GHN.</b>")
+                if using_cdp and browser:
+                    await browser.close()
+                elif browser_context:
+                    await browser_context.close()
                 return False
             
             # Click lai de dong dropdown
@@ -392,7 +416,7 @@ async def run_collect_money_check():
                     await page.wait_for_timeout(2500)
                     rows_count = await rows_locator.count()
                     if rows_count == 0:
-                        log.warn(f"Khong load duoc bang du lieu cua kho {wh_name}")
+                        log.warning(f"Khong load duoc bang du lieu cua kho {wh_name}")
                         error_warehouses.append(wh_name)
                         continue
                 
@@ -403,6 +427,7 @@ async def run_collect_money_check():
                     cells_count = await cells.count()
                     
                     if cells_count < 7:
+                        log.warning(f"[ERR_DOM] Dong du lieu thu {r_idx} tai kho {wh_name} chi co {cells_count} cot (can it nhat 7 cot).")
                         continue
                     
                     crep_text = await cells.nth(0).inner_text()
@@ -438,6 +463,7 @@ async def run_collect_money_check():
                     dh_ban_kiem = parse_int(dh_ban_kiem_str)
                     deadline = (await cells.nth(6).inner_text()).strip()
                     
+                    # Dieu kien bao cao (Yêu cầu 5)
                     if dh_thu_tien > 0 or dh_ban_kiem > 0 or dh_luu_kho > 0:
                         warehouse_issues.append({
                             "emp_code": emp_code,
@@ -457,16 +483,45 @@ async def run_collect_money_check():
                     })
             
             # Gui bao cao den Telegram
-            await send_report(warehouse_names, report_data, error_warehouses)
+            telegram_success = await send_report(warehouse_names, report_data, error_warehouses)
+            
+            # Tính toán các số liệu thống kê bắt buộc để ghi log (Yêu cầu 8)
+            total_wh_checked = len(warehouse_names)
+            total_emp_thu_tien = 0
+            total_emp_ban_kiem = 0
+            total_dh_thu_tien = 0
+            total_dh_ban_kiem = 0
+            for wh in report_data:
+                for emp in wh["issues"]:
+                    if emp["dh_thu_tien"] > 0:
+                        total_emp_thu_tien += 1
+                        total_dh_thu_tien += emp["dh_thu_tien"]
+                    if emp["dh_ban_kiem"] > 0:
+                        total_emp_ban_kiem += 1
+                        total_dh_ban_kiem += emp["dh_ban_kiem"]
+
+            log.info("=== THONG KE CHAY BOT ===")
+            log.info(f"Thoi gian bat dau check: {start_time_str}")
+            log.info(f"So kho da kiem tra: {total_wh_checked}")
+            log.info(f"So nhan vien con don chua thu tien: {total_emp_thu_tien}")
+            log.info(f"So nhan vien con don chua ban kiem: {total_emp_ban_kiem}")
+            log.info(f"Tong don can thu tien: {total_dh_thu_tien}")
+            log.info(f"Tong don can ban kiem: {total_dh_ban_kiem}")
+            log.info(f"Telegram gui thanh cong hay that bai: {'Thanh cong' if telegram_success else 'That bai'}")
+            if error_warehouses:
+                log.info(f"Loi chi tiet (Danh sach kho gap su co): {error_warehouses}")
             log.info("=== HOAN THANH BOT THU TIEN - BAN KIEM ===")
-            if using_cdp:
+            
+            # Sửa lỗi đóng trình duyệt CDP crash (Yêu cầu 10)
+            if using_cdp and browser:
                 await browser.close()
-            else:
+            elif browser_context:
                 await browser_context.close()
             return True
             
     except Exception as e:
         log.exception(f"Loi nghiem trong luc chay bot: {e}")
+        # Đóng trình duyệt an toàn
         if using_cdp and browser:
             try:
                 await browser.close()
