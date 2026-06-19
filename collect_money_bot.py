@@ -79,7 +79,6 @@ async def send_telegram_message(text: str) -> bool:
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
-        # Truncate message if exceeds telegram limit (4096)
         if len(text) > 4000:
             text = text[:3900] + "\n\n<i>[Báo cáo bị cắt bớt do quá dài...]</i>"
             
@@ -132,36 +131,36 @@ async def send_report(warehouse_names, report_data, error_warehouses) -> bool:
         total_dh_luu_kho = sum(sum(emp["dh_luu_kho"] for emp in wh["issues"]) for wh in report_data)
         total_dh_ban_kiem = sum(sum(emp["dh_ban_kiem"] for emp in wh["issues"]) for wh in report_data)
         
-        # Format theo yeu cau o muc 5
+        # Format theo yeu cau o muc 7 mới
         msg = (
             f"🚨 <b>BÁO CÁO THU TIỀN - BẮN KIỂM</b>\n"
             f"Thời gian: {now_str}\n\n"
-            f"Tổng quan:\n"
-            f"* Tổng kho đã kiểm tra: {total_wh_checked}\n"
-            f"* Kho còn tồn: {total_wh_issues}\n"
-            f"* Tổng nhân viên còn tồn: {total_emp_issues}\n"
-            f"* Tổng ĐH cần thu tiền: {total_dh_thu_tien}\n"
-            f"* Tổng ĐH cần lưu kho: {total_dh_luu_kho}\n"
-            f"* Tổng ĐH cần bắn kiểm: {total_dh_ban_kiem}\n\n"
-            f"Chi tiết theo kho:\n\n"
+            f"<b>Tổng quan:</b>\n"
+            f"- Tổng kho đã kiểm tra: {total_wh_checked}\n"
+            f"- Kho còn tồn: {total_wh_issues}\n"
+            f"- Tổng nhân viên còn tồn: {total_emp_issues}\n"
+            f"- Tổng ĐH cần thu tiền: {total_dh_thu_tien}\n"
+            f"- Tổng ĐH cần lưu kho: {total_dh_luu_kho}\n"
+            f"- Tổng ĐH cần bắn kiểm: {total_dh_ban_kiem}\n\n"
+            f"<b>Chi tiết theo kho:</b>\n\n"
         )
         
         for idx, wh in enumerate(report_data, 1):
             msg += f"{idx}. <b>{wh['wh_name']}</b>\n"
             for emp in wh["issues"]:
                 emp_label = f"{emp['emp_code']} - {emp['emp_name']}" if emp['emp_code'] else emp['emp_name']
-                msg += f"   • <b>{emp_label}</b>\n"
+                msg += f"• <b>{emp_label}</b>\n"
                 if emp['dh_thu_tien'] > 0:
-                    msg += f"     * ĐH cần thu tiền: {emp['dh_thu_tien']}\n"
+                    msg += f"  - ĐH cần thu tiền: {emp['dh_thu_tien']}\n"
                     tct = emp['tien_can_thu'].strip()
                     if tct and tct != "0" and tct != "0đ":
-                        msg += f"     * Tiền cần thu: {tct}\n"
+                        msg += f"  - Tiền cần thu: {tct}\n"
                 if emp['dh_luu_kho'] > 0:
-                    msg += f"     * ĐH cần lưu kho: {emp['dh_luu_kho']}\n"
+                    msg += f"  - ĐH cần lưu kho: {emp['dh_luu_kho']}\n"
                 if emp['dh_ban_kiem'] > 0:
-                    msg += f"     * ĐH cần bắn kiểm: {emp['dh_ban_kiem']}\n"
+                    msg += f"  - ĐH cần bắn kiểm: {emp['dh_ban_kiem']}\n"
                 if emp['deadline']:
-                    msg += f"     * Hoàn thành trước: {emp['deadline']}\n"
+                    msg += f"  - Hoàn thành trước: {emp['deadline']}\n"
             msg += "\n"
             
         msg += "Yêu cầu các kho kiểm tra và hoàn tất thu tiền/bắn kiểm đúng hạn."
@@ -178,12 +177,8 @@ async def run_collect_money_check() -> bool:
     start_time_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")
     log.info("=== BAT DAU KIEM TRA THU TIEN - BAN KIEM ===")
     
-    user_data_dir = os.path.join(LOG_DIR, "playwright_session")
-    log.info(f"Khoi dong trinh duyet voi profile tai: {user_data_dir}...")
-    
     using_cdp = False
     browser = None
-    browser_context = None
     page = None
     
     try:
@@ -204,26 +199,11 @@ async def run_collect_money_check() -> bool:
                     page = await context.new_page()
                     log.info("Khong tim thay tab nhanh.ghn.vn, da mo tab moi tren Chrome CDP.")
             except Exception as cdp_err:
-                log.warning(f"Khong the ket noi CDP: {cdp_err}. Chuyen sang launch persistent context...")
-                try:
-                    browser_context = await p.chromium.launch_persistent_context(
-                        user_data_dir=user_data_dir,
-                        headless=False,
-                        args=[
-                            "--no-first-run",
-                            "--disable-blink-features=AutomationControlled"
-                        ],
-                        viewport={"width": 1600, "height": 900}
-                    )
-                    page = browser_context.pages[0] if browser_context.pages else await browser_context.new_page()
-                except Exception as e:
-                    err_msg = (
-                        f"❌ <b>Bot không thể khởi động trình duyệt:</b>\n"
-                        f"Chi tiết lỗi: <code>{html.escape(str(e))}</code>"
-                    )
-                    log.error(f"Khong the launch_persistent_context: {e}")
-                    await send_telegram_message(err_msg)
-                    return False
+                # Nếu không kết nối được Chrome debug (Yêu cầu 5)
+                err_msg = "BOT không kết nối được Chrome debug. Vui lòng mở file start_chrome_debug và kiểm tra trang GHN đã đăng nhập."
+                log.error(f"{err_msg}. Chi tiet: {cdp_err}")
+                await send_telegram_message(err_msg)
+                return False
 
             # Load trang GHN (thử tối đa 3 lần)
             load_success = False
@@ -245,25 +225,21 @@ async def run_collect_money_check() -> bool:
                 await send_telegram_message("❌ <b>Bot không thể mở trang GHN do kết nối mạng hoặc trang load quá chậm.</b>")
                 if using_cdp and browser:
                     await browser.close()
-                elif browser_context:
-                    await browser_context.close()
                 return False
             
             current_url = page.url
             log.info(f"Page URL hien tai: {current_url}")
             
-            # Kiem tra phien dang nhap
+            # Kiem tra phien dang nhap (Yêu cầu 6)
             is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
             if is_login_page:
                 log.warning("Phien dang nhap GHN da het han, can dang nhap lai.")
-                await send_telegram_message("⚠️ <b>Phiên đăng nhập GHN đã hết hạn, cần đăng nhập lại.</b> Vui lòng mở trình duyệt và hoàn tất đăng nhập GHN.")
+                await send_telegram_message("Phiên đăng nhập GHN đã hết hạn. Vui lòng đăng nhập lại trên Chrome debug.")
                 if using_cdp and browser:
                     await browser.close()
-                elif browser_context:
-                    await browser_context.close()
                 return False
 
-            # Dropdown load loop - Thử reload lại trang tối đa 3 lần nếu không tải được dropdown hoặc dropdown trống (Yêu cầu 2)
+            # Dropdown load loop - Thử reload lại trang tối đa 3 lần nếu không tải được dropdown hoặc dropdown trống
             dropdown_success = False
             warehouse_names = []
             
@@ -300,7 +276,7 @@ async def run_collect_money_check() -> bool:
                 # Cuộn ảo để đọc hết
                 last_len = -1
                 no_new_count = 0
-                max_scrolls = 150 # Tăng giới hạn cuộn để lấy toàn bộ kho (không giới hạn 25 kho)
+                max_scrolls = 150
                 
                 for scroll_idx in range(max_scrolls):
                     options_locator = page.locator(".ant-select-dropdown .ant-select-item-option")
@@ -351,8 +327,6 @@ async def run_collect_money_check() -> bool:
                 await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown GHN.</b>")
                 if using_cdp and browser:
                     await browser.close()
-                elif browser_context:
-                    await browser_context.close()
                 return False
             
             report_data = []
@@ -453,7 +427,6 @@ async def run_collect_money_check() -> bool:
                     if not emp_code and not emp_name:
                         continue
                         
-                    # Loai dong tong / footer
                     name_lower = emp_name.lower()
                     code_lower = emp_code.lower()
                     if "tổng" in name_lower or "tổng" in code_lower or "cộng" in name_lower or "cộng" in code_lower:
@@ -513,8 +486,6 @@ async def run_collect_money_check() -> bool:
             
             if using_cdp and browser:
                 await browser.close()
-            elif browser_context:
-                await browser_context.close()
             return True
             
     except Exception as e:
@@ -522,11 +493,6 @@ async def run_collect_money_check() -> bool:
         if using_cdp and browser:
             try:
                 await browser.close()
-            except:
-                pass
-        elif browser_context:
-            try:
-                await browser_context.close()
             except:
                 pass
         await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")

@@ -7,10 +7,6 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from collect_money_bot import run_collect_money_check
 
-# Setup encoding for windows stdout / log output
-if os.name == "nt":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 def load_env():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     for _ in range(4):
@@ -102,7 +98,7 @@ async def run_collect_money_scheduler():
     if not sent_test:
         log.error("Không thể gửi tin nhắn test khởi động. Vui lòng kiểm tra lại cấu hình Telegram.")
         
-    SCHEDULE = [(9, 30, "09:30"), (10, 30, "10:30"), (11, 0, "11:00")]
+    SCHEDULE = [(21, 30, "21:30"), (22, 30, "22:30"), (23, 0, "23:00")]
     
     # Log lần chạy tiếp theo lúc khởi động
     log_next_run(datetime.now(TZ), SCHEDULE)
