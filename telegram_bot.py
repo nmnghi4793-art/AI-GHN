@@ -1377,6 +1377,9 @@ def log_status(message: str):
     if len(BOT_STATUS["logs"]) > 50:
         BOT_STATUS["logs"].pop(0)
 
+# Biến toàn cục để theo dõi và hủy task warning loop cũ tránh bị gửi lặp
+ACTIVE_WARNING_LOOP_TASK = None
+
 # Hàm chạy bot trong nền
 async def run_bot():
     global BOT_STATUS
@@ -1681,8 +1684,15 @@ async def run_bot():
             await application.updater.start_polling(drop_pending_updates=True)
 
             
-            # Khởi chạy background loop cho báo cáo cảnh báo hàng ngày
-            asyncio.create_task(scheduled_warning_loop(application))
+            # Khởi chạy background loop cho báo cáo cảnh báo hàng ngày (hủy loop cũ nếu có)
+            global ACTIVE_WARNING_LOOP_TASK
+            if ACTIVE_WARNING_LOOP_TASK and not ACTIVE_WARNING_LOOP_TASK.done():
+                try:
+                    ACTIVE_WARNING_LOOP_TASK.cancel()
+                    log_status("Đã hủy background task scheduled_warning_loop cũ.")
+                except Exception as cancel_err:
+                    print(f"[BOT] Lỗi khi hủy loop cũ: {cancel_err}")
+            ACTIVE_WARNING_LOOP_TASK = asyncio.create_task(scheduled_warning_loop(application))
 
             
             BOT_STATUS["initialized"] = True
@@ -1728,6 +1738,21 @@ async def run_bot():
             _tb.print_exc()  # In ra console Railway để debug
             BOT_STATUS["last_error"] = f"{err_msg} (xem server log để biết chi tiết)"
             BOT_STATUS["running"] = False
+            
+            # Dọn dẹp tài nguyên để tránh leak/Conflict khi retry
+            if application:
+                try:
+                    log_status("Đang dọn dẹp tài nguyên Bot cũ để tránh Conflict...")
+                    if application.updater and application.updater.running:
+                        await application.updater.stop()
+                    if application.running:
+                        await application.stop()
+                    if application.initialized:
+                        await application.shutdown()
+                    log_status("Đã dọn dẹp tài nguyên Bot cũ thành công.")
+                except Exception as cleanup_err:
+                    log_status(f"Lỗi khi clean up application: {cleanup_err}")
+                application = None
             
             # Đợi một chút rồi thử lại (tránh trường hợp xung đột cổng/instance tạm thời)
             log_status(f"Thử lại sau {retry_delay} giây...")
