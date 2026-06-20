@@ -222,7 +222,10 @@ async def run_collect_money_check() -> bool:
             
             if not load_success:
                 log.error("Khong the load trang GHN sau 3 lan thu.")
-                await send_telegram_message("❌ <b>Bot không thể mở trang GHN do kết nối mạng hoặc trang load quá chậm.</b>")
+                await send_telegram_message(
+                    "⚠️ BOT THU TIỀN/BẮN KIỂM KHÔNG HOẠT ĐỘNG\n"
+                    "Lý do: Lỗi tải trang GHN (không load được trang sau 3 lần thử)."
+                )
                 if using_cdp and browser:
                     await browser.close()
                 return False
@@ -230,11 +233,17 @@ async def run_collect_money_check() -> bool:
             current_url = page.url
             log.info(f"Page URL hien tai: {current_url}")
             
-            # Kiem tra phien dang nhap (Yêu cầu 6)
+            # Kiem tra phien dang nhap
             is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
             if is_login_page:
                 log.warning("Phien dang nhap GHN da het han, can dang nhap lai.")
-                await send_telegram_message("Phiên đăng nhập GHN đã hết hạn. Vui lòng đăng nhập lại trên Chrome debug.")
+                warning_text = (
+                    "⚠️ BOT THU TIỀN/BẮN KIỂM KHÔNG HOẠT ĐỘNG\n"
+                    "Lý do: Phiên đăng nhập GHN đã hết hạn hoặc chưa đăng nhập.\n"
+                    "Vui lòng mở máy, bấm start.bat và đăng nhập lại link:\n"
+                    "https://nhanh.ghn.vn/lastmile/receipt/collect-money-management"
+                )
+                await send_telegram_message(warning_text)
                 if using_cdp and browser:
                     await browser.close()
                 return False
@@ -324,7 +333,10 @@ async def run_collect_money_check() -> bool:
             
             if not dropdown_success or total_dropdown_found == 0:
                 log.error("[ERR_DOM] Khong doc duoc danh sach kho tu dropdown Virtual List sau 3 lan thu.")
-                await send_telegram_message("❌ <b>Bot không thể đọc danh sách kho từ dropdown GHN.</b>")
+                await send_telegram_message(
+                    "⚠️ BOT THU TIỀN/BẮN KIỂM KHÔNG HOẠT ĐỘNG\n"
+                    "Lý do: Không tìm thấy bảng hoặc ô chọn kho \"THU TIỀN - BẮN KIỂM\"."
+                )
                 if using_cdp and browser:
                     await browser.close()
                 return False
@@ -391,6 +403,15 @@ async def run_collect_money_check() -> bool:
                     continue
                 
                 # Lay dong du lieu
+                table_locator = page.locator(".ant-table").first
+                try:
+                    await table_locator.wait_for(state="visible", timeout=5000)
+                except Exception as tbl_err:
+                    log.error(f"Khong tim thay bang 'THU TIỀN - BẮN KIỂM' cho kho {wh_name}: {tbl_err}")
+                    await send_telegram_message(f"⚠️ BOT THU TIỀN/BẮN KIỂM KHÔNG HOẠT ĐỘNG\nLý do: Không tìm thấy bảng dữ liệu 'THU TIỀN - BẮN KIỂM' cho kho {wh_name}.")
+                    error_warehouses.append(wh_name)
+                    continue
+
                 rows_locator = page.locator(".ant-table-tbody tr.ant-table-row")
                 rows_count = await rows_locator.count()
                 

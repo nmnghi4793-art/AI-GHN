@@ -1401,15 +1401,31 @@ async def run_bot():
     else:
         BOT_STATUS["gemini_status"] = "Chưa cấu hình"
 
-    if not token:
-        log_status("WARNING: Biến TELEGRAM_BOT_TOKEN chưa được cấu hình. Bỏ qua khởi động bot.")
-        return
-        
     if os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true":
         log_status("INFO: Telegram Bot polling bị vô hiệu hóa qua biến môi trường DISABLE_TELEGRAM_POLLING.")
         return
+
+    # Kiểm tra nếu chạy ở local và Railway đang chạy
+    is_local = not os.environ.get("RAILWAY_ENVIRONMENT")
+    railway_running = False
+    if is_local:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get("https://ai-ghn-gxt.up.railway.app/")
+                if resp.status_code == 200:
+                    railway_running = True
+        except Exception:
+            pass
+
+    if railway_running:
+        log_status("BOT đã chạy ở instance khác")
+        BOT_STATUS["initialized"] = True
+        BOT_STATUS["running"] = False
+        while True:
+            await asyncio.sleep(3600)
         
-    log_status("Đang khởi động Telegram Bot...")
+    log_status("BOT Telegram đã khởi động, đang polling...")
     
     retry_delay = 10
     while True:
@@ -1661,7 +1677,7 @@ async def run_bot():
             BOT_STATUS["initialized"] = True
             BOT_STATUS["running"] = True
             BOT_STATUS["last_error"] = None
-            log_status("Bot đã khởi động thành công và đang lắng nghe tin nhắn.")
+            log_status("BOT Telegram đã khởi động, đang polling...")
             
             # Giữ bot chạy vô hạn (nền)
             while True:
