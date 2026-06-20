@@ -20,10 +20,6 @@ from zoneinfo import ZoneInfo
 import httpx
 from playwright.async_api import async_playwright
 
-# Setup encoding for windows stdout / log output
-if os.name == "nt":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 # Configure logging
 LOG_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(LOG_DIR, "vanhanh_bot.log")
@@ -58,8 +54,6 @@ def load_env():
 load_env()
 
 VANHANH_URL = os.environ.get("VANHANH_URL", "https://ghn-vanhanh.dedyn.io/")
-VANHANH_USERNAME = os.environ.get("VANHANH_USERNAME", "")
-VANHANH_PASSWORD = os.environ.get("VANHANH_PASSWORD", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("WARN_CHAT_ID", "")
 TIMEZONE_STR = os.environ.get("TIMEZONE", "Asia/Ho_Chi_Minh")
@@ -166,33 +160,37 @@ def save_state(state: dict):
 async def run_vanhanh_check() -> bool:
     log.info("=== BAT DAU KIEM TRA TON PHIEU VAN HANH GXT ===")
     
-    if not VANHANH_USERNAME or not VANHANH_PASSWORD:
-        log.error("Chua cau hinh VANHANH_USERNAME hoac VANHANH_PASSWORD")
-        await send_telegram_message("❌ <b>Bot vận hành lỗi:</b> Thiếu tài khoản đăng nhập (VANHANH_USERNAME/VANHANH_PASSWORD).")
-        return False
-
     state = load_state()
     active_tickets = state.get("active_tickets", {})
 
     now_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M")
     
+    browser = None
+    using_cdp = False
     try:
         async with async_playwright() as p:
-            log.info("Khoi dong trinh duyet Playwright headlessly...")
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            
-            log.info(f"Di den trang: {VANHANH_URL}")
-            await page.goto(VANHANH_URL, wait_until="domcontentloaded")
-            await page.wait_for_timeout(2000)
+            try:
+                log.info("Dang ket noi Chrome CDP...")
+                browser = await p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+                log.info("Ket noi Chrome CDP thanh cong.")
+                using_cdp = True
+            except Exception as cdp_err:
+                log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
+                return False
 
-            # Đăng nhập
-            log.info("Tien hanh dang nhap...")
-            await page.locator('label:has-text("Tài khoản") input, input').first.fill(VANHANH_USERNAME)
-            await page.locator('input[type="password"]').fill(VANHANH_PASSWORD)
-            await page.locator('button:has-text("Đăng nhập")').click()
+            context = browser.contexts[0]
+            page = None
+            for p_obj in context.pages:
+                if "ghn-vanhanh.dedyn.io" in p_obj.url or "baocao.ghn.vn" in p_obj.url:
+                    page = p_obj
+                    log.info("Tim thay tab van hanh dang mo tren Chrome CDP.")
+                    break
             
-            await page.wait_for_timeout(3000)
+            if not page:
+                page = await context.new_page()
+                log.info("Khong tim thay tab van hanh, da mo tab moi tren Chrome CDP.")
+                await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
+                await page.wait_for_timeout(2000)
 
             # Chờ trang bưu cục load ra
             loaded = False
@@ -204,7 +202,7 @@ async def run_vanhanh_check() -> bool:
                     break
                 except Exception:
                     log.warning(f"Lan thu {attempt} load danh sach kho that bai. Dang tai lai trang...")
-                    await page.reload()
+                    await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
                     await page.wait_for_timeout(3000)
 
             if not loaded:
@@ -337,7 +335,6 @@ async def run_vanhanh_check() -> bool:
                             elif ticket_id_only and line_text.startswith(ticket_id_only):
                                 rest_text = line_text[len(ticket_id_only):].strip()
                             
-                            import html
                             escaped_code = html.escape(ticket_code_raw if ticket_code_raw else ticket_id_only)
                             escaped_rest = html.escape(rest_text)
                             
@@ -386,7 +383,6 @@ async def run_vanhanh_check() -> bool:
             state["active_tickets"] = active_tickets
             save_state(state)
 
-            await browser.close()
             log.info(f"Quet xong. So phieu ton hien tai: {len(active_tickets)}")
 
             # --- PHÂN PHỐI GỬI TELEGRAM THEO KHUNG GIỜ ---
@@ -445,6 +441,13 @@ async def run_vanhanh_check() -> bool:
         log.exception(f"Loi nghiem trong khi kiem tra ton phieu: {e}")
         await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
         return False
+    finally:
+        if browser:
+            try:
+                await browser.close()
+                log.info("Da dong trinh duyet/ngat ket noi.")
+            except Exception as close_err:
+                log.warning(f"Loi khi close/disconnect browser: {close_err}")
 
 async def send_new_tickets_report(new_tickets: dict, now_str: str) -> bool:
     grouped = {}

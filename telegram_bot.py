@@ -1405,20 +1405,24 @@ async def run_bot():
         log_status("INFO: Telegram Bot polling bị vô hiệu hóa qua biến môi trường DISABLE_TELEGRAM_POLLING.")
         return
 
-    # Kiểm tra nếu chạy ở local và Railway đang chạy
+    # Kiểm tra nếu chạy ở local và Railway đang chạy BOT polling
     is_local = not os.environ.get("RAILWAY_ENVIRONMENT")
-    railway_running = False
+    railway_bot_running = False
     if is_local:
         try:
+            admin_key = os.environ.get("ADMIN_KEY", "")
             import httpx
+            headers = {"X-Admin-Key": admin_key} if admin_key else {}
             async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get("https://ai-ghn-gxt.up.railway.app/")
+                resp = await client.get("https://ai-ghn-gxt.up.railway.app/api/bot/status", headers=headers)
                 if resp.status_code == 200:
-                    railway_running = True
+                    data = resp.json()
+                    if data.get("status") == "success" and data.get("bot_running") is True:
+                        railway_bot_running = True
         except Exception:
             pass
 
-    if railway_running:
+    if railway_bot_running:
         log_status("BOT đã chạy ở instance khác")
         BOT_STATUS["initialized"] = True
         BOT_STATUS["running"] = False

@@ -195,30 +195,31 @@ async def run_collect_money_check() -> bool:
                         page = p_obj
                         log.info("Tim thay tab nhanh.ghn.vn dang mo tren Chrome CDP.")
                         break
+                
+                is_tab_already_open = page is not None
                 if not page:
                     page = await context.new_page()
                     log.info("Khong tim thay tab nhanh.ghn.vn, da mo tab moi tren Chrome CDP.")
             except Exception as cdp_err:
-                # Nếu không kết nối được Chrome debug (Yêu cầu 5)
-                err_msg = "BOT không kết nối được Chrome debug. Vui lòng mở file start_chrome_debug và kiểm tra trang GHN đã đăng nhập."
-                log.error(f"{err_msg}. Chi tiet: {cdp_err}")
-                await send_telegram_message(err_msg)
+                log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
                 return False
 
-            # Load trang GHN (thử tối đa 3 lần)
-            load_success = False
-            for attempt in range(1, 4):
-                try:
-                    log.info(f"Mo trang kiem tra (Lan {attempt}/3): {GHN_COLLECT_URL}")
-                    await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded", timeout=30000)
-                    await page.wait_for_timeout(3000)
-                    load_success = True
-                    break
-                except Exception as goto_err:
-                    log.warning(f"Loi load trang lan {attempt}: {goto_err}")
-                    if attempt < 3:
-                        log.info("Cho 5 giay va reload lai trang...")
-                        await asyncio.sleep(5)
+            # Load trang GHN nếu chưa mở sẵn (thử tối đa 3 lần)
+            load_success = True
+            if not is_tab_already_open:
+                load_success = False
+                for attempt in range(1, 4):
+                    try:
+                        log.info(f"Mo trang kiem tra (Lan {attempt}/3): {GHN_COLLECT_URL}")
+                        await page.goto(GHN_COLLECT_URL, wait_until="domcontentloaded", timeout=30000)
+                        await page.wait_for_timeout(3000)
+                        load_success = True
+                        break
+                    except Exception as goto_err:
+                        log.warning(f"Loi load trang lan {attempt}: {goto_err}")
+                        if attempt < 3:
+                            log.info("Cho 5 giay va reload lai trang...")
+                            await asyncio.sleep(5)
             
             if not load_success:
                 log.error("Khong the load trang GHN sau 3 lan thu.")
@@ -226,8 +227,6 @@ async def run_collect_money_check() -> bool:
                     "⚠️ BOT THU TIỀN/BẮN KIỂM KHÔNG HOẠT ĐỘNG\n"
                     "Lý do: Lỗi tải trang GHN (không load được trang sau 3 lần thử)."
                 )
-                if using_cdp and browser:
-                    await browser.close()
                 return False
             
             current_url = page.url
@@ -505,19 +504,19 @@ async def run_collect_money_check() -> bool:
                 log.info(f"Lỗi chi tiết (Danh sách kho gặp sự cố): {error_warehouses}")
             log.info("=== HOAN THANH BOT THU TIEN - BAN KIEM ===")
             
-            if using_cdp and browser:
-                await browser.close()
             return True
             
     except Exception as e:
         log.exception(f"Loi nghiem trong luc chay bot: {e}")
-        if using_cdp and browser:
-            try:
-                await browser.close()
-            except:
-                pass
         await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
         return False
+    finally:
+        if browser:
+            try:
+                await browser.close()
+                log.info("Da dong trinh duyet/ngat ket noi.")
+            except Exception as close_err:
+                log.warning(f"Loi khi close/disconnect browser: {close_err}")
 
 if __name__ == "__main__":
     asyncio.run(run_collect_money_check())
