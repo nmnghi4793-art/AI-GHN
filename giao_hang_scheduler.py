@@ -420,11 +420,11 @@ def build_message(filtered, kho_summary, sheet_ok, now,
 # =========================================================
 # GUI TELEGRAM
 # =========================================================
-async def send_telegram(text: str) -> bool:
+async def send_telegram(text: str) -> int | None:
     chat_id = _get_chat_id()
     if not TELEGRAM_BOT_TOKEN or not chat_id:
         log.error("[GiaoHang] Thieu TELEGRAM_BOT_TOKEN hoac chat ID")
-        return False
+        return None
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -436,11 +436,36 @@ async def send_telegram(text: str) -> bool:
             })
         if r.status_code == 200:
             log.info("[GiaoHang] Gui Telegram OK")
-            return True
+            res = r.json()
+            if res.get("ok"):
+                return res.get("result", {}).get("message_id")
         log.error(f"[GiaoHang] Telegram loi {r.status_code}: {r.text[:200]}")
-        return False
+        return None
     except Exception as e:
         log.error(f"[GiaoHang] Telegram exception: {e}")
+        return None
+
+
+async def pin_telegram_message(message_id: int) -> bool:
+    chat_id = _get_chat_id()
+    if not TELEGRAM_BOT_TOKEN or not chat_id:
+        log.error("[GiaoHang] Thieu TELEGRAM_BOT_TOKEN hoac chat ID khi pin tin nhan")
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/pinChatMessage"
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(url, json={
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "disable_notification": True
+            })
+        if r.status_code == 200 and r.json().get("ok"):
+            log.info(f"[GiaoHang] Pin tin nhan {message_id} thanh cong")
+            return True
+        log.error(f"Gửi báo cáo thành công nhưng pin tin nhắn thất bại. Kiểm tra quyền admin của BOT. (Telegram loi {r.status_code}: {r.text[:200]})")
+        return False
+    except Exception as e:
+        log.error(f"Gửi báo cáo thành công nhưng pin tin nhắn thất bại. Kiểm tra quyền admin của BOT. (Exception: {e})")
         return False
 
 
@@ -476,13 +501,17 @@ async def run_giao_hang_report(label: str = "manual"):
             filtered, kho_sum, sheet_ok, now,
             comparison=comparison, is_afternoon=is_afternoon
         )
-        ok = await send_telegram(msg)
+        msg_id = await send_telegram(msg)
 
-        if ok:
+        if msg_id:
             _sent_today[label] = today
             if label == "09:30":
                 save_morning_snapshot(filtered, today)
             log.info(f"[GiaoHang] XONG [{label}]")
+            
+            # Pin message at 09:30 and 13:30
+            if label in ("09:30", "13:30"):
+                await pin_telegram_message(msg_id)
         else:
             log.error(f"[GiaoHang] Gui Telegram that bai [{label}]")
 

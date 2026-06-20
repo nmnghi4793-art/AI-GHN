@@ -222,7 +222,6 @@ if not os.environ.get("SHEET_ID"):
           "Set SHEET_ID in Railway environment for production.")
 GIDS = {
     "gtc":       "0",
-    "ontime":    "25240142",
     "returns":   "1169438164",
     "nhan_su":   "660071435",
     "personnel": "660071435",
@@ -403,8 +402,8 @@ def get_gtc_latest(force: bool = False):
 # ---- DATA ONTIME ----
 @app.get("/api/kpi/ontime", dependencies=[Depends(require_api_token)])
 def get_ontime(force: bool = False):
-    data, last_sync = read_csv("ontime", force)
-    return {"data": data, "last_sync": last_sync}
+    import time
+    return {"data": [], "last_sync": time.time()}
 
 # ---- DATA TRẢ HÀNG ----
 @app.get("/api/returns", dependencies=[Depends(require_api_token)])
@@ -488,7 +487,7 @@ def get_overview(force: bool = False):
     gtc_data, gtc_sync     = read_csv("gtc", force)
     b2b_data, _            = read_csv("b2b", force)
     backlog_data, _        = read_csv("backlog", force)
-    ontime_data, _         = read_csv("ontime", force)
+    ontime_data            = []
     returns_data, _        = read_csv("returns", force)
     ns_data, _             = read_csv("nang_suat", force)
     warning_data, warn_sync = read_csv("warnings", force)
@@ -522,16 +521,8 @@ def get_overview(force: bool = False):
     total_don_gtc = sum(int(r.get("Số đơn GTC", 0) or 0) for r in latest_rows)
     avg_gtc = round((total_don_gtc / total_don_gan * 100), 2) if total_don_gan else 0
 
-    # Avg Ontime latest day
-    on_dates = sorted(set(r.get("Ngày", "") for r in ontime_data if r.get("Ngày")), reverse=True)
-    on_latest = on_dates[0] if on_dates else ""
-    on_latest_rows = [r for r in ontime_data if r.get("Ngày") == on_latest]
-    ontime_vals = []
-    for r in on_latest_rows:
-        val = parse_pct_vn(r.get("%GTC/ nhận mới", ""))
-        if val > 0:
-            ontime_vals.append(val)
-    avg_ontime = round(sum(ontime_vals) / len(ontime_vals), 2) if ontime_vals else 0
+    # Avg Ontime (Không sử dụng dữ liệu Ontime)
+    avg_ontime = "Không sử dụng dữ liệu Ontime"
 
     # Backlog count
     total_backlog = len(backlog_data)

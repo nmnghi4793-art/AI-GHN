@@ -289,7 +289,13 @@ function renderOverviewCards() {
     const ov = state.overview;
     document.getElementById('val-gtc').textContent = (ov.avg_gtc || 0) + '%';
     const ontimeEl = document.getElementById('val-ontime');
-    if (ontimeEl) ontimeEl.textContent = (ov.avg_ontime || 0) + '%';
+    if (ontimeEl) {
+        if (ov.avg_ontime === "Không sử dụng dữ liệu Ontime") {
+            ontimeEl.textContent = "Không sử dụng dữ liệu Ontime";
+        } else {
+            ontimeEl.textContent = (ov.avg_ontime || 0) + '%';
+        }
+    }
     document.getElementById('val-backlog').textContent = ov.total_backlog_7n || 0;
     document.getElementById('val-b2b').textContent = ov.total_b2b_priority || 0;
     document.getElementById('val-fd').textContent = (ov.avg_fd_return || 0) + '%';

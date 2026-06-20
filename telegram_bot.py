@@ -1436,17 +1436,40 @@ async def run_bot():
                 from datetime import datetime
                 token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
-                async def _reply(text):
+                async def _reply(text) -> int | None:
                     try:
                         async with httpx.AsyncClient(timeout=30) as c:
-                            await c.post(
+                            r = await c.post(
                                 f"https://api.telegram.org/bot{token}/sendMessage",
                                 json={"chat_id": chat_id, "text": text,
                                       "parse_mode": "HTML",
                                       "disable_web_page_preview": False}
                             )
+                        if r.status_code == 200:
+                            res = r.json()
+                            if res.get("ok"):
+                                return res.get("result", {}).get("message_id")
                     except Exception as re_err:
                         print(f"[BOT ERROR] Cannot send reply to chat {chat_id}: {re_err}")
+                    return None
+
+                async def _pin_message(c_id: int, msg_id: int):
+                    try:
+                        async with httpx.AsyncClient(timeout=30) as c:
+                            r = await c.post(
+                                f"https://api.telegram.org/bot{token}/pinChatMessage",
+                                json={
+                                    "chat_id": c_id,
+                                    "message_id": msg_id,
+                                    "disable_notification": True
+                                }
+                            )
+                        if r.status_code == 200 and r.json().get("ok"):
+                            print(f"[BOT] Pin tin nhan {msg_id} thanh cong")
+                        else:
+                            print(f"[BOT ERROR] Gửi báo cáo thành công nhưng pin tin nhắn thất bại. Kiểm tra quyền admin của BOT. (Telegram loi {r.status_code}: {r.text[:200]})")
+                    except Exception as pin_err:
+                        print(f"[BOT ERROR] Gửi báo cáo thành công nhưng pin tin nhắn thất bại. Kiểm tra quyền admin của BOT. (Exception: {pin_err})")
 
                 try:
                     import giao_hang_scheduler as gs
@@ -1480,11 +1503,14 @@ async def run_bot():
                         filtered, kho_sum, sheet_ok, now,
                         comparison=comparison, is_afternoon=is_afternoon
                     )
-                    await _reply(msg)
+                    sent_msg_id = await _reply(msg)
 
                     if mode == "09:30" and filtered:
                         gs.save_morning_snapshot(filtered, today)
                     gs._sent_today[mode] = today
+
+                    if sent_msg_id and mode in ("09:30", "13:30"):
+                        await _pin_message(chat_id, sent_msg_id)
 
                 except Exception as e:
                     import traceback
