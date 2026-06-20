@@ -166,31 +166,98 @@ async def run_vanhanh_check() -> bool:
     now_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M")
     
     browser = None
+    context = None
+    page = None
     using_cdp = False
+    is_tab_already_open = False
+    is_local = not os.environ.get("RAILWAY_ENVIRONMENT")
+    
     try:
         async with async_playwright() as p:
-            try:
-                log.info("Dang ket noi Chrome CDP...")
-                browser = await p.chromium.connect_over_cdp("http://127.0.0.1:9222")
-                log.info("Ket noi Chrome CDP thanh cong.")
-                using_cdp = True
-            except Exception as cdp_err:
-                log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
-                return False
-
-            context = browser.contexts[0]
-            page = None
-            for p_obj in context.pages:
-                if "ghn-vanhanh.dedyn.io" in p_obj.url or "baocao.ghn.vn" in p_obj.url:
-                    page = p_obj
-                    log.info("Tim thay tab van hanh dang mo tren Chrome CDP.")
-                    break
-            
-            if not page:
+            if is_local:
+                try:
+                    log.info("Dang ket noi Chrome CDP...")
+                    browser = await p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+                    log.info("Ket noi Chrome CDP thanh cong.")
+                    using_cdp = True
+                    
+                    context = browser.contexts[0]
+                    for p_obj in context.pages:
+                        if "ghn-vanhanh.dedyn.io" in p_obj.url or "baocao.ghn.vn" in p_obj.url:
+                            page = p_obj
+                            log.info("Tim thay tab van hanh dang mo tren Chrome CDP.")
+                            break
+                            
+                    is_tab_already_open = page is not None
+                    if not page:
+                        page = await context.new_page()
+                        log.info("Khong tim thay tab van hanh, da mo tab moi tren Chrome CDP.")
+                        await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
+                        await page.wait_for_timeout(2000)
+                except Exception as cdp_err:
+                    log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
+                    return False
+            else:
+                log.info("Dang khoi chay browser headless tren Railway...")
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context()
                 page = await context.new_page()
-                log.info("Khong tim thay tab van hanh, da mo tab moi tren Chrome CDP.")
+                log.info(f"Truy cap trang: {VANHANH_URL}")
                 await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
                 await page.wait_for_timeout(2000)
+
+            # Kiem tra neu dang o trang dang nhap
+            current_url = page.url
+            is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
+            
+            if is_login_page:
+                if is_local:
+                    log.warning("Phien dang nhap GHN da het han hoac chua dang nhap tren Chrome local.")
+                    warning_text = (
+                        "⚠️ BOT VẬN HÀNH KHÔNG HOẠT ĐỘNG\n"
+                        "Lý do: Phiên đăng nhập GHN Vận hành đã hết hạn hoặc chưa đăng nhập.\n"
+                        "Vui lòng đăng nhập lại trên Chrome debug local."
+                    )
+                    await send_telegram_message(warning_text)
+                    if page and not is_tab_already_open:
+                        await page.close()
+                    return False
+                else:
+                    log.info("Dang thuc hien dang nhap tu dong tren Railway...")
+                    username = os.environ.get("VANHANH_USERNAME")
+                    password = os.environ.get("VANHANH_PASSWORD")
+                    if not username or not password:
+                        log.error("Thieu bien moi truong VANHANH_USERNAME hoac VANHANH_PASSWORD tren Railway.")
+                        await send_telegram_message(
+                            "❌ <b>Bot vận hành lỗi trên Railway:</b> Thiếu tài khoản đăng nhập (VANHANH_USERNAME/VANHANH_PASSWORD)."
+                        )
+                        if browser:
+                            await browser.close()
+                        return False
+                        
+                    # Dien thong tin dang nhap
+                    username_input = page.locator('label:has-text("Tài khoản") input, input[type="text"]').first
+                    await username_input.fill(username)
+                    
+                    password_input = page.locator('label:has-text("Mật khẩu") input, input[type="password"]').first
+                    await password_input.fill(password)
+                    
+                    # Click Dang nhap
+                    login_btn = page.locator('button:has-text("Đăng nhập"), button[type="submit"], button').first
+                    await login_btn.click()
+                    await page.wait_for_timeout(3000)
+                    
+                    # Kiem tra ket qua dang nhap
+                    current_url = page.url
+                    if "login" in current_url.lower():
+                        log.error("Dang nhap that bai. Van o lai trang login.")
+                        await send_telegram_message(
+                            "❌ <b>Bot vận hành lỗi trên Railway:</b> Đăng nhập tài khoản thất bại (sai username/password hoặc lỗi hệ thống)."
+                        )
+                        if browser:
+                            await browser.close()
+                        return False
+                    log.info("Dang nhap tu dong thanh cong.")
 
             # Chờ trang bưu cục load ra
             loaded = False
@@ -208,7 +275,11 @@ async def run_vanhanh_check() -> bool:
             if not loaded:
                 log.error("Khong load duoc danh sach kho sau 3 lan thu.")
                 await send_telegram_message("❌ <b>Bot không load được danh sách kho, cần kiểm tra website.</b>")
-                await browser.close()
+                if not using_cdp:
+                    await browser.close()
+                else:
+                    if page and not is_tab_already_open:
+                        await page.close()
                 return False
 
             # Bỏ chọn tất cả bưu cục cũ để chuẩn bị chọn bưu cục mục tiêu
@@ -444,8 +515,13 @@ async def run_vanhanh_check() -> bool:
     finally:
         if browser:
             try:
-                await browser.close()
-                log.info("Da dong trinh duyet/ngat ket noi.")
+                if using_cdp:
+                    if page and not is_tab_already_open:
+                        await page.close()
+                    log.info("Da dong page mo them tren CDP.")
+                else:
+                    await browser.close()
+                    log.info("Da dong trinh duyet headless.")
             except Exception as close_err:
                 log.warning(f"Loi khi close/disconnect browser: {close_err}")
 

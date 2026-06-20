@@ -178,6 +178,7 @@ async def run_collect_money_check() -> bool:
     log.info("=== BAT DAU KIEM TRA THU TIEN - BAN KIEM ===")
     
     using_cdp = False
+    is_tab_already_open = False
     browser = None
     page = None
     
@@ -513,8 +514,13 @@ async def run_collect_money_check() -> bool:
     finally:
         if browser:
             try:
-                await browser.close()
-                log.info("Da dong trinh duyet/ngat ket noi.")
+                if using_cdp:
+                    if page and not is_tab_already_open:
+                        await page.close()
+                    log.info("Da dong page mo them tren CDP.")
+                else:
+                    await browser.close()
+                    log.info("Da dong trinh duyet headless.")
             except Exception as close_err:
                 log.warning(f"Loi khi close/disconnect browser: {close_err}")
 
