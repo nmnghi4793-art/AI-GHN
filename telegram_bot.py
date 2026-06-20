@@ -1447,6 +1447,21 @@ async def run_bot():
             # Khởi tạo application
             application = Application.builder().token(token).build()
             
+            # Đăng ký error handler để xử lý lỗi Conflict và dừng updater để dọn dẹp
+            async def handle_polling_error(update: object, context: ContextTypes.DEFAULT_TYPE):
+                from telegram.error import Conflict
+                error = context.error
+                log_status(f"Error handler caught error: {error} (Type: {type(error)})")
+                if isinstance(error, Conflict):
+                    log_status("PHÁT HIỆN CONFLICT (Có bot khác đang polling). Dừng updater để dọn dẹp và thử lại sau...")
+                    if context.application.updater:
+                        try:
+                            await context.application.updater.stop()
+                        except Exception as stop_err:
+                            log_status(f"Lỗi khi dừng updater: {stop_err}")
+            
+            application.add_error_handler(handle_polling_error)
+            
             # Đăng ký handler lắng nghe tin nhắn văn bản
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
