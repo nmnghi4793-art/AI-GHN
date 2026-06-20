@@ -1,8 +1,14 @@
 import sys
 import os
+import io
 import secrets
 import time
 from collections import defaultdict
+
+# Setup encoding for windows stdout / log output (Windows-only to avoid issues)
+if os.name == "nt":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -149,7 +155,7 @@ async def startup_event():
         asyncio.create_task(run_vanhanh_scheduler())
         print("[STARTUP] Đã kích hoạt Báo Cáo Tồn Phiếu Vận Hành GXT (Mỗi 5 phút).")
     except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký Báo Cáo Tồn Phiếu Vận Hành GXT Scheduler: {e}")
+        print(f"[STARTUP ERROR] Không thể đăng ký Van Hanh Scheduler: {e}")
 
 
 # ---- ADMIN: Test Giao Hang Report ----
