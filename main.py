@@ -662,6 +662,9 @@ def get_bot_status():
             from backend.telegram_bot import BOT_STATUS
         except ImportError:
             from telegram_bot import BOT_STATUS
+            
+        polling_disabled = os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true"
+        
         # Chỉ trả về thông tin cần thiết, KHÔNG lộ token/key/file listing
         return {
             "status": "success",
@@ -669,6 +672,7 @@ def get_bot_status():
             "initialized": BOT_STATUS.get("initialized", False),
             "last_error": BOT_STATUS.get("last_error"),
             "gemini_status": BOT_STATUS.get("gemini_status", "Unknown"),
+            "polling_disabled": polling_disabled,
         }
     except Exception as e:
         return {"status": "error", "message": "Không thể lấy trạng thái Bot."}

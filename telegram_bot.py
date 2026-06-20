@@ -1405,7 +1405,7 @@ async def run_bot():
         log_status("INFO: Telegram Bot polling bị vô hiệu hóa qua biến môi trường DISABLE_TELEGRAM_POLLING.")
         return
 
-    # Kiểm tra nếu chạy ở local và Railway đang chạy BOT polling
+    # Kiểm tra nếu chạy ở local và Railway đang chạy/được deploy
     is_local = not os.environ.get("RAILWAY_ENVIRONMENT")
     railway_bot_running = False
     if is_local:
@@ -1417,8 +1417,15 @@ async def run_bot():
                 resp = await client.get("https://ai-ghn-gxt.up.railway.app/api/bot/status", headers=headers)
                 if resp.status_code == 200:
                     data = resp.json()
-                    if data.get("status") == "success" and data.get("bot_running") is True:
-                        railway_bot_running = True
+                    if data.get("status") == "success":
+                        # Nếu Railway đang hoạt động và không tắt polling, thì local nhường quyền polling
+                        if data.get("polling_disabled") is False:
+                            railway_bot_running = True
+                        elif data.get("bot_running") is True:
+                            railway_bot_running = True
+                elif resp.status_code in (401, 403, 404):
+                    # Nếu trả về mã lỗi HTTP nhưng server vẫn tồn tại -> Railway vẫn online
+                    railway_bot_running = True
         except Exception:
             pass
 
@@ -1683,9 +1690,34 @@ async def run_bot():
             BOT_STATUS["last_error"] = None
             log_status("BOT Telegram đã khởi động, đang polling...")
             
-            # Giữ bot chạy vô hạn (nền)
+            # Giữ bot chạy vô hạn (nền) và giám sát trạng thái updater
             while True:
-                await asyncio.sleep(3600)
+                await asyncio.sleep(10)
+                # Kiểm tra xem updater của application có còn đang chạy không
+                if not application.updater or not application.updater.running:
+                    log_status("WARNING: Updater đã dừng hoạt động (có thể do lỗi mạng hoặc Conflict).")
+                    
+                    # Nếu là local, kiểm tra xem Railway có đang hoạt động không trước khi restart
+                    if is_local:
+                        try:
+                            admin_key = os.environ.get("ADMIN_KEY", "")
+                            headers = {"X-Admin-Key": admin_key} if admin_key else {}
+                            async with httpx.AsyncClient(timeout=3.0) as client:
+                                resp = await client.get("https://ai-ghn-gxt.up.railway.app/api/bot/status", headers=headers)
+                                if resp.status_code == 200:
+                                    data = resp.json()
+                                    if data.get("status") == "success":
+                                        if data.get("polling_disabled") is False or data.get("bot_running") is True:
+                                            log_status("Phát hiện Railway đã hoạt động trở lại. Dừng polling local để nhường quyền.")
+                                            BOT_STATUS["running"] = False
+                                            # Đi vào vòng lặp chờ vô hạn (idle)
+                                            while True:
+                                                await asyncio.sleep(3600)
+                        except Exception:
+                            pass
+                    
+                    # Nếu không phải local hoặc Railway vẫn offline, raise lỗi để restart polling
+                    raise RuntimeError("Updater stopped running")
                 
         except Exception as e:
             err_msg = f"Lỗi chạy Bot: {str(e)}"
