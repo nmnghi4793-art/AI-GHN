@@ -26,4 +26,4 @@ COPY Procfile .
 # Runtime env vars được Railway inject tự động — không cần hardcode gì ở đây
 EXPOSE $PORT
 
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1

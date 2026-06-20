@@ -1372,7 +1372,7 @@ BOT_STATUS = {
 }
 
 def log_status(message: str):
-    print(f"[TELEGRAM BOT] {message}")
+    print(f"[TELEGRAM BOT] {message}", flush=True)
     BOT_STATUS["logs"].append(message)
     if len(BOT_STATUS["logs"]) > 50:
         BOT_STATUS["logs"].pop(0)
