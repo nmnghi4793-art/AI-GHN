@@ -81,11 +81,11 @@ async def run_collect_money_scheduler():
     global _last_triggered
     
     # Tự động vô hiệu hóa nếu chạy trên Cloud (Linux) hoặc có cấu hình tắt
+    # Không chặn khi DISABLE_TELEGRAM_POLLING=true để local scheduler vẫn hoạt động độc lập
     is_disabled_env = os.environ.get("DISABLE_COLLECT_MONEY_SCHEDULER", "").lower() == "true"
-    is_polling_disabled = os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true"
     is_cloud = os.name != "nt"  # nt đại diện cho Windows local
     
-    if is_disabled_env or is_polling_disabled or is_cloud:
+    if is_disabled_env or is_cloud:
         log.info("[CollectMoney] Scheduler bị vô hiệu hóa (chạy trên Cloud/Linux hoặc cấu hình tắt).")
         return
 
@@ -124,3 +124,9 @@ async def run_collect_money_scheduler():
             log.error(f"[CollectMoney] Loi loop scheduler: {e}")
             
         await asyncio.sleep(15) # Check check mỗi 15 giây để chính xác hơn
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(run_collect_money_scheduler())
+    except KeyboardInterrupt:
+        log.info("Scheduler đã dừng bởi người dùng.")
