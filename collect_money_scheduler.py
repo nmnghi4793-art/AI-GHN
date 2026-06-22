@@ -126,6 +126,18 @@ async def run_collect_money_scheduler():
         await asyncio.sleep(15) # Check check mỗi 15 giây để chính xác hơn
 
 if __name__ == "__main__":
+    import socket
+    # Đảm bảo chỉ có duy nhất 1 tiến trình collect_money_scheduler chạy local
+    try:
+        _lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _lock_socket.bind(("127.0.0.1", 19999))
+    except OSError:
+        print("\n[WARN] BOT báo cáo thu tiền/bắn kiểm đã đang hoạt động ở nền.")
+        print("Không khởi chạy thêm bản sao trùng lặp. Thoát trong 3 giây...")
+        import time
+        time.sleep(3)
+        sys.exit(0)
+
     try:
         asyncio.run(run_collect_money_scheduler())
     except KeyboardInterrupt:
