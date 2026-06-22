@@ -207,8 +207,16 @@ async def run_vanhanh_check() -> bool:
                 await page.wait_for_timeout(2000)
 
             # Kiem tra neu dang o trang dang nhap
-            current_url = page.url
-            is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
+            is_login_page = False
+            try:
+                # Chờ tối đa 15 giây cho một trong hai element xuất hiện
+                await page.wait_for_selector('input#bcSearch, input[name="username"]', timeout=15000)
+                if await page.locator('input[name="username"]').is_visible():
+                    is_login_page = True
+            except Exception as e:
+                log.warning(f"Chờ trang load xác định trạng thái thất bại: {e}")
+                current_url = page.url
+                is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
             
             if is_login_page:
                 if is_local:
@@ -236,41 +244,57 @@ async def run_vanhanh_check() -> bool:
                         return False
                         
                     # Dien thong tin dang nhap
-                    username_input = page.locator('label:has-text("Tài khoản") input, input[type="text"]').first
-                    await username_input.fill(username)
-                    
-                    password_input = page.locator('label:has-text("Mật khẩu") input, input[type="password"]').first
-                    await password_input.fill(password)
+                    await page.locator('input[name="username"]').fill(username)
+                    await page.locator('input[name="password"]').fill(password)
                     
                     # Click Dang nhap
-                    login_btn = page.locator('button:has-text("Đăng nhập"), button[type="submit"], button').first
-                    await login_btn.click()
-                    await page.wait_for_timeout(3000)
+                    await page.locator('button[type="submit"], button:has-text("Đăng nhập")').first.click()
                     
-                    # Kiem tra ket qua dang nhap
-                    current_url = page.url
-                    if "login" in current_url.lower():
-                        log.error("Dang nhap that bai. Van o lai trang login.")
-                        await send_telegram_message(
-                            "❌ <b>Bot vận hành lỗi trên Railway:</b> Đăng nhập tài khoản thất bại (sai username/password hoặc lỗi hệ thống)."
-                        )
-                        if browser:
-                            await browser.close()
-                        return False
-                    log.info("Dang nhap tu dong thanh cong.")
+                    # Chờ chuyển hướng thành công
+                    try:
+                        await page.locator("input#bcSearch").wait_for(state="visible", timeout=15000)
+                        log.info("Dang nhap tu dong thanh cong.")
+                    except Exception:
+                        current_url = page.url
+                        if "login" in current_url.lower() or await page.locator('input[name="username"]').is_visible():
+                            log.error("Dang nhap that bai. Van o lai trang login.")
+                            await send_telegram_message(
+                                "❌ <b>Bot vận hành lỗi trên Railway:</b> Đăng nhập tài khoản thất bại (sai username/password hoặc lỗi hệ thống)."
+                            )
+                            if not using_cdp:
+                                await browser.close()
+                            else:
+                                if page and not is_tab_already_open:
+                                    await page.close()
+                            return False
+                        else:
+                            log.warning("Khong tim thay bcSearch sau khi click dang nhap, nhung da roi khoi trang login. Tiep tuc cho...")
 
             # Chờ trang bưu cục load ra
             loaded = False
             for attempt in range(1, 4):
                 try:
-                    await page.locator("input#bcSearch").wait_for(state="visible", timeout=8000)
-                    await page.locator(".bc-item").first.wait_for(state="visible", timeout=5000)
+                    await page.locator("input#bcSearch").wait_for(state="visible", timeout=10000)
+                    await page.locator(".bc-item").first.wait_for(state="visible", timeout=6000)
                     loaded = True
                     break
                 except Exception:
                     log.warning(f"Lan thu {attempt} load danh sach kho that bai. Dang tai lai trang...")
                     await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
-                    await page.wait_for_timeout(3000)
+                    # Chờ trang load lại, kiểm tra xem có bị chuyển về trang login không
+                    try:
+                        await page.wait_for_selector('input#bcSearch, input[name="username"]', timeout=10000)
+                        if await page.locator('input[name="username"]').is_visible():
+                            log.warning("Bị từ chối hoặc bắt login lại sau khi reload trang. Đang đăng nhập lại...")
+                            username = os.environ.get("VANHANH_USERNAME")
+                            password = os.environ.get("VANHANH_PASSWORD")
+                            if username and password:
+                                await page.locator('input[name="username"]').fill(username)
+                                await page.locator('input[name="password"]').fill(password)
+                                await page.locator('button[type="submit"], button:has-text("Đăng nhập")').first.click()
+                                await page.locator("input#bcSearch").wait_for(state="visible", timeout=10000)
+                    except Exception as re_err:
+                        log.warning(f"Lỗi khi đăng nhập lại trong loop thử lại: {re_err}")
 
             if not loaded:
                 log.error("Khong load duoc danh sach kho sau 3 lan thu.")
