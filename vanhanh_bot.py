@@ -20,6 +20,11 @@ from zoneinfo import ZoneInfo
 import httpx
 from playwright.async_api import async_playwright
 
+# Setup encoding for windows stdout / log output (Windows-only to avoid CP1252 issues)
+if os.name == "nt":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 # Configure logging
 LOG_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(LOG_DIR, "vanhanh_bot.log")
@@ -197,7 +202,13 @@ async def run_vanhanh_check() -> bool:
                 except Exception as cdp_err:
                     log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
                     return False
+            else:
+                log.info("Dang khoi chay browser headless tren Railway...")
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context()
+                page = await context.new_page()
 
+            loaded = False
             for attempt in range(1, 4):
                 try:
                     log.info(f"=== Thử load website lần {attempt}/3 ===")
