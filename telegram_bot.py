@@ -618,28 +618,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     # Nếu là chat riêng tư (private)
     if message.chat.type == "private" and not message.text.startswith('/'):
-        warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
-        # Kiểm tra xem người chat riêng với bot có phải admin của group nhận cảnh báo không
-        try:
-            member = await context.bot.get_chat_member(chat_id=warn_chat_id, user_id=update.effective_user.id)
-            if member.status not in ["administrator", "creator"]:
-                await message.reply_text("❌ Bạn không có quyền gửi tin nhắn từ Bot vào nhóm chat vận hành.")
-                return
-        except Exception as e:
-            await message.reply_text(f"❌ Không thể xác thực quyền hạn của bạn trong nhóm chat. Lỗi: {e}")
-            return
-            
-        # Gửi tin nhắn vào nhóm chat dưới danh nghĩa Bot
-        try:
-            await context.bot.send_message(
-                chat_id=warn_chat_id,
-                text=message.text
-            )
-            await message.reply_text("✅ Đã gửi tin nhắn này vào nhóm vận hành dưới danh nghĩa Bot!")
-            return
-        except Exception as e:
-            await message.reply_text(f"❌ Gửi tin nhắn vào nhóm thất bại: {e}")
-            return
+        await message.reply_text("🤖 Bot chỉ nhận báo cáo ODO hợp lệ (gửi ảnh kèm mô tả chuyến đi) hoặc các lệnh điều khiển được cấu hình.")
+        return
 
 def clean_line_prefix(line: str) -> str:
     line = line.strip()
@@ -1380,6 +1360,38 @@ def log_status(message: str):
 # Biến toàn cục để theo dõi và hủy task warning loop cũ tránh bị gửi lặp
 ACTIVE_WARNING_LOOP_TASK = None
 
+async def restore_group_permissions(application):
+    from telegram import ChatPermissions
+    warn_chat_id = os.environ.get("WARN_CHAT_ID", "-1002712779761")
+    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "-1003996027646")
+    
+    default_permissions = ChatPermissions(
+        can_send_messages=True,
+        can_send_audios=True,
+        can_send_documents=True,
+        can_send_photos=True,
+        can_send_videos=True,
+        can_send_video_notes=True,
+        can_send_voice_notes=True,
+        can_send_polls=True,
+        can_send_other_messages=True,
+        can_add_web_page_previews=True,
+        can_change_info=False,
+        can_invite_users=True,
+        can_pin_messages=False,
+        can_manage_topics=False
+    )
+    
+    for cid in [warn_chat_id, telegram_chat_id]:
+        if not cid:
+            continue
+        try:
+            log_status(f"Đang tự động khôi phục quyền chat cho nhóm: {cid}...")
+            await application.bot.set_chat_permissions(chat_id=cid, permissions=default_permissions)
+            log_status(f"Đã khôi phục quyền chat thành công cho nhóm: {cid}")
+        except Exception as e:
+            log_status(f"Không thể tự động khôi phục quyền chat cho nhóm {cid} (BOT chưa là Admin hoặc chat ID sai). Lỗi: {e}")
+
 # Hàm chạy bot trong nền
 async def run_bot():
     global BOT_STATUS
@@ -1470,6 +1482,42 @@ async def run_bot():
 
             async def cmd_ping(update, context):
                 await update.message.reply_text("🟢 Bot đang hoạt động!")
+
+            async def cmd_unlock(update, context):
+                """/unlock — khôi phục quyền chat bình thường cho nhóm"""
+                chat_id = update.effective_chat.id
+                from telegram import ChatPermissions
+                
+                try:
+                    member = await context.bot.get_chat_member(chat_id=chat_id, user_id=update.effective_user.id)
+                    if member.status not in ["administrator", "creator"]:
+                        await update.message.reply_text("❌ Chỉ quản trị viên nhóm mới có quyền thực hiện lệnh này.")
+                        return
+                except Exception as e:
+                    await update.message.reply_text(f"❌ Không thể xác thực quyền của bạn: {e}")
+                    return
+                
+                default_permissions = ChatPermissions(
+                    can_send_messages=True,
+                    can_send_audios=True,
+                    can_send_documents=True,
+                    can_send_photos=True,
+                    can_send_videos=True,
+                    can_send_video_notes=True,
+                    can_send_voice_notes=True,
+                    can_send_polls=True,
+                    can_send_other_messages=True,
+                    can_add_web_page_previews=True,
+                    can_change_info=False,
+                    can_invite_users=True,
+                    can_pin_messages=False,
+                    can_manage_topics=False
+                )
+                try:
+                    await context.bot.set_chat_permissions(chat_id=chat_id, permissions=default_permissions)
+                    await update.message.reply_text("✅ Đã khôi phục quyền gửi tin nhắn bình thường cho tất cả thành viên trong nhóm!")
+                except Exception as e:
+                    await update.message.reply_text(f"❌ Khôi phục quyền thất bại (vui lòng đảm bảo BOT là Admin của nhóm). Lỗi: {e}")
 
             # ---- Lệnh /baocao và /baocao1330 ----
             _report_running = False
@@ -1683,18 +1731,23 @@ async def run_bot():
                     await update.message.reply_text(f"❌ Có lỗi xảy ra khi khởi chạy bot: {e}")
 
             application.add_handler(CmdHandler("ping",       cmd_ping))
+            application.add_handler(CmdHandler("unlock",     cmd_unlock))
             application.add_handler(CmdHandler("baocao",     cmd_baocao))
             application.add_handler(CmdHandler("baocao1330", cmd_baocao1330))
             application.add_handler(CmdHandler("testsheet",  cmd_testsheet))
             application.add_handler(CmdHandler("kiemtra",    cmd_kiemtra))
             application.add_handler(CmdHandler("test_thutien", cmd_kiemtra))
-            log_status("Đã đăng ký lệnh /ping, /baocao, /baocao1330, /testsheet, /kiemtra, /test_thutien")
+            log_status("Đã đăng ký lệnh /ping, /unlock, /baocao, /baocao1330, /testsheet, /kiemtra, /test_thutien")
 
 
 
             # Khởi chạy bot dạng polling
             await application.initialize()
             await application.start()
+            
+            # Tự động mở khoá group chat
+            await restore_group_permissions(application)
+            
             # drop_pending_updates=True: tránh Conflict khi restart nhiều lần
             await application.updater.start_polling(drop_pending_updates=True)
 

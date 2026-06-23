@@ -197,108 +197,154 @@ async def run_vanhanh_check() -> bool:
                 except Exception as cdp_err:
                     log.warning("Chưa mở Chrome debug. Vui lòng chạy file start_chrome_debug.")
                     return False
-            else:
-                log.info("Dang khoi chay browser headless tren Railway...")
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context()
-                page = await context.new_page()
-                log.info(f"Truy cap trang: {VANHANH_URL}")
-                await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
-                await page.wait_for_timeout(2000)
 
-            # Kiem tra neu dang o trang dang nhap
-            is_login_page = False
-            try:
-                # Chờ tối đa 15 giây cho một trong hai element xuất hiện
-                await page.wait_for_selector('input#bcSearch, input[name="username"]', timeout=15000)
-                if await page.locator('input[name="username"]').is_visible():
-                    is_login_page = True
-            except Exception as e:
-                log.warning(f"Chờ trang load xác định trạng thái thất bại: {e}")
-                current_url = page.url
-                is_login_page = "login" in current_url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
-            
-            if is_login_page:
-                if is_local:
-                    log.warning("Phien dang nhap GHN da het han hoac chua dang nhap tren Chrome local.")
-                    warning_text = (
-                        "⚠️ BOT VẬN HÀNH KHÔNG HOẠT ĐỘNG\n"
-                        "Lý do: Phiên đăng nhập GHN Vận hành đã hết hạn hoặc chưa đăng nhập.\n"
-                        "Vui lòng đăng nhập lại trên Chrome debug local."
-                    )
-                    await send_telegram_message(warning_text)
-                    if page and not is_tab_already_open:
-                        await page.close()
-                    return False
-                else:
-                    log.info("Dang thuc hien dang nhap tu dong tren Railway...")
-                    username = os.environ.get("VANHANH_USERNAME")
-                    password = os.environ.get("VANHANH_PASSWORD")
-                    if not username or not password:
-                        log.error("Thieu bien moi truong VANHANH_USERNAME hoac VANHANH_PASSWORD tren Railway.")
-                        await send_telegram_message(
-                            "❌ <b>Bot vận hành lỗi trên Railway:</b> Thiếu tài khoản đăng nhập (VANHANH_USERNAME/VANHANH_PASSWORD)."
-                        )
-                        if browser:
-                            await browser.close()
-                        return False
-                        
-                    # Dien thong tin dang nhap
-                    await page.locator('input[name="username"]').fill(username)
-                    await page.locator('input[name="password"]').fill(password)
-                    
-                    # Click Dang nhap
-                    await page.locator('button[type="submit"], button:has-text("Đăng nhập")').first.click()
-                    
-                    # Chờ chuyển hướng thành công
-                    try:
-                        await page.locator("input#bcSearch").wait_for(state="visible", timeout=15000)
-                        log.info("Dang nhap tu dong thanh cong.")
-                    except Exception:
-                        current_url = page.url
-                        if "login" in current_url.lower() or await page.locator('input[name="username"]').is_visible():
-                            log.error("Dang nhap that bai. Van o lai trang login.")
-                            await send_telegram_message(
-                                "❌ <b>Bot vận hành lỗi trên Railway:</b> Đăng nhập tài khoản thất bại (sai username/password hoặc lỗi hệ thống)."
-                            )
-                            if not using_cdp:
-                                await browser.close()
-                            else:
-                                if page and not is_tab_already_open:
-                                    await page.close()
-                            return False
-                        else:
-                            log.warning("Khong tim thay bcSearch sau khi click dang nhap, nhung da roi khoi trang login. Tiep tuc cho...")
-
-            # Chờ trang bưu cục load ra
-            loaded = False
             for attempt in range(1, 4):
                 try:
-                    await page.locator("input#bcSearch").wait_for(state="visible", timeout=10000)
-                    await page.locator(".bc-item").first.wait_for(state="visible", timeout=6000)
-                    loaded = True
-                    break
-                except Exception:
-                    log.warning(f"Lan thu {attempt} load danh sach kho that bai. Dang tai lai trang...")
-                    await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
-                    # Chờ trang load lại, kiểm tra xem có bị chuyển về trang login không
+                    log.info(f"=== Thử load website lần {attempt}/3 ===")
+                    if attempt == 1:
+                        if not is_tab_already_open or page.url != VANHANH_URL:
+                            log.info(f"Truy cập trang: {VANHANH_URL}")
+                            await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
+                            await page.wait_for_timeout(2000)
+                    elif attempt == 2:
+                        log.info("Lần 1 load thất bại. Chờ 10 giây trước khi thử lại lần 2...")
+                        await asyncio.sleep(10)
+                        if not is_tab_already_open or page.url != VANHANH_URL:
+                            await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
+                            await page.wait_for_timeout(2000)
+                    elif attempt == 3:
+                        log.info("Lần 2 load thất bại. Refresh trang trước khi thử lại lần 3...")
+                        try:
+                            await page.reload(wait_until="domcontentloaded", timeout=30000)
+                            await page.wait_for_timeout(2000)
+                        except Exception as reload_err:
+                            log.warning(f"Lỗi khi reload: {reload_err}. Đi tới URL trực tiếp...")
+                            await page.goto(VANHANH_URL, wait_until="domcontentloaded", timeout=30000)
+                            await page.wait_for_timeout(2000)
+
+                    # Kiem tra neu dang o trang dang nhap
+                    is_login_page = False
                     try:
                         await page.wait_for_selector('input#bcSearch, input[name="username"]', timeout=10000)
                         if await page.locator('input[name="username"]').is_visible():
-                            log.warning("Bị từ chối hoặc bắt login lại sau khi reload trang. Đang đăng nhập lại...")
+                            is_login_page = True
+                    except Exception as e:
+                        log.warning(f"Chờ trang load xác định trạng thái thất bại: {e}")
+                        is_login_page = "login" in page.url.lower() or await page.locator("input[type='password']").is_visible(timeout=2000)
+                    
+                    if is_login_page:
+                        if is_local:
+                            log.warning("Phien dang nhap GHN da het han hoac chua dang nhap tren Chrome local.")
+                            if not state.get("login_error_notified", False):
+                                warning_text = (
+                                    "⚠️ BOT VẬN HÀNH KHÔNG HOẠT ĐỘNG\n"
+                                    "Lý do: Phiên đăng nhập GHN Vận hành đã hết hạn hoặc chưa đăng nhập.\n"
+                                    "Vui lòng đăng nhập lại trên Chrome debug local."
+                                )
+                                await send_telegram_message(warning_text)
+                                state["login_error_notified"] = True
+                                save_state(state)
+                            if page and not is_tab_already_open:
+                                await page.close()
+                            return False
+                        else:
+                            log.info("Dang thuc hien dang nhap tu dong tren Railway...")
                             username = os.environ.get("VANHANH_USERNAME")
                             password = os.environ.get("VANHANH_PASSWORD")
-                            if username and password:
-                                await page.locator('input[name="username"]').fill(username)
-                                await page.locator('input[name="password"]').fill(password)
-                                await page.locator('button[type="submit"], button:has-text("Đăng nhập")').first.click()
-                                await page.locator("input#bcSearch").wait_for(state="visible", timeout=10000)
-                    except Exception as re_err:
-                        log.warning(f"Lỗi khi đăng nhập lại trong loop thử lại: {re_err}")
+                            if not username or not password:
+                                log.error("Thieu bien moi truong VANHANH_USERNAME hoac VANHANH_PASSWORD tren Railway.")
+                                if not state.get("login_error_notified", False):
+                                    await send_telegram_message(
+                                        "❌ <b>Bot vận hành lỗi trên Railway:</b> Thiếu tài khoản đăng nhập (VANHANH_USERNAME/VANHANH_PASSWORD)."
+                                    )
+                                    state["login_error_notified"] = True
+                                    save_state(state)
+                                return False
+                                
+                            # Dien thong tin dang nhap
+                            await page.locator('input[name="username"]').fill(username)
+                            await page.locator('input[name="password"]').fill(password)
+                            
+                            # Click Dang nhap
+                            await page.locator('button[type="submit"], button:has-text("Đăng nhập")').first.click()
+                            
+                            # Chờ chuyển hướng thành công
+                            await page.locator("input#bcSearch").wait_for(state="visible", timeout=15000)
+                            log.info("Dang nhap tu dong thanh cong.")
+
+                    # Chờ trang bưu cục load ra
+                    await page.locator("input#bcSearch").wait_for(state="visible", timeout=10000)
+                    await page.locator(".bc-item").first.wait_for(state="visible", timeout=10000)
+
+                    # Bỏ chọn tất cả bưu cục cũ để chuẩn bị chọn bưu cục mục tiêu
+                    log.info("Bo chon tat ca buu cuc hien tai...")
+                    try:
+                        await page.locator("button#clearSel").click()
+                        await page.wait_for_timeout(500)
+                    except Exception as e:
+                        log.warning(f"Khong click duoc nut bo chon tat ca: {e}")
+
+                    # Lọc và chọn bưu cục giao hàng nặng
+                    log.info("Loc va tick chon 25 buu cuc giao hang nang...")
+                    await page.locator("input#bcSearch").fill("giao hang nang")
+                    await page.wait_for_timeout(1000)
+
+                    items = page.locator(".bc-item")
+                    item_count = await items.count()
+                    selected_count = 0
+
+                    for i in range(item_count):
+                        item = items.nth(i)
+                        text = await item.inner_text()
+                        m = re.match(r'^(\d{8})', text.strip())
+                        if m:
+                            code = m.group(1)
+                            if code in TARGET_CODES:
+                                checkbox = item.locator('input[type="checkbox"]')
+                                if not await checkbox.is_checked():
+                                    await checkbox.click()
+                                    await page.wait_for_timeout(50)
+                                selected_count += 1
+
+                    log.info(f"Da chon {selected_count}/25 kho trong phan loc batch.")
+
+                    # Fallback check: Nếu số lượng được chọn chưa đủ 25, lọc tìm riêng từng mã
+                    if selected_count < 25:
+                        log.info("So buu cuc da chon chua du 25. Chay fallback tim kiem rieng tung ma...")
+                        for code in TARGET_CODES:
+                            await page.locator("input#bcSearch").fill(code)
+                            await page.wait_for_timeout(300)
+                            item = page.locator(".bc-item").first
+                            if await item.count() > 0:
+                                text = await item.inner_text()
+                                if code in text:
+                                    checkbox = item.locator('input[type="checkbox"]')
+                                    if not await checkbox.is_checked():
+                                        await checkbox.click()
+                                        await page.wait_for_timeout(50)
+
+                    # Nhấn xem dữ liệu
+                    log.info("Nhan Xem du lieu...")
+                    await page.locator("button#viewBtn, button.btn-primary").first.click()
+                    await page.wait_for_timeout(2500)
+
+                    # Chờ bảng dữ liệu hiện ra
+                    await page.locator("table").first.wait_for(state="visible", timeout=15000)
+                    
+                    loaded = True
+                    if state.get("login_error_notified", False):
+                        state["login_error_notified"] = False
+                        save_state(state)
+                    break
+                except Exception as attempt_err:
+                    log.warning(f"Lan thu {attempt} that bai: {attempt_err}")
 
             if not loaded:
-                log.error("Khong load duoc danh sach kho sau 3 lan thu.")
-                await send_telegram_message("❌ <b>Bot không load được danh sách kho, cần kiểm tra website.</b>")
+                log.error("Khong load duoc danh sach kho hoac table sau 3 lan thu.")
+                if not state.get("warehouse_load_error_notified", False):
+                    await send_telegram_message("❌ <b>Bot không load được danh sách kho, cần kiểm tra website.</b>")
+                    state["warehouse_load_error_notified"] = True
+                    save_state(state)
                 if not using_cdp:
                     await browser.close()
                 else:
@@ -306,61 +352,9 @@ async def run_vanhanh_check() -> bool:
                         await page.close()
                 return False
 
-            # Bỏ chọn tất cả bưu cục cũ để chuẩn bị chọn bưu cục mục tiêu
-            log.info("Bo chon tat ca buu cuc hien tai...")
-            try:
-                await page.locator("button#clearSel").click()
-                await page.wait_for_timeout(500)
-            except Exception as e:
-                log.warning(f"Khong click duoc nut bo chon tat ca: {e}")
-
-            # Lọc và chọn bưu cục giao hàng nặng
-            log.info("Loc va tick chon 25 buu cuc giao hang nang...")
-            await page.locator("input#bcSearch").fill("giao hang nang")
-            await page.wait_for_timeout(1000)
-
-            items = page.locator(".bc-item")
-            item_count = await items.count()
-            selected_count = 0
-
-            for i in range(item_count):
-                item = items.nth(i)
-                text = await item.inner_text()
-                # Trích xuất mã bưu cục (8 chữ số đầu tiên)
-                m = re.match(r'^(\d{8})', text.strip())
-                if m:
-                    code = m.group(1)
-                    if code in TARGET_CODES:
-                        checkbox = item.locator('input[type="checkbox"]')
-                        if not await checkbox.is_checked():
-                            await checkbox.click()
-                            await page.wait_for_timeout(50)
-                        selected_count += 1
-
-            log.info(f"Da chon {selected_count}/25 kho trong phan loc batch.")
-
-            # Fallback check: Nếu số lượng được chọn chưa đủ 25, lọc tìm riêng từng mã
-            if selected_count < 25:
-                log.info("So buu cuc da chon chua du 25. Chay fallback tim kiem rieng tung ma...")
-                for code in TARGET_CODES:
-                    await page.locator("input#bcSearch").fill(code)
-                    await page.wait_for_timeout(300)
-                    item = page.locator(".bc-item").first
-                    if await item.count() > 0:
-                        text = await item.inner_text()
-                        if code in text:
-                            checkbox = item.locator('input[type="checkbox"]')
-                            if not await checkbox.is_checked():
-                                await checkbox.click()
-                                await page.wait_for_timeout(50)
-
-            # Nhấn xem dữ liệu
-            log.info("Nhan Xem du lieu...")
-            await page.locator("button#viewBtn, button.btn-primary").first.click()
-            await page.wait_for_timeout(2500)
-
-            # Chờ bảng dữ liệu hiện ra
-            await page.locator("table").first.wait_for(state="visible", timeout=10000)
+            if state.get("warehouse_load_error_notified", False):
+                state["warehouse_load_error_notified"] = False
+                save_state(state)
             
             rows = page.locator("table tbody tr")
             row_count = await rows.count()
@@ -529,12 +523,23 @@ async def run_vanhanh_check() -> bool:
                     save_state(state)
             else:
                 log.info("Ngoai khung gio 07:00 - 22:00. Khong gui bat ky tin nhan nao, giu nguyen các cờ notified=False.")
-
+ 
+            # Sau khi quét thành công, xóa lỗi hệ thống cũ trong state nếu có
+            if "last_system_error" in state:
+                del state["last_system_error"]
+                save_state(state)
+ 
             return True
-
+ 
     except Exception as e:
-        log.exception(f"Loi nghiem trong khi kiem tra ton phieu: {e}")
-        await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(str(e)[:300])}</code>")
+        log.exception(f"Lỗi nghiêm trọng khi kiểm tra tồn phiếu: {e}")
+        err_msg = str(e)[:300]
+        # Tránh spam lỗi hệ thống giống nhau liên tục
+        last_system_error = state.get("last_system_error", "")
+        if last_system_error != err_msg:
+            await send_telegram_message(f"❌ <b>Bot kiểm tra xảy ra lỗi hệ thống:</b> <code>{html.escape(err_msg)}</code>")
+            state["last_system_error"] = err_msg
+            save_state(state)
         return False
     finally:
         if browser:
