@@ -288,15 +288,23 @@ async def run_collect_money_check() -> bool:
                 max_scrolls = 150
                 
                 for scroll_idx in range(max_scrolls):
-                    options_locator = page.locator(".ant-select-dropdown .ant-select-item-option")
-                    opt_count = await options_locator.count()
-                    
-                    if opt_count == 0:
-                        options_locator = page.locator(".ant-select-item-option-content")
-                        opt_count = await options_locator.count()
-                    
-                    for i in range(opt_count):
-                        text = await options_locator.nth(i).inner_text()
+                    # Dung JavaScript de doc tat ca text 1 lan, tranh race condition
+                    # khi virtual list scroll lam nth(i) bi remove giua chung
+                    try:
+                        all_texts = await page.evaluate("""
+                            () => {
+                                let items = document.querySelectorAll('.ant-select-dropdown .ant-select-item-option');
+                                if (items.length === 0) {
+                                    items = document.querySelectorAll('.ant-select-item-option-content');
+                                }
+                                return Array.from(items).map(el => el.innerText || el.textContent || '');
+                            }
+                        """)
+                    except Exception as js_err:
+                        log.warning(f"[GiaoHang] JS evaluate loi: {js_err}, bo qua lan scroll nay")
+                        all_texts = []
+
+                    for text in all_texts:
                         text_strip = text.strip()
                         if text_strip and text_strip not in seen_warehouses:
                             seen_warehouses.add(text_strip)
