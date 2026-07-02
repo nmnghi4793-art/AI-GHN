@@ -37,8 +37,8 @@
         }
 
         .dropdown-trigger {
-            background: rgba(14, 22, 38, 0.6);
-            border: 1px solid rgba(0, 240, 255, 0.15);
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             padding: 8px 12px;
             border-radius: 6px;
             cursor: pointer;
@@ -46,11 +46,11 @@
             justify-content: space-between;
             align-items: center;
             font-size: 0.9rem;
-            color: #F3F4F6;
+            color: var(--text);
             transition: all 0.15s ease;
         }
         .dropdown-trigger:hover {
-            border-color: rgba(0, 240, 255, 0.35);
+            border-color: var(--cyan);
         }
 
         .dropdown-list {
@@ -58,10 +58,10 @@
             top: 100%;
             left: 0;
             width: 250px;
-            background: #0E1626;
-            border: 1px solid rgba(0, 240, 255, 0.2);
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.05), 0 5px 15px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow);
             z-index: 1000;
             display: none;
             padding: 10px;
@@ -85,12 +85,17 @@
             border-radius: 4px;
             transition: background 0.2s;
             font-size: 0.85rem;
-            color: #E5E7EB;
+            color: var(--text2);
         }
 
         .dropdown-items label:hover {
             background: rgba(0, 240, 255, 0.08);
-            color: white;
+            color: var(--text);
+        }
+
+        .light-mode .dropdown-items label:hover {
+            background: rgba(2, 136, 209, 0.08);
+            color: var(--text);
         }
 
         .dropdown-items input {
@@ -332,7 +337,7 @@
                         style="display:flex; justify-content: space-between; align-items: center;">
                         <h3><i class="fa-solid fa-chart-line"></i> GTC Theo Ngày - Toàn Mạng Lưới</h3>
                         <div style="display:flex; gap: 10px; align-items: center;">
-                            <div class="filter-tabs" style="display:flex; gap: 5px;">
+                            <div class="filter-tabs">
                                 <button class="btn-mini active" id="btn-ov-day"
                                     onclick="switchOverviewGtcPeriod('day')">Ngày</button>
                                 <button class="btn-mini" id="btn-ov-week"
@@ -346,38 +351,37 @@
                             </div>
                         </div>
                     </div>
-                    <div class="chart-container">
+                    <div class="chart-container" style="height:350px;">
                         <canvas id="chart-gtc-trend"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- CHARTS ROW 2: B2B PRIORITY GTC TREND -->
-            <div class="charts-row" style="margin-top:20px;">
-                <div class="chart-card" style="flex:1; min-width:100%;">
+            <!-- CHARTS ROW 2 & TABLE SIDE-BY-SIDE -->
+            <div class="overview-charts-grid">
+                <!-- Left: B2B Priority Chart -->
+                <div class="chart-card">
                     <div class="chart-header" style="display:flex; justify-content: space-between; align-items: center;">
                         <h3><i class="fa-solid fa-chart-line" style="color:#2E7D32"></i> Biểu đồ GTC đơn B2B ưu tiên theo ngày</h3>
                         <div style="display:flex; gap: 10px; align-items: center;">
-                            <div class="filter-tabs" style="display:flex; gap: 5px;">
+                            <div class="filter-tabs">
                                 <button class="btn-mini active" id="btn-ov-b2b-day" onclick="window.switchOverviewB2bPeriod('day')">Ngày</button>
                                 <button class="btn-mini" id="btn-ov-b2b-month" onclick="window.switchOverviewB2bPeriod('month')">Tháng</button>
                             </div>
                         </div>
                     </div>
-                    <div class="chart-container" style="height:320px;">
+                    <div class="chart-container" style="height:350px;">
                         <canvas id="chart-overview-b2b-gtc-trend"></canvas>
                     </div>
                 </div>
-            </div>
 
-            <!-- ALERT TABLES -->
-            <div class="tables-row" style="grid-template-columns: 1fr;">
-                <div class="table-card">
+                <!-- Right: Backlog Table Card -->
+                <div class="table-card" style="display: flex; flex-direction: column;">
                     <div class="table-header">
                         <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Đơn Tồn Lâu (Backlog > 7n)</h3>
                         <a href="#" class="view-all" data-section="backlog">Xem tất cả →</a>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll" style="flex: 1; max-height: none;">
                         <table class="data-table mini-table">
                             <thead>
                                 <tr>
