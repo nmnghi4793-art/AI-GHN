@@ -110,6 +110,14 @@
         }
     </style>
     <link rel="stylesheet" href="styles.css?v=1.1">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('ghn_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.classList.add('light-mode');
+            }
+        })();
+    </script>
 </head>
 <!-- ===== LOGIN SCREEN ===== -->
 <div class="login-wrapper" id="login-wrapper">
@@ -242,6 +250,9 @@
                 <button class="btn btn-primary" id="telegram-btn"
                     style="background:#0088cc; border:none; margin-right:10px; display:none;">
                     <i class="fa-brands fa-telegram"></i> Gửi Telegram
+                </button>
+                <button class="btn btn-outline" id="theme-toggle-btn" title="Chuyển chế độ sáng/tối" style="margin-right: 2px;">
+                    <i class="fa-solid fa-sun" id="theme-toggle-icon"></i>
                 </button>
                 <button class="btn btn-outline" id="refresh-btn">
                     <i class="fa-solid fa-rotate-right"></i> Làm mới
