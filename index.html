@@ -1511,22 +1511,13 @@
                 <button class="kpi-tab-btn" id="tab-btn-b2b-kho" onclick="window.switchGtcB2bPrioTab('kho')">
                     <i class="fa-solid fa-warehouse"></i> GTC Kho
                 </button>
+                <button class="kpi-tab-btn" id="tab-btn-b2b-detail" onclick="window.switchGtcB2bPrioTab('detail')">
+                    <i class="fa-solid fa-list-check"></i> Chi tiết đơn hàng B2B
+                </button>
             </div>
 
             <!-- TAB 1: GTC VÙNG -->
             <div id="panel-b2b-vung" class="gtc-tab-pane">
-                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <div class="ghn-filter-container" id="multi-gtc-b2b-vung-day">
-                        <div class="ghn-filter-selected" id="label-b2b-vung-day" onclick="window.toggleB2bMultiselect('vung-day')">Chọn Ngày...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-day"></div>
-                    </div>
-                    <div class="ghn-filter-container" id="multi-gtc-b2b-vung-month">
-                        <div class="ghn-filter-selected" id="label-b2b-vung-month" onclick="window.toggleB2bMultiselect('vung-month')">Chọn Tháng...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-month"></div>
-                    </div>
-                    <button class="btn btn-outline" style="height:42px; padding: 0 16px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('vung')">Reset bộ lọc</button>
-                </div>
-
                 <!-- OVERVIEW CARDS -->
                 <div class="overview-cards" id="overview-b2b-vung-cards">
                     <!-- Cards will be dynamically inserted here -->
@@ -1538,8 +1529,13 @@
                 <!-- CHARTS -->
                 <div class="charts-row" style="grid-template-columns: 1fr; margin-top:20px;">
                     <div class="chart-card">
-                        <div class="chart-header">
+                        <div class="chart-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                             <h3><i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Vùng</h3>
+                            <!-- Chart Mini Tab Filter -->
+                            <div class="chart-tab-filter" style="display:flex; background:#e2e8f0; padding:3px; border-radius:8px;">
+                                <button id="btn-chart-tab-day" class="active" style="border:none; background:white; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text1);" onclick="window.switchB2bChartTab('day')">Ngày</button>
+                                <button id="btn-chart-tab-month" style="border:none; background:transparent; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text2);" onclick="window.switchB2bChartTab('month')">Tháng</button>
+                            </div>
                         </div>
                         <div class="chart-container" style="position:relative; min-height:320px;">
                             <canvas id="chart-gtc-b2b-vung"></canvas>
@@ -1549,8 +1545,24 @@
 
                 <!-- DATA TABLE -->
                 <div class="table-card" style="margin-top:20px;">
-                    <div class="table-header">
+                    <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
                         <h3><i class="fa-solid fa-table"></i> Bảng dữ liệu GTC Vùng</h3>
+                        <!-- FILTERS MOVED HERE -->
+                        <div class="ghn-filter-row" style="display:flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-vung-day">
+                                <div class="ghn-filter-selected" id="label-b2b-vung-day" onclick="window.toggleB2bMultiselect('vung-day')">Chọn Ngày...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-day"></div>
+                            </div>
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-vung-month">
+                                <div class="ghn-filter-selected" id="label-b2b-vung-month" onclick="window.toggleB2bMultiselect('vung-month')">Chọn Tháng...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-month"></div>
+                            </div>
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-vung-region">
+                                <div class="ghn-filter-selected" id="label-b2b-vung-region" onclick="window.toggleB2bMultiselect('vung-region')">Chọn Vùng...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-region"></div>
+                            </div>
+                            <button class="btn btn-outline" style="height:36px; padding: 0 12px; font-size:12px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('vung')">Reset bộ lọc</button>
+                        </div>
                     </div>
                     <div class="table-scroll">
                         <table class="data-table">
@@ -1578,24 +1590,6 @@
 
             <!-- TAB 2: GTC KHO -->
             <div id="panel-b2b-kho" class="gtc-tab-pane" style="display:none">
-                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <div class="ghn-filter-container" id="multi-gtc-b2b-kho-day">
-                        <div class="ghn-filter-selected" id="label-b2b-kho-day" onclick="window.toggleB2bMultiselect('kho-day')">Chọn Ngày...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-day"></div>
-                    </div>
-                    <div class="ghn-filter-container" id="multi-gtc-b2b-kho-month">
-                        <div class="ghn-filter-selected" id="label-b2b-kho-month" onclick="window.toggleB2bMultiselect('kho-month')">Chọn Tháng...</div>
-                        <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-month"></div>
-                    </div>
-                    <select id="filter-b2b-kho-region" class="filter-select" style="height:42px; min-width:150px;" onchange="window.updateB2bKhoFilters()">
-                        <option value="">Tất cả Vùng</option>
-                    </select>
-                    <select id="filter-b2b-kho-warehouse" class="filter-select" style="height:42px; min-width:180px;" onchange="window.updateB2bKhoFilters()">
-                        <option value="">Tất cả Kho</option>
-                    </select>
-                    <button class="btn btn-outline" style="height:42px; padding: 0 16px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('kho')">Reset bộ lọc</button>
-                </div>
-
                 <!-- OVERVIEW CARDS -->
                 <div class="overview-cards" id="overview-b2b-kho-cards">
                     <!-- Cards will be dynamically inserted here -->
@@ -1618,8 +1612,28 @@
 
                 <!-- DATA TABLE -->
                 <div class="table-card" style="margin-top:20px;">
-                    <div class="table-header">
+                    <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
                         <h3><i class="fa-solid fa-table"></i> Bảng dữ liệu GTC Kho</h3>
+                        <!-- FILTERS MOVED HERE (MULTIPLE SELECT FOR REGION & WAREHOUSE) -->
+                        <div class="ghn-filter-row" style="display:flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-kho-day">
+                                <div class="ghn-filter-selected" id="label-b2b-kho-day" onclick="window.toggleB2bMultiselect('kho-day')">Chọn Ngày...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-day"></div>
+                            </div>
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-kho-month">
+                                <div class="ghn-filter-selected" id="label-b2b-kho-month" onclick="window.toggleB2bMultiselect('kho-month')">Chọn Tháng...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-month"></div>
+                            </div>
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-kho-region">
+                                <div class="ghn-filter-selected" id="label-b2b-kho-region" onclick="window.toggleB2bMultiselect('kho-region')">Chọn Vùng...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-region"></div>
+                            </div>
+                            <div class="ghn-filter-container" id="multi-gtc-b2b-kho-warehouse">
+                                <div class="ghn-filter-selected" id="label-b2b-kho-warehouse" onclick="window.toggleB2bMultiselect('kho-warehouse')">Chọn Kho...</div>
+                                <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-warehouse"></div>
+                            </div>
+                            <button class="btn btn-outline" style="height:36px; padding: 0 12px; font-size:12px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('kho')">Reset bộ lọc</button>
+                        </div>
                     </div>
                     <div class="table-scroll">
                         <table class="data-table">
@@ -1644,9 +1658,11 @@
                         </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- DATA DON DETAILED SECTION -->
-                <div style="margin-top: 40px; border-top: 2px dashed #ddd; padding-top: 30px;">
+            <!-- TAB 3: CHI TIẾT ĐƠN HÀNG B2B -->
+            <div id="panel-b2b-detail" class="gtc-tab-pane" style="display:none">
+                <div style="margin-top: 10px;">
                     <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text1); margin-bottom: 5px;">
                         <i class="fa-solid fa-circle-info" style="color:var(--blue)"></i> Tổng data chi tiết đơn B2B
                     </h2>
@@ -1695,14 +1711,13 @@
                                         <th>Nhóm lỗi/Trạng thái</th>
                                         <th>PIC</th>
                                     </tr>
-                                    <tbody id="tbody-b2b-detail">
-                                        <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu chi tiết...</td></tr>
-                                    </tbody>
                                 </thead>
+                                <tbody id="tbody-b2b-detail">
+                                    <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu chi tiết...</td></tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
             </div>
         </section>
     </main>
