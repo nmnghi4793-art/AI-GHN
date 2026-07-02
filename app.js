@@ -523,7 +523,7 @@ function renderGtcTrendChart() {
     destroyChart('gtcTrend');
     const ctx = document.getElementById('chart-gtc-trend').getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 350);
-    grad.addColorStop(0, 'rgba(255, 102, 0, 0.22)');
+    grad.addColorStop(0, 'rgba(255, 102, 0, 0.12)');
     grad.addColorStop(1, 'rgba(255, 102, 0, 0)');
 
     charts.gtcTrend = new Chart(ctx, {
@@ -543,14 +543,21 @@ function renderGtcTrendChart() {
                 pointBorderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 6,
-                datalabels: { display: false }
+                datalabels: {
+                    display: true,
+                    align: 'top',
+                    offset: 5,
+                    color: () => document.documentElement.classList.contains('light-mode') ? '#1E2937' : '#FFFFFF',
+                    font: { size: 9.5, weight: 'bold' },
+                    formatter: v => v + '%'
+                }
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                datalabels: { display: false },
+                datalabels: { display: true },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     titleColor: '#F3F4F6',
@@ -564,7 +571,7 @@ function renderGtcTrendChart() {
                 }
             },
             scales: {
-                y: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
+                y: { min: 60, max: 105, ticks: { callback: v => v + '%' } },
                 x: { grid: { display: false } }
             }
         }
@@ -690,7 +697,7 @@ function renderOverviewB2bChart() {
     destroyChart('overviewB2bGtcTrend');
     const ctx = canvas.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 350);
-    grad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+    grad.addColorStop(0, 'rgba(16, 185, 129, 0.12)');
     grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
 
     charts.overviewB2bGtcTrend = new Chart(ctx, {
@@ -702,15 +709,22 @@ function renderOverviewB2bChart() {
                 data: values,
                 borderColor: C_GREEN,
                 backgroundColor: grad,
-                borderWidth: 3,
+                borderWidth: 4,
                 fill: true,
                 tension: 0.4,
                 pointBackgroundColor: '#fff',
                 pointBorderColor: C_GREEN,
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                datalabels: { display: false }
+                pointBorderWidth: 2.5,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                datalabels: {
+                    display: true,
+                    align: 'top',
+                    offset: 5,
+                    color: () => document.documentElement.classList.contains('light-mode') ? '#1E2937' : '#FFFFFF',
+                    font: { size: 9.5, weight: 'bold' },
+                    formatter: v => v + '%'
+                }
             }]
         },
         options: {
@@ -718,7 +732,7 @@ function renderOverviewB2bChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                datalabels: { display: false },
+                datalabels: { display: true },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     titleColor: '#F3F4F6',
@@ -733,8 +747,8 @@ function renderOverviewB2bChart() {
             },
             scales: {
                 y: {
-                    suggestedMin: 60,
-                    suggestedMax: 100,
+                    min: 60,
+                    max: 105,
                     ticks: { callback: v => v + '%' }
                 },
                 x: {
