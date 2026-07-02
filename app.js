@@ -54,16 +54,31 @@ async function apiFetch(url, opts = {}) {
     return resp;
 }
 
-// GHN Brand Colors
-const C_ORANGE = '#FF5200';
-const C_BLUE = '#0076BE';
-const C_GREEN = '#0CA678';
-const C_RED = '#F5365C';
-const C_PURPLE = '#5E72E4';
-const C_YELLOW = '#FB6340';
+// GHN Brand Colors - Redefined for dark cyan neon theme
+const C_ORANGE = '#FF6600';
+const C_BLUE = '#00F0FF'; // Cyan
+const C_GREEN = '#10B981'; // Emerald
+const C_RED = '#EF4444'; // Red
+const C_PURPLE = '#BC53FA'; // Purple
+const C_YELLOW = '#F59E0B'; // Yellow
 
 Chart.defaults.font.family = "'Outfit', sans-serif";
-Chart.defaults.color = '#8898AA';
+Chart.defaults.color = '#9CA3AF';
+Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+
+if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
+    Chart.defaults.plugins.legend.labels.color = '#9CA3AF';
+}
+
+if (!Chart.defaults.scales) Chart.defaults.scales = {};
+Chart.defaults.scales.category = {
+    grid: { color: 'rgba(255, 255, 255, 0.08)' },
+    ticks: { color: '#9CA3AF' }
+};
+Chart.defaults.scales.linear = {
+    grid: { color: 'rgba(255, 255, 255, 0.08)' },
+    ticks: { color: '#9CA3AF' }
+};
 
 // Ensure DataLabels plugin is registered for charts to show percentage
 Chart.register(ChartDataLabels);
