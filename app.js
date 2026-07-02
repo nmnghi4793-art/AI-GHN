@@ -302,8 +302,11 @@ function renderOverviewCards() {
             ontimeEl.textContent = (ov.avg_ontime || 0) + '%';
         }
     }
-    document.getElementById('val-backlog').textContent = ov.total_backlog_7n || 0;
-    document.getElementById('val-b2b').textContent = ov.total_b2b_priority || 0;
+    const backlogEl = document.getElementById('val-backlog');
+    if (backlogEl) backlogEl.textContent = ov.total_backlog_7n || 0;
+    
+    const valB2b = document.getElementById('val-b2b');
+    if (valB2b) valB2b.textContent = ov.total_b2b_priority || 0;
     
     // Calculate % GTC B2B Priority for overview card (latest day)
     const b2bData = state.gtcB2bData || [];
@@ -333,7 +336,8 @@ function renderOverviewCards() {
     const cardB2bSub = document.getElementById('sub-gtc-b2b-prio-overview');
     if (cardB2bSub) cardB2bSub.textContent = b2bGtcSubText;
 
-    document.getElementById('val-fd').textContent = (ov.avg_fd_return || 0) + '%';
+    const valFd = document.getElementById('val-fd');
+    if (valFd) valFd.textContent = (ov.avg_fd_return || 0) + '%';
     const valNangSuatEl = document.getElementById('val-nangsuat');
     if (valNangSuatEl) valNangSuatEl.textContent = (ov.avg_nang_suat || 0);
 
@@ -534,6 +538,9 @@ function getWeekNumber(d) {
 
 // ---- RETURNS PIE ----
 function renderReturnsPieChart() {
+    const canvas = document.getElementById('chart-returns-pie');
+    if (!canvas) return;
+    
     const reasonMap = {
         'Không liên lạc được': 0,
         'Đổi ý không mua': 0,
@@ -551,7 +558,7 @@ function renderReturnsPieChart() {
     });
 
     destroyChart('returnsPie');
-    const ctx = document.getElementById('chart-returns-pie').getContext('2d');
+    const ctx = canvas.getContext('2d');
     charts.returnsPie = new Chart(ctx, {
         type: 'doughnut',
         data: {

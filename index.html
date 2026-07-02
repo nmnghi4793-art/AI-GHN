@@ -266,15 +266,6 @@
                         <p class="stat-sub text-danger">Cần xử lý ngay</p>
                     </div>
                 </div>
-                <!-- 4. B2B -->
-                <div class="stat-card orange-card">
-                    <div class="stat-icon orange"><i class="fa-solid fa-crown"></i></div>
-                    <div class="stat-details">
-                        <h3>Đơn B2B Ưu Tiên</h3>
-                        <h2 id="val-b2b" class="text-warning">--</h2>
-                        <p class="stat-sub">Hôm nay & ngày mai</p>
-                    </div>
-                </div>
                 <!-- 4.1. Tỷ lệ GTC đơn B2B ưu tiên -->
                 <div class="stat-card" style="background:#E8F5E9;border:1px solid #C8E6C9">
                     <div class="stat-icon" style="background:#C8E6C9;color:#2E7D32"><i class="fa-solid fa-star"></i></div>
@@ -282,25 +273,6 @@
                         <h3>% GTC B2B Ưu Tiên</h3>
                         <h2 id="val-gtc-b2b-prio-overview" style="color:#2E7D32">--%</h2>
                         <p class="stat-sub" id="sub-gtc-b2b-prio-overview">Ngày gần nhất</p>
-                    </div>
-                </div>
-                <!-- 5. FD TRẢ -->
-                <div class="stat-card purple-card">
-                    <div class="stat-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
-                    <div class="stat-details">
-                        <h3>Tỷ lệ FD Trả</h3>
-                        <h2 id="val-fd" style="color:var(--purple)">--%</h2>
-                        <p class="stat-sub">Trung bình tất cả kho</p>
-                    </div>
-                </div>
-                <!-- 6. NĂNG SUẤT NV -->
-                <div class="stat-card" style="background:#FFF3E0;border:1px solid #FFE0B2">
-                    <div class="stat-icon" style="background:#FFE0B2;color:#E65100"><i
-                            class="fa-solid fa-motorcycle"></i></div>
-                    <div class="stat-details">
-                        <h3>Năng Suất NV</h3>
-                        <h2 id="val-nangsuat" style="color:#E65100">--</h2>
-                        <p class="stat-sub" style="color:#F57C00">Đơn/giờ/nhân viên</p>
                     </div>
                 </div>
                 <!-- 7. XE GXT -->
@@ -333,45 +305,10 @@
                         <p class="stat-sub" style="color:#8E24AA">Tổng đơn / Tổng KL (KG)</p>
                     </div>
                 </div>
-
-                <!-- WARNING CARDS INTEGRATED INTO MAIN GRID -->
-                <div class="stat-card red-card">
-                    <div class="stat-icon red"><i class="fa-solid fa-radiation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Nghiêm Trọng</h3>
-                        <h2 id="ov-warn-critical-count" class="text-danger">--</h2>
-                        <p class="stat-sub">Cần xử lý tức thì</p>
-                    </div>
-                </div>
-                <div class="stat-card orange-card">
-                    <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                    <div class="stat-details">
-                        <h3>Kho Bất Ổn</h3>
-                        <h2 id="ov-warn-warning-count" class="text-warning">--</h2>
-                        <p class="stat-sub">Cần theo dõi sát</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background:#FFF9DB;border:1px solid #FFEC99">
-                    <div class="stat-icon" style="background:#FFEC99;color:#F08C00"><i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <div class="stat-details">
-                        <h3>Cảnh Báo Sắp Tới</h3>
-                        <h2 id="ov-warn-upcoming-count" style="color:#F08C00">--</h2>
-                        <p class="stat-sub" style="color:#D9480F">Dự báo sẽ gặp vấn đề</p>
-                    </div>
-                </div>
-                <div class="stat-card blue-card">
-                    <div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div>
-                    <div class="stat-details">
-                        <h3>Ngày Trở Lại Bình Thường</h3>
-                        <h2 id="ov-warn-avg-days" style="color:var(--blue)">--</h2>
-                        <p class="stat-sub">Trung bình toàn vùng</p>
-                    </div>
-                </div>
             </div>
 
             <!-- CHARTS -->
-            <div class="charts-row">
+            <div class="charts-row" style="grid-template-columns: 1fr;">
                 <!-- GTC Trend Line -->
                 <div class="chart-card">
                     <div class="chart-header"
@@ -396,15 +333,6 @@
                         <canvas id="chart-gtc-trend"></canvas>
                     </div>
                 </div>
-                <!-- Returns Pie -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3><i class="fa-solid fa-chart-donut"></i> Lý Do Trả Hàng</h3>
-                    </div>
-                    <div class="chart-container-sm">
-                        <canvas id="chart-returns-pie"></canvas>
-                    </div>
-                </div>
             </div>
 
             <!-- CHARTS ROW 2: B2B PRIORITY GTC TREND -->
@@ -426,7 +354,7 @@
             </div>
 
             <!-- ALERT TABLES -->
-            <div class="tables-row">
+            <div class="tables-row" style="grid-template-columns: 1fr;">
                 <div class="table-card">
                     <div class="table-header">
                         <h3><i class="fa-solid fa-fire" style="color:var(--red)"></i> Đơn Tồn Lâu (Backlog > 7n)</h3>
@@ -441,55 +369,6 @@
                                 </tr>
                             </thead>
                             <tbody id="tbody-backlog-overview"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-crown" style="color:var(--orange)"></i> Đơn B2B Cần Xử Lý</h3>
-                        <a href="#" class="view-all" data-section="b2b">Xem tất cả →</a>
-                    </div>
-                    <div class="table-scroll">
-                        <table class="data-table mini-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th>
-                                    <th style="text-align:right">Tổng đơn</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-b2b-overview"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CRITICAL WARNINGS -->
-            <div class="tables-row" style="margin-top:18px; grid-template-columns: 1fr;">
-                <div class="table-card">
-                    <div class="table-header">
-                        <h3><i class="fa-solid fa-radiation" style="color:var(--red)"></i> Kho Nghiêm Trọng & Bất Ổn
-                        </h3>
-                        <a href="#" class="view-all" data-section="warnings">Chi tiết →</a>
-                    </div>
-                    <div class="table-scroll" style="max-height:220px">
-                        <table class="data-table mini-table">
-                            <thead>
-                                <tr>
-                                    <th>Kho</th>
-                                    <th>LM</th>
-                                    <th>KTC</th>
-                                    <th>Tổng</th>
-                                    <th>Dự Báo</th>
-                                    <th>Số Ngày</th>
-                                    <th>Trạng Thái</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-critical-overview">
-                                <tr>
-                                    <td colspan="3" style="text-align:center;padding:20px;color:var(--text3)">Đang kiểm
-                                        tra...</td>
-                                </tr>
-                            </tbody>
                         </table>
                     </div>
                 </div>
