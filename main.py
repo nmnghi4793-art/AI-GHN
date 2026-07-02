@@ -241,6 +241,8 @@ GIDS = {
     "xe_gxt":    "541379955",
     "don_tao":   "869576788",
     "odo_sheet": "0",  # Tab đầu tiên của ODO_SHEET_ID
+    "gtc_b2b":   "796633647",
+    "don_b2b":   "429619028",
 }
 
 CACHE = {}
@@ -410,6 +412,17 @@ def get_gtc_latest(force: bool = False):
 def get_ontime(force: bool = False):
     import time
     return {"data": [], "last_sync": time.time()}
+
+# ---- DATA TRẢ HÀNG ----
+@app.get("/api/kpi/gtc-b2b", dependencies=[Depends(require_api_token)])
+def get_gtc_b2b(force: bool = False):
+    data, last_sync = read_csv("gtc_b2b", force)
+    return {"data": data, "last_sync": last_sync}
+
+@app.get("/api/kpi/don-b2b", dependencies=[Depends(require_api_token)])
+def get_don_b2b(force: bool = False):
+    data, last_sync = read_csv("don_b2b", force)
+    return {"data": data, "last_sync": last_sync}
 
 # ---- DATA TRẢ HÀNG ----
 @app.get("/api/returns", dependencies=[Depends(require_api_token)])

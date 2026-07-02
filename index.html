@@ -176,6 +176,9 @@
                 <i class="fa-solid fa-crown"></i><span>B2B &amp; SLA</span>
                 <span class="nav-badge danger" id="nav-b2b-count">--</span>
             </a>
+            <a href="#" class="nav-item" data-section="gtc-b2b-prio" id="nav-gtc-b2b-prio">
+                <i class="fa-solid fa-star" style="color:#ffc53d"></i><span>GTC đơn B2B Ưu Tiên</span>
+            </a>
             <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
                 <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog &gt; 7 Ngày</span>
                 <span class="nav-badge danger" id="nav-backlog-count">--</span>
@@ -1494,6 +1497,211 @@
                         </thead>
                         <tbody id="tbody-dontao"></tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SECTION: GTC ĐƠN B2B ƯU TIÊN ===== -->
+        <section class="section" id="section-gtc-b2b-prio">
+            <!-- TAB BAR -->
+            <div class="kpi-tab-bar" id="gtc-b2b-prio-tabbar">
+                <button class="kpi-tab-btn active" id="tab-btn-b2b-vung" onclick="window.switchGtcB2bPrioTab('vung')">
+                    <i class="fa-solid fa-map-location-dot"></i> GTC Vùng
+                </button>
+                <button class="kpi-tab-btn" id="tab-btn-b2b-kho" onclick="window.switchGtcB2bPrioTab('kho')">
+                    <i class="fa-solid fa-warehouse"></i> GTC Kho
+                </button>
+            </div>
+
+            <!-- TAB 1: GTC VÙNG -->
+            <div id="panel-b2b-vung" class="gtc-tab-pane">
+                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div class="ghn-filter-container" id="multi-gtc-b2b-vung-day">
+                        <div class="ghn-filter-selected" id="label-b2b-vung-day" onclick="window.toggleB2bMultiselect('vung-day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-day"></div>
+                    </div>
+                    <div class="ghn-filter-container" id="multi-gtc-b2b-vung-month">
+                        <div class="ghn-filter-selected" id="label-b2b-vung-month" onclick="window.toggleB2bMultiselect('vung-month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-b2b-vung-month"></div>
+                    </div>
+                    <button class="btn btn-outline" style="height:42px; padding: 0 16px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('vung')">Reset bộ lọc</button>
+                </div>
+
+                <!-- OVERVIEW CARDS -->
+                <div class="overview-cards" id="overview-b2b-vung-cards">
+                    <!-- Cards will be dynamically inserted here -->
+                </div>
+
+                <!-- ALERT BOX -->
+                <div id="alert-b2b-vung" style="margin: 20px 0;"></div>
+
+                <!-- CHARTS -->
+                <div class="charts-row" style="grid-template-columns: 1fr; margin-top:20px;">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Vùng</h3>
+                        </div>
+                        <div class="chart-container" style="position:relative; min-height:320px;">
+                            <canvas id="chart-gtc-b2b-vung"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA TABLE -->
+                <div class="table-card" style="margin-top:20px;">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-table"></i> Bảng dữ liệu GTC Vùng</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Vùng</th>
+                                    <th>Thời gian</th>
+                                    <th style="text-align:right">Tổng đơn B2B ưu tiên</th>
+                                    <th style="text-align:right">Tổng GTC</th>
+                                    <th style="text-align:right">Tỷ lệ GTC</th>
+                                    <th style="text-align:right">Tổng lỗi đơn B2B</th>
+                                    <th style="text-align:right">Tỷ lệ lỗi B2B</th>
+                                    <th>Đánh giá</th>
+                                    <th>Cảnh báo</th>
+                                    <th>Đề xuất hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-b2b-vung">
+                                <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: GTC KHO -->
+            <div id="panel-b2b-kho" class="gtc-tab-pane" style="display:none">
+                <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div class="ghn-filter-container" id="multi-gtc-b2b-kho-day">
+                        <div class="ghn-filter-selected" id="label-b2b-kho-day" onclick="window.toggleB2bMultiselect('kho-day')">Chọn Ngày...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-day"></div>
+                    </div>
+                    <div class="ghn-filter-container" id="multi-gtc-b2b-kho-month">
+                        <div class="ghn-filter-selected" id="label-b2b-kho-month" onclick="window.toggleB2bMultiselect('kho-month')">Chọn Tháng...</div>
+                        <div class="ghn-filter-menu" id="menu-gtc-b2b-kho-month"></div>
+                    </div>
+                    <select id="filter-b2b-kho-region" class="filter-select" style="height:42px; min-width:150px;" onchange="window.updateB2bKhoFilters()">
+                        <option value="">Tất cả Vùng</option>
+                    </select>
+                    <select id="filter-b2b-kho-warehouse" class="filter-select" style="height:42px; min-width:180px;" onchange="window.updateB2bKhoFilters()">
+                        <option value="">Tất cả Kho</option>
+                    </select>
+                    <button class="btn btn-outline" style="height:42px; padding: 0 16px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('kho')">Reset bộ lọc</button>
+                </div>
+
+                <!-- OVERVIEW CARDS -->
+                <div class="overview-cards" id="overview-b2b-kho-cards">
+                    <!-- Cards will be dynamically inserted here -->
+                </div>
+
+                <!-- ALERT BOX -->
+                <div id="alert-b2b-kho" style="margin: 20px 0;"></div>
+
+                <!-- CHARTS -->
+                <div class="charts-row" style="grid-template-columns: 1fr; margin-top:20px;">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3><i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Kho</h3>
+                        </div>
+                        <div class="chart-container" style="position:relative; min-height:320px;">
+                            <canvas id="chart-gtc-b2b-kho"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA TABLE -->
+                <div class="table-card" style="margin-top:20px;">
+                    <div class="table-header">
+                        <h3><i class="fa-solid fa-table"></i> Bảng dữ liệu GTC Kho</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kho</th>
+                                    <th>Vùng</th>
+                                    <th>Thời gian</th>
+                                    <th style="text-align:right">Tổng đơn B2B ưu tiên</th>
+                                    <th style="text-align:right">Tổng GTC</th>
+                                    <th style="text-align:right">Tỷ lệ GTC</th>
+                                    <th style="text-align:right">Tổng lỗi đơn B2B</th>
+                                    <th style="text-align:right">Tỷ lệ lỗi B2B</th>
+                                    <th>Đánh giá</th>
+                                    <th>Cảnh báo</th>
+                                    <th>Đề xuất hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-b2b-kho">
+                                <tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DATA DON DETAILED SECTION -->
+                <div style="margin-top: 40px; border-top: 2px dashed #ddd; padding-top: 30px;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text1); margin-bottom: 5px;">
+                        <i class="fa-solid fa-circle-info" style="color:var(--blue)"></i> Tổng data chi tiết đơn B2B
+                    </h2>
+                    <p style="font-size: 0.85rem; color: var(--text3); margin-bottom: 20px;">Theo dõi danh sách chi tiết các đơn B2B ưu tiên bị lỗi hoặc chưa hoàn thành</p>
+
+                    <!-- DETAILED FILTER -->
+                    <div class="section-filters ghn-filter-row" style="display:flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                        <div class="ghn-filter-container" id="multi-gtc-b2b-detail-day">
+                            <div class="ghn-filter-selected" id="label-b2b-detail-day" onclick="window.toggleB2bMultiselect('detail-day')">Chọn Ngày...</div>
+                            <div class="ghn-filter-menu" id="menu-gtc-b2b-detail-day"></div>
+                        </div>
+                        <div class="ghn-filter-container" id="multi-gtc-b2b-detail-month">
+                            <div class="ghn-filter-selected" id="label-b2b-detail-month" onclick="window.toggleB2bMultiselect('detail-month')">Chọn Tháng...</div>
+                            <div class="ghn-filter-menu" id="menu-gtc-b2b-detail-month"></div>
+                        </div>
+                        <select id="filter-b2b-detail-region" class="filter-select" style="height:42px; min-width:140px;" onchange="window.updateB2bDetailFilters()">
+                            <option value="">Tất cả Vùng</option>
+                        </select>
+                        <select id="filter-b2b-detail-warehouse" class="filter-select" style="height:42px; min-width:180px;" onchange="window.updateB2bDetailFilters()">
+                            <option value="">Tất cả Kho</option>
+                        </select>
+                        <select id="filter-b2b-detail-error" class="filter-select" style="height:42px; min-width:180px;" onchange="window.updateB2bDetailFilters()">
+                            <option value="">Tất cả Trạng thái/Lỗi</option>
+                        </select>
+                        <button class="btn btn-outline" style="height:42px; padding: 0 16px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:#fff;" onclick="window.resetB2bFilters('detail')">Reset bộ lọc</button>
+                    </div>
+
+                    <!-- DETAILED ALERT BOX -->
+                    <div id="alert-b2b-detail" style="margin: 20px 0;"></div>
+
+                    <!-- DETAILED TABLE -->
+                    <div class="table-card">
+                        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3><i class="fa-solid fa-list-check"></i> Chi tiết đơn hàng B2B</h3>
+                            <span class="badge badge-info" id="b2b-detail-count-label" style="font-size: 11px;">0 đơn</span>
+                        </div>
+                        <div class="table-scroll" style="max-height: 400px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày ưu tiên</th>
+                                        <th>Vùng</th>
+                                        <th>Kho hiện tại</th>
+                                        <th>Mã đơn</th>
+                                        <th>Tên khách</th>
+                                        <th>Nhóm lỗi/Trạng thái</th>
+                                        <th>PIC</th>
+                                    </tr>
+                                    <tbody id="tbody-b2b-detail">
+                                        <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu chi tiết...</td></tr>
+                                    </tbody>
+                                </thead>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
