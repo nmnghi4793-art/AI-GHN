@@ -163,6 +163,9 @@
                 <i class="fa-solid fa-fire" style="color:#ff4d4f"></i><span>Cảnh Báo Rủi Ro</span>
                 <span class="nav-badge danger" id="nav-warnings-count">--</span>
             </a>
+            <a href="#" class="nav-item" data-section="gtc-b2b-prio" id="nav-gtc-b2b-prio">
+                <i class="fa-solid fa-star" style="color:#ffc53d"></i><span>GTC đơn B2B Ưu Tiên</span>
+            </a>
             <a href="#" class="nav-item" data-section="gtc" id="nav-gtc">
                 <i class="fa-solid fa-check-double"></i><span>GTC và Năng Suất</span>
             </a>
@@ -171,13 +174,6 @@
             </a>
             <a href="#" class="nav-item" data-section="dontao" id="nav-dontao">
                 <i class="fa-solid fa-file-invoice"></i><span>Đơn Tạo N-1</span>
-            </a>
-            <a href="#" class="nav-item" data-section="b2b" id="nav-b2b">
-                <i class="fa-solid fa-crown"></i><span>B2B &amp; SLA</span>
-                <span class="nav-badge danger" id="nav-b2b-count">--</span>
-            </a>
-            <a href="#" class="nav-item" data-section="gtc-b2b-prio" id="nav-gtc-b2b-prio">
-                <i class="fa-solid fa-star" style="color:#ffc53d"></i><span>GTC đơn B2B Ưu Tiên</span>
             </a>
             <a href="#" class="nav-item" data-section="backlog" id="nav-backlog">
                 <i class="fa-solid fa-triangle-exclamation"></i><span>Backlog &gt; 7 Ngày</span>
@@ -277,6 +273,15 @@
                         <h3>Đơn B2B Ưu Tiên</h3>
                         <h2 id="val-b2b" class="text-warning">--</h2>
                         <p class="stat-sub">Hôm nay & ngày mai</p>
+                    </div>
+                </div>
+                <!-- 4.1. Tỷ lệ GTC đơn B2B ưu tiên -->
+                <div class="stat-card" style="background:#E8F5E9;border:1px solid #C8E6C9">
+                    <div class="stat-icon" style="background:#C8E6C9;color:#2E7D32"><i class="fa-solid fa-star"></i></div>
+                    <div class="stat-details">
+                        <h3>% GTC B2B Ưu Tiên</h3>
+                        <h2 id="val-gtc-b2b-prio-overview" style="color:#2E7D32">--%</h2>
+                        <p class="stat-sub" id="sub-gtc-b2b-prio-overview">Ngày gần nhất</p>
                     </div>
                 </div>
                 <!-- 5. FD TRẢ -->
@@ -398,6 +403,24 @@
                     </div>
                     <div class="chart-container-sm">
                         <canvas id="chart-returns-pie"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHARTS ROW 2: B2B PRIORITY GTC TREND -->
+            <div class="charts-row" style="margin-top:20px;">
+                <div class="chart-card" style="flex:1; min-width:100%;">
+                    <div class="chart-header" style="display:flex; justify-content: space-between; align-items: center;">
+                        <h3><i class="fa-solid fa-chart-line" style="color:#2E7D32"></i> Biểu đồ GTC đơn B2B ưu tiên theo ngày</h3>
+                        <div style="display:flex; gap: 10px; align-items: center;">
+                            <div class="filter-tabs" style="display:flex; gap: 5px;">
+                                <button class="btn-mini active" id="btn-ov-b2b-day" onclick="window.switchOverviewB2bPeriod('day')">Ngày</button>
+                                <button class="btn-mini" id="btn-ov-b2b-month" onclick="window.switchOverviewB2bPeriod('month')">Tháng</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height:320px;">
+                        <canvas id="chart-overview-b2b-gtc-trend"></canvas>
                     </div>
                 </div>
             </div>

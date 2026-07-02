@@ -246,6 +246,7 @@ function renderAll() {
         { name: 'OverviewCards', fn: renderOverviewCards },
         { name: 'GtcTrendChart', fn: renderGtcTrendChart },
         { name: 'ReturnsPieChart', fn: renderReturnsPieChart },
+        { name: 'OverviewB2bChart', fn: renderOverviewB2bChart },
         { name: 'BacklogOverviewTable', fn: renderBacklogOverviewTable },
         { name: 'B2bOverviewTable', fn: renderB2bOverviewTable },
         { name: 'CriticalWarningsOverview', fn: renderCriticalWarningsOverview },
@@ -303,6 +304,35 @@ function renderOverviewCards() {
     }
     document.getElementById('val-backlog').textContent = ov.total_backlog_7n || 0;
     document.getElementById('val-b2b').textContent = ov.total_b2b_priority || 0;
+    
+    // Calculate % GTC B2B Priority for overview card (latest day)
+    const b2bData = state.gtcB2bData || [];
+    const availableB2bDays = [...new Set(b2bData.map(r => parseDateToYmd(r['time_view'])).filter(Boolean))].sort();
+    let b2bGtcPctText = 'Chưa có dữ liệu';
+    let b2bGtcSubText = 'Ngày gần nhất';
+    
+    if (availableB2bDays.length > 0) {
+        const latestDay = availableB2bDays[availableB2bDays.length - 1];
+        const latestRows = b2bData.filter(r => parseDateToYmd(r['time_view']) === latestDay);
+        
+        let totalPriority = 0;
+        let totalErrors = 0;
+        latestRows.forEach(row => {
+            totalPriority += parseInt(row['Số đơn ưu tiên']) || 0;
+            totalErrors += parseInt(row['Đơn ưu tiên chưa giao (lỗi vận hành )']) || 0;
+        });
+        
+        if (totalPriority > 0) {
+            b2bGtcPctText = ((totalPriority - totalErrors) / totalPriority * 100).toFixed(2) + '%';
+            b2bGtcSubText = 'Ngày ' + latestDay;
+        }
+    }
+    
+    const cardB2bVal = document.getElementById('val-gtc-b2b-prio-overview');
+    if (cardB2bVal) cardB2bVal.textContent = b2bGtcPctText;
+    const cardB2bSub = document.getElementById('sub-gtc-b2b-prio-overview');
+    if (cardB2bSub) cardB2bSub.textContent = b2bGtcSubText;
+
     document.getElementById('val-fd').textContent = (ov.avg_fd_return || 0) + '%';
     const valNangSuatEl = document.getElementById('val-nangsuat');
     if (valNangSuatEl) valNangSuatEl.textContent = (ov.avg_nang_suat || 0);
@@ -413,9 +443,16 @@ document.addEventListener('click', (e) => {
 });
 
 function updateNavBadges() {
-    document.getElementById('nav-backlog-count').textContent = state.backlogData.length;
+    const backlogBadge = document.getElementById('nav-backlog-count');
+    if (backlogBadge) {
+        backlogBadge.textContent = state.backlogData.length;
+    }
+    
     const critB2b = state.b2bData.filter(r => (r['Mức độ ưu tiên'] || '').startsWith('1:'));
-    document.getElementById('nav-b2b-count').textContent = critB2b.length;
+    const b2bBadge = document.getElementById('nav-b2b-count');
+    if (b2bBadge) {
+        b2bBadge.textContent = critB2b.length;
+    }
 
     const critWarn = state.warningsData.filter(r => r['Tình hình hiện tại'] === 'Nghiêm trọng');
     const warnBadge = document.getElementById('nav-warnings-count');
@@ -551,6 +588,94 @@ function renderReturnsPieChart() {
                     }
                 },
                 datalabels: { display: true }
+            }
+        }
+    });
+}
+
+let currentOverviewB2bPeriod = 'day';
+
+window.switchOverviewB2bPeriod = function (p) {
+    currentOverviewB2bPeriod = p;
+    document.querySelectorAll('#btn-ov-b2b-day, #btn-ov-b2b-month').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-ov-b2b-' + p)?.classList.add('active');
+    renderOverviewB2bChart();
+};
+
+function renderOverviewB2bChart() {
+    const canvas = document.getElementById('chart-overview-b2b-gtc-trend');
+    if (!canvas) return;
+    
+    const b2bData = state.gtcB2bData || [];
+    if (!b2bData.length) {
+        destroyChart('overviewB2bGtcTrend');
+        return;
+    }
+    
+    const dateMap = {};
+    b2bData.forEach(row => {
+        const ymd = parseDateToYmd(row['time_view']);
+        if (!ymd) return;
+        const key = currentOverviewB2bPeriod === 'day' ? ymd : getMonthFromYmd(ymd);
+        if (!dateMap[key]) {
+            dateMap[key] = { total: 0, errors: 0 };
+        }
+        dateMap[key].total += parseInt(row['Số đơn ưu tiên']) || 0;
+        dateMap[key].errors += parseInt(row['Đơn ưu tiên chưa giao (lỗi vận hành )']) || 0;
+    });
+    
+    const allKeys = Object.keys(dateMap).sort();
+    let labels = [];
+    if (currentOverviewB2bPeriod === 'day') {
+        labels = allKeys.slice(-10);
+    } else {
+        labels = allKeys.slice(-5);
+    }
+    
+    const values = labels.map(k => {
+        const item = dateMap[k];
+        return item.total > 0 ? parseFloat(((item.total - item.errors) / item.total * 100).toFixed(1)) : 0;
+    });
+    
+    destroyChart('overviewB2bGtcTrend');
+    const ctx = canvas.getContext('2d');
+    charts.overviewB2bGtcTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(l => currentOverviewB2bPeriod === 'day' ? l.replace(/^\d{4}-/, '') : l),
+            datasets: [{
+                label: '% GTC B2B',
+                data: values,
+                borderColor: '#2E7D32',
+                backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                datalabels: {
+                    align: 'top',
+                    color: '#2E7D32',
+                    font: { size: 10, weight: 'bold' },
+                    formatter: v => v + '%'
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: true }
+            },
+            scales: {
+                y: {
+                    suggestedMin: 60,
+                    suggestedMax: 100,
+                    ticks: { callback: v => v + '%' }
+                },
+                x: {
+                    grid: { display: false }
+                }
             }
         }
     });
@@ -5091,25 +5216,51 @@ function renderGtcB2bKho() {
         return a.warehouse.localeCompare(b.warehouse);
     });
     
-    // Aggregate by warehouse for overview stats
+    // 1. Calculate overview statistics per warehouse *FOR LATEST DAY* (or filtered day)
+    const availableDays = [...new Set((state.gtcB2bData || []).map(r => parseDateToYmd(r['time_view'])).filter(Boolean))].sort();
+    const defaultLatestDay = availableDays[availableDays.length - 1] || '';
+    
+    let cardDay = defaultLatestDay;
+    if (selectedB2bKhoDays.length > 0) {
+        cardDay = [...selectedB2bKhoDays].sort().reverse()[0];
+    } else if (selectedB2bKhoMonths.length > 0) {
+        const daysInMonths = availableDays.filter(d => selectedB2bKhoMonths.includes(getMonthFromYmd(d)));
+        if (daysInMonths.length > 0) {
+            cardDay = daysInMonths.sort().reverse()[0];
+        }
+    }
+    
+    let cardData = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === cardDay);
+    if (selectedB2bKhoRegions.length > 0) {
+        cardData = cardData.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+    }
+    if (selectedB2bKhoWarehouses.length > 0) {
+        cardData = cardData.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
+    }
+    
     const warehouseStats = {};
     let totalPriorityGlobal = 0;
     let totalErrorsGlobal = 0;
     
-    rows.forEach(r => {
-        if (!warehouseStats[r.warehouse]) {
-            warehouseStats[r.warehouse] = {
-                name: r.warehouse,
-                region: r.region,
+    cardData.forEach(row => {
+        const warehouse = row['warehouse_name'] || '';
+        const region = getRegionForWarehouse(warehouse);
+        if (!warehouseStats[warehouse]) {
+            warehouseStats[warehouse] = {
+                name: warehouse,
+                region: region,
                 totalPriority: 0,
                 totalErrors: 0
             };
         }
-        warehouseStats[r.warehouse].totalPriority += r.totalPriority;
-        warehouseStats[r.warehouse].totalErrors += r.totalErrors;
+        const count = parseInt(row['Số đơn ưu tiên']) || 0;
+        const errors = parseInt(row['Đơn ưu tiên chưa giao (lỗi vận hành )']) || 0;
         
-        totalPriorityGlobal += r.totalPriority;
-        totalErrorsGlobal += r.totalErrors;
+        warehouseStats[warehouse].totalPriority += count;
+        warehouseStats[warehouse].totalErrors += errors;
+        
+        totalPriorityGlobal += count;
+        totalErrorsGlobal += errors;
     });
     
     const warehouseList = Object.values(warehouseStats).map(w => {
@@ -5151,7 +5302,7 @@ function renderGtcB2bKho() {
                 <div class="stat-details">
                     <h3>Tổng Kho</h3>
                     <h2>${totalWarehouses} Kho</h2>
-                    <p class="stat-sub">Có dữ liệu B2B</p>
+                    <p class="stat-sub">Ngày ${cardDay}</p>
                 </div>
             </div>
             <div class="stat-card green-card">
@@ -5159,7 +5310,7 @@ function renderGtcB2bKho() {
                 <div class="stat-details">
                     <h3>GTC Cao Nhất</h3>
                     <h2>${shortKho(highestGtcKho)}</h2>
-                    <p class="stat-sub text-green">${highestGtcVal >= 0 ? (highestGtcVal * 100).toFixed(1) + '%' : '--'}</p>
+                    <p class="stat-sub text-green">${highestGtcVal >= 0 ? (highestGtcVal * 100).toFixed(1) + '%' : '--'} (Ngày ${cardDay})</p>
                 </div>
             </div>
             <div class="stat-card red-card">
@@ -5167,7 +5318,7 @@ function renderGtcB2bKho() {
                 <div class="stat-details">
                     <h3>GTC Thấp Nhất</h3>
                     <h2>${shortKho(lowestGtcKho)}</h2>
-                    <p class="stat-sub text-danger">${lowestGtcVal < 999 ? (lowestGtcVal * 100).toFixed(1) + '%' : '--'}</p>
+                    <p class="stat-sub text-danger">${lowestGtcVal < 999 ? (lowestGtcVal * 100).toFixed(1) + '%' : '--'} (Ngày ${cardDay})</p>
                 </div>
             </div>
             <div class="stat-card orange-card">
@@ -5175,7 +5326,7 @@ function renderGtcB2bKho() {
                 <div class="stat-details">
                     <h3>Lỗi Cao Nhất</h3>
                     <h2>${shortKho(highestErrorKho)}</h2>
-                    <p class="stat-sub text-warning">${highestErrorVal >= 0 ? highestErrorVal + ' lỗi' : '--'}</p>
+                    <p class="stat-sub text-warning">${highestErrorVal >= 0 ? highestErrorVal + ' lỗi' : '--'} (Ngày ${cardDay})</p>
                 </div>
             </div>
             <div class="stat-card purple-card">
@@ -5183,7 +5334,7 @@ function renderGtcB2bKho() {
                 <div class="stat-details">
                     <h3>GTC Trung Bình</h3>
                     <h2 style="color:var(--purple);">${avgGtcGlobal}%</h2>
-                    <p class="stat-sub">Toàn bộ kho</p>
+                    <p class="stat-sub">Ngày ${cardDay}</p>
                 </div>
             </div>
         `;
@@ -5267,7 +5418,6 @@ function renderGtcB2bKho() {
     // 4. Extract data for Kho charts
     let chartDataList = [];
     let latestTimeLabel = '';
-    const availableDays = [...new Set((state.gtcB2bData || []).map(r => parseDateToYmd(r['time_view'])).filter(Boolean))].sort();
     
     if (b2bKhoChartTab === 'day') {
         if (availableDays.length > 0) {
