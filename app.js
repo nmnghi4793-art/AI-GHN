@@ -77,14 +77,17 @@ if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.pl
 }
 
 if (!Chart.defaults.scales) Chart.defaults.scales = {};
-Chart.defaults.scales.category = {
-    grid: { color: defaultGridColor },
-    ticks: { color: defaultTextColor }
-};
-Chart.defaults.scales.linear = {
-    grid: { color: defaultGridColor },
-    ticks: { color: defaultTextColor }
-};
+if (!Chart.defaults.scales.category) Chart.defaults.scales.category = {};
+if (!Chart.defaults.scales.category.grid) Chart.defaults.scales.category.grid = {};
+Chart.defaults.scales.category.grid.color = defaultGridColor;
+if (!Chart.defaults.scales.category.ticks) Chart.defaults.scales.category.ticks = {};
+Chart.defaults.scales.category.ticks.color = defaultTextColor;
+
+if (!Chart.defaults.scales.linear) Chart.defaults.scales.linear = {};
+if (!Chart.defaults.scales.linear.grid) Chart.defaults.scales.linear.grid = {};
+Chart.defaults.scales.linear.grid.color = defaultGridColor;
+if (!Chart.defaults.scales.linear.ticks) Chart.defaults.scales.linear.ticks = {};
+Chart.defaults.scales.linear.ticks.color = defaultTextColor;
 
 // Ensure DataLabels plugin is registered for charts to show percentage
 Chart.register(ChartDataLabels);
@@ -5244,7 +5247,7 @@ function renderB2bRegionCharts(dataList) {
                         display: true,
                         anchor: 'end',
                         align: 'top',
-                        color: '#495057',
+                        color: () => document.documentElement.classList.contains('light-mode') ? '#1E2937' : '#FFFFFF',
                         font: { weight: 'bold', size: 10 },
                         formatter: v => v + '%'
                     }
@@ -5270,9 +5273,13 @@ function renderB2bRegionCharts(dataList) {
                     }
                 },
                 scales: {
+                    x: {
+                        type: 'category',
+                        ticks: { font: { size: 10 } }
+                    },
                     y: {
                         min: 0,
-                        max: 100,
+                        max: 105,
                         title: { display: true, text: 'Tỷ lệ GTC (%)', font: { size: 11 } }
                     }
                 }
@@ -5298,7 +5305,7 @@ function renderB2bRegionCharts(dataList) {
                         display: true,
                         anchor: 'end',
                         align: 'top',
-                        color: '#c62828',
+                        color: () => document.documentElement.classList.contains('light-mode') ? '#C62828' : '#FF8F8F',
                         font: { weight: 'bold', size: 10 },
                         formatter: v => v
                     }
@@ -5319,8 +5326,13 @@ function renderB2bRegionCharts(dataList) {
                     }
                 },
                 scales: {
+                    x: {
+                        type: 'category',
+                        ticks: { font: { size: 10 } }
+                    },
                     y: {
                         beginAtZero: true,
+                        grace: '10%',
                         ticks: { stepSize: 1 },
                         title: { display: true, text: 'Đơn lỗi (đơn)', font: { size: 11 } }
                     }
@@ -5680,7 +5692,7 @@ function renderB2bWarehouseCharts(dataList) {
                         display: true,
                         anchor: 'end',
                         align: 'right',
-                        color: '#495057',
+                        color: () => document.documentElement.classList.contains('light-mode') ? '#1E2937' : '#FFFFFF',
                         font: { weight: 'bold', size: 9 },
                         formatter: v => v + '%'
                     }
@@ -5710,10 +5722,11 @@ function renderB2bWarehouseCharts(dataList) {
                 scales: {
                     x: {
                         min: 0,
-                        max: 100,
+                        max: 105,
                         title: { display: true, text: 'Tỷ lệ GTC (%)', font: { size: 11 } }
                     },
                     y: {
+                        type: 'category',
                         ticks: { font: { size: 10 } }
                     }
                 }
@@ -5739,7 +5752,7 @@ function renderB2bWarehouseCharts(dataList) {
                         display: true,
                         anchor: 'end',
                         align: 'right',
-                        color: '#c62828',
+                        color: () => document.documentElement.classList.contains('light-mode') ? '#C62828' : '#FF8F8F',
                         font: { weight: 'bold', size: 9 },
                         formatter: v => v
                     }
@@ -5767,10 +5780,12 @@ function renderB2bWarehouseCharts(dataList) {
                 scales: {
                     x: {
                         beginAtZero: true,
+                        grace: '10%',
                         ticks: { stepSize: 1 },
                         title: { display: true, text: 'Đơn lỗi (đơn)', font: { size: 11 } }
                     },
                     y: {
+                        type: 'category',
                         ticks: { font: { size: 10 } }
                     }
                 }
