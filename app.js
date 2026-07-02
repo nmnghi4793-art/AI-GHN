@@ -4294,6 +4294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let b2bActiveTab = 'vung';
 let b2bFiltersPopulated = false;
 let b2bChartTab = 'day';
+let b2bKhoChartTab = 'day';
 
 // Filter selections
 let selectedB2bVungDays = [];
@@ -4401,6 +4402,27 @@ window.switchB2bChartTab = function(tab) {
         }
     });
     renderGtcB2bVung();
+};
+
+window.switchB2bKhoChartTab = function(tab) {
+    b2bKhoChartTab = tab;
+    ['day', 'month'].forEach(t => {
+        const btn = document.getElementById('btn-kho-chart-tab-' + t);
+        if (btn) {
+            if (t === tab) {
+                btn.classList.add('active');
+                btn.style.background = 'white';
+                btn.style.color = 'var(--text1)';
+                btn.style.boxShadow = 'var(--shadow-sm)';
+            } else {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--text2)';
+                btn.style.boxShadow = 'none';
+            }
+        }
+    });
+    renderGtcB2bKho();
 };
 
 window.toggleB2bMultiselect = function(mode) {
@@ -4601,7 +4623,7 @@ function renderGtcB2bPrioSection() {
 function renderGtcB2bVung() {
     let rawData = state.gtcB2bData || [];
     
-    // Apply filters
+    // Apply filters for the table
     if (selectedB2bVungDays.length > 0) {
         rawData = rawData.filter(r => selectedB2bVungDays.includes(parseDateToYmd(r['time_view'])));
     }
@@ -4612,7 +4634,7 @@ function renderGtcB2bVung() {
         rawData = rawData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
     }
     
-    // Group by Region + time_view (or Month if filtering by month)
+    // Group by Region + time_view for table
     const groups = {};
     rawData.forEach(row => {
         const warehouse = row['warehouse_name'] || '';
@@ -4641,27 +4663,49 @@ function renderGtcB2bVung() {
         return b.timeLabel.localeCompare(a.timeLabel);
     });
     
-    // Calculate overview statistics per region
-    const regionStats = {};
-    let totalPriorityGlobal = 0;
-    let totalErrorsGlobal = 0;
+    // 1. Calculate overview statistics per region *FOR LATEST DAY*
+    const availableDays = [...new Set((state.gtcB2bData || []).map(r => parseDateToYmd(r['time_view'])).filter(Boolean))].sort();
+    const defaultLatestDay = availableDays[availableDays.length - 1] || '';
     
-    rows.forEach(r => {
-        if (!regionStats[r.region]) {
-            regionStats[r.region] = {
+    let cardDay = defaultLatestDay;
+    if (selectedB2bVungDays.length > 0) {
+        cardDay = [...selectedB2bVungDays].sort().reverse()[0];
+    } else if (selectedB2bVungMonths.length > 0) {
+        const daysInMonths = availableDays.filter(d => selectedB2bVungMonths.includes(getMonthFromYmd(d)));
+        if (daysInMonths.length > 0) {
+            cardDay = daysInMonths.sort().reverse()[0];
+        }
+    }
+    
+    let cardData = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === cardDay);
+    if (selectedB2bVungRegions.length > 0) {
+        cardData = cardData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+    }
+    
+    const cardRegionStats = {};
+    let cardTotalPriorityGlobal = 0;
+    let cardTotalErrorsGlobal = 0;
+    
+    cardData.forEach(row => {
+        const region = getRegionForWarehouse(row['warehouse_name']);
+        if (!cardRegionStats[region]) {
+            cardRegionStats[region] = {
                 totalPriority: 0,
                 totalErrors: 0
             };
         }
-        regionStats[r.region].totalPriority += r.totalPriority;
-        regionStats[r.region].totalErrors += r.totalErrors;
+        const count = parseInt(row['Số đơn ưu tiên']) || 0;
+        const errors = parseInt(row['Đơn ưu tiên chưa giao (lỗi vận hành )']) || 0;
         
-        totalPriorityGlobal += r.totalPriority;
-        totalErrorsGlobal += r.totalErrors;
+        cardRegionStats[region].totalPriority += count;
+        cardRegionStats[region].totalErrors += errors;
+        
+        cardTotalPriorityGlobal += count;
+        cardTotalErrorsGlobal += errors;
     });
     
-    const regionList = Object.keys(regionStats).map(name => {
-        const stats = regionStats[name];
+    const cardRegionList = Object.keys(cardRegionStats).map(name => {
+        const stats = cardRegionStats[name];
         const gtcRate = stats.totalPriority > 0 ? (stats.totalPriority - stats.totalErrors) / stats.totalPriority : 0;
         return {
             name: name,
@@ -4671,8 +4715,7 @@ function renderGtcB2bVung() {
         };
     });
     
-    // 1. Update Cards
-    const totalRegions = regionList.length;
+    const totalRegions = cardRegionList.length;
     let highestGtcRegion = '--';
     let highestGtcVal = -1;
     let lowestGtcRegion = '--';
@@ -4680,7 +4723,7 @@ function renderGtcB2bVung() {
     let highestErrorRegion = '--';
     let highestErrorVal = -1;
     
-    regionList.forEach(r => {
+    cardRegionList.forEach(r => {
         if (r.gtcRate > highestGtcVal) {
             highestGtcVal = r.gtcRate;
             highestGtcRegion = r.name;
@@ -4695,7 +4738,8 @@ function renderGtcB2bVung() {
         }
     });
     
-    const avgGtcGlobal = totalPriorityGlobal > 0 ? ((totalPriorityGlobal - totalErrorsGlobal) / totalPriorityGlobal * 100).toFixed(2) : '0.00';
+    const avgGtcGlobal = cardTotalPriorityGlobal > 0 ? ((cardTotalPriorityGlobal - cardTotalErrorsGlobal) / cardTotalPriorityGlobal * 100).toFixed(2) : '0.00';
+    const displayDateStr = cardDay ? cardDay : 'Chưa có';
     
     const cardsContainer = document.getElementById('overview-b2b-vung-cards');
     if (cardsContainer) {
@@ -4705,7 +4749,7 @@ function renderGtcB2bVung() {
                 <div class="stat-details">
                     <h3>Tổng Vùng</h3>
                     <h2>${totalRegions} Vùng</h2>
-                    <p class="stat-sub">Có dữ liệu</p>
+                    <p class="stat-sub">Có dữ liệu (${displayDateStr})</p>
                 </div>
             </div>
             <div class="stat-card green-card">
@@ -4713,7 +4757,7 @@ function renderGtcB2bVung() {
                 <div class="stat-details">
                     <h3>GTC Cao Nhất</h3>
                     <h2>${highestGtcRegion}</h2>
-                    <p class="stat-sub text-green">${highestGtcVal >= 0 ? (highestGtcVal * 100).toFixed(1) + '%' : '--'}</p>
+                    <p class="stat-sub text-green">${highestGtcVal >= 0 ? (highestGtcVal * 100).toFixed(1) + '%' : '--'} (${displayDateStr})</p>
                 </div>
             </div>
             <div class="stat-card red-card">
@@ -4721,7 +4765,7 @@ function renderGtcB2bVung() {
                 <div class="stat-details">
                     <h3>GTC Thấp Nhất</h3>
                     <h2>${lowestGtcRegion}</h2>
-                    <p class="stat-sub text-danger">${lowestGtcVal < 999 ? (lowestGtcVal * 100).toFixed(1) + '%' : '--'}</p>
+                    <p class="stat-sub text-danger">${lowestGtcVal < 999 ? (lowestGtcVal * 100).toFixed(1) + '%' : '--'} (${displayDateStr})</p>
                 </div>
             </div>
             <div class="stat-card orange-card">
@@ -4729,7 +4773,7 @@ function renderGtcB2bVung() {
                 <div class="stat-details">
                     <h3>Lỗi Cao Nhất</h3>
                     <h2>${highestErrorRegion}</h2>
-                    <p class="stat-sub text-warning">${highestErrorVal >= 0 ? highestErrorVal + ' lỗi' : '--'}</p>
+                    <p class="stat-sub text-warning">${highestErrorVal >= 0 ? highestErrorVal + ' lỗi' : '--'} (${displayDateStr})</p>
                 </div>
             </div>
             <div class="stat-card purple-card">
@@ -4737,7 +4781,7 @@ function renderGtcB2bVung() {
                 <div class="stat-details">
                     <h3>GTC Trung Bình</h3>
                     <h2 style="color:var(--purple);">${avgGtcGlobal}%</h2>
-                    <p class="stat-sub">Toàn vùng</p>
+                    <p class="stat-sub">Toàn vùng (${displayDateStr})</p>
                 </div>
             </div>
         `;
@@ -4751,10 +4795,10 @@ function renderGtcB2bVung() {
             alertBox.innerHTML = `
                 <div style="background:#FFF9DB; border:1px solid #FFEC99; border-radius:12px; padding:18px 24px; color:var(--text1); font-size:0.9rem; line-height:1.6; box-shadow:var(--shadow-sm);">
                     <div style="display:flex; align-items:center; gap:8px; font-weight:700; margin-bottom:8px; color:#F08C00;">
-                        <i class="fa-solid fa-triangle-exclamation" style="font-size:1.1rem;"></i> CẢNH BÁO & ĐỀ XUẤT HÀNH ĐỘNG VÙNG
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:1.1rem;"></i> CẢNH BÁO & ĐỀ XUẤT HÀNH ĐỘNG VÙNG (${displayDateStr})
                     </div>
                     <div>
-                        <strong>⚠️ Cảnh báo:</strong> Vùng <span style="color:var(--red); font-weight:700;">${lowestGtcRegion}</span> đang có tỷ lệ GTC B2B ưu tiên thấp nhất, đạt <span style="font-weight:700;">${(lowestGtcVal * 100).toFixed(1)}%</span>. Đồng thời phát sinh <span style="font-weight:700; color:var(--red);">${highestErrorVal}</span> lỗi B2B. Cần rà soát các kho kéo giảm GTC, kiểm tra backlog, lỗi xử lý đơn B2B và năng lực giao trong ngày.
+                        <strong>⚠️ Cảnh báo:</strong> Vùng <span style="color:var(--red); font-weight:700;">${lowestGtcRegion}</span> đang có tỷ lệ GTC B2B ưu tiên thấp nhất ngày ${displayDateStr}, đạt <span style="font-weight:700;">${(lowestGtcVal * 100).toFixed(1)}%</span>. Đồng thời phát sinh <span style="font-weight:700; color:var(--red);">${highestErrorVal}</span> lỗi B2B. Cần rà soát các kho kéo giảm GTC, kiểm tra backlog, lỗi xử lý đơn B2B và năng lực giao trong ngày.
                     </div>
                     <div style="margin-top:10px;">
                         <strong>🛠️ Đề xuất:</strong>
@@ -4785,7 +4829,6 @@ function renderGtcB2bVung() {
                 const gtcPct = total > 0 ? (gtc / total * 100) : 0;
                 const errorPct = total > 0 ? (errors / total * 100) : 0;
                 
-                // Đánh giá
                 let evaluation = 'Tốt';
                 let evalClass = 'badge green';
                 if (gtcPct < 75) {
@@ -4817,42 +4860,28 @@ function renderGtcB2bVung() {
         }
     }
     
-    // Extract data for chart
+    // 4. Extract data for chart
     let chartDataList = [];
+    let latestTimeLabel = '';
     if (b2bChartTab === 'day') {
-        let availableDays = rawData.map(r => parseDateToYmd(r['time_view'])).filter(Boolean);
-        if (availableDays.length === 0) {
-            availableDays = (state.gtcB2bData || []).map(r => parseDateToYmd(r['time_view'])).filter(Boolean);
-        }
         if (availableDays.length > 0) {
-            const latestDay = availableDays.sort().reverse()[0];
+            const latestDay = availableDays[availableDays.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === latestDay);
             if (selectedB2bVungRegions.length > 0) {
                 rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
             }
-            
-            const titleEl = document.querySelector('#panel-b2b-vung .chart-card h3');
-            if (titleEl) {
-                titleEl.innerHTML = `<i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Vùng - Ngày ${latestDay}`;
-            }
+            latestTimeLabel = 'Ngày ' + latestDay;
             chartDataList = rawChart;
         }
     } else {
-        let availableMonths = rawData.map(r => getMonthFromYmd(parseDateToYmd(r['time_view']))).filter(Boolean);
-        if (availableMonths.length === 0) {
-            availableMonths = (state.gtcB2bData || []).map(r => getMonthFromYmd(parseDateToYmd(r['time_view']))).filter(Boolean);
-        }
+        const availableMonths = [...new Set(availableDays.map(getMonthFromYmd).filter(Boolean))].sort();
         if (availableMonths.length > 0) {
-            const latestMonth = availableMonths.sort().reverse()[0];
+            const latestMonth = availableMonths[availableMonths.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => getMonthFromYmd(parseDateToYmd(r['time_view'])) === latestMonth);
             if (selectedB2bVungRegions.length > 0) {
                 rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
             }
-            
-            const titleEl = document.querySelector('#panel-b2b-vung .chart-card h3');
-            if (titleEl) {
-                titleEl.innerHTML = `<i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Vùng - Tháng ${latestMonth}`;
-            }
+            latestTimeLabel = 'Tháng ' + latestMonth;
             chartDataList = rawChart;
         }
     }
@@ -4876,21 +4905,28 @@ function renderGtcB2bVung() {
         return g;
     }).sort((a, b) => a.name.localeCompare(b.name));
     
-    // 4. Render Chart
-    renderB2bRegionChart(finalChartData);
+    // Update chart headers
+    const rateHeader = document.getElementById('title-b2b-vung-rate');
+    if (rateHeader) rateHeader.innerHTML = `<i class="fa-solid fa-chart-pie"></i> % GTC theo Vùng - ${latestTimeLabel}`;
+    
+    const errHeader = document.getElementById('title-b2b-vung-errors');
+    if (errHeader) errHeader.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="color:var(--yellow)"></i> Đơn lỗi theo Vùng - ${latestTimeLabel}`;
+    
+    renderB2bRegionCharts(finalChartData);
 }
 
-function renderB2bRegionChart(dataList) {
-    destroyChart('gtcB2bVung');
-    const canvas = document.getElementById('chart-gtc-b2b-vung');
-    if (!canvas || !dataList.length) return;
+function renderB2bRegionCharts(dataList) {
+    destroyChart('gtcB2bVungRate');
+    destroyChart('gtcB2bVungErrors');
+    
+    const canvasRate = document.getElementById('chart-gtc-b2b-vung-rate');
+    const canvasErrors = document.getElementById('chart-gtc-b2b-vung-errors');
+    if (!dataList.length) return;
     
     const labels = dataList.map(r => r.name);
-    const gtcRates = dataList.map(r => (r.gtcRate * 100).toFixed(1));
+    const gtcRates = dataList.map(r => parseFloat((r.gtcRate * 100).toFixed(1)));
     const errorCounts = dataList.map(r => r.totalErrors);
-    const totalCounts = dataList.map(r => r.totalPriority);
     
-    // Distinct shades of green and blue (xanh) for regions
     const regionColorsList = [
         'rgba(12, 166, 120, 0.85)', // teal
         'rgba(34, 139, 230, 0.85)', // royal blue
@@ -4900,91 +4936,108 @@ function renderB2bRegionChart(dataList) {
         'rgba(18, 184, 134, 0.85)'  // minty green
     ];
     
-    const ctx = canvas.getContext('2d');
-    charts.gtcB2bVung = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
+    if (canvasRate) {
+        const ctx = canvasRate.getContext('2d');
+        charts.gtcB2bVungRate = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
                     label: 'Tỷ lệ GTC B2B (%)',
                     data: gtcRates,
                     backgroundColor: labels.map((_, idx) => regionColorsList[idx % regionColorsList.length]),
                     borderColor: labels.map((_, idx) => regionColorsList[idx % regionColorsList.length].replace('0.85', '1.0')),
                     borderWidth: 1.5,
-                    barThickness: 20,
-                    maxBarThickness: 28,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Đơn lỗi B2B (đơn)',
-                    data: errorCounts,
-                    borderColor: 'rgb(245, 159, 0)', // màu vàng
-                    backgroundColor: 'rgba(255, 212, 59, 0.85)', // màu vàng
-                    borderWidth: 2.5,
-                    pointBackgroundColor: 'rgb(245, 159, 0)',
-                    pointRadius: 4,
-                    type: 'line',
-                    yAxisID: 'y1'
-                },
-                {
-                    label: 'Tổng đơn B2B (đơn)',
-                    data: totalCounts,
-                    borderColor: 'rgb(134, 142, 150)', // màu xám
-                    backgroundColor: 'rgba(173, 181, 189, 0.2)', // màu xám
-                    borderWidth: 1.5,
-                    pointBackgroundColor: 'rgb(134, 142, 150)',
-                    pointRadius: 3,
-                    type: 'line',
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        boxWidth: 12,
-                        font: { size: 11 }
+                    barThickness: 24,
+                    maxBarThickness: 32,
+                    datalabels: {
+                        display: true,
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#495057',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: v => v + '%'
                     }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const raw = dataList[context.dataIndex];
-                            if (context.datasetIndex === 0) {
-                                return `Tỷ lệ GTC B2B: ${(raw.gtcRate * 100).toFixed(1)}%`;
-                            } else if (context.datasetIndex === 1) {
-                                return `Đơn lỗi B2B: ${raw.totalErrors} đơn`;
-                            } else {
-                                return `Tổng đơn B2B: ${raw.totalPriority} đơn`;
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const raw = dataList[context.dataIndex];
+                                return [
+                                    `Tỷ lệ GTC B2B: ${(raw.gtcRate * 100).toFixed(1)}%`,
+                                    `Tổng đơn B2B: ${raw.totalPriority} đơn`,
+                                    `Tổng GTC B2B: ${raw.totalPriority - raw.totalErrors} đơn`
+                                ];
                             }
                         }
                     }
-                }
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: 'Tỷ lệ GTC B2B (%)', font: { size: 11 } }
                 },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { drawOnChartArea: false },
-                    title: { display: true, text: 'Số đơn / Đơn lỗi (đơn)', font: { size: 11 } }
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: 'Tỷ lệ GTC (%)', font: { size: 11 } }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
+    
+    if (canvasErrors) {
+        const ctx = canvasErrors.getContext('2d');
+        charts.gtcB2bVungErrors = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Đơn lỗi B2B (đơn)',
+                    data: errorCounts,
+                    backgroundColor: 'rgba(255, 193, 7, 0.85)', // màu vàng
+                    borderColor: 'rgb(255, 193, 7)',
+                    borderWidth: 1.5,
+                    barThickness: 24,
+                    maxBarThickness: 32,
+                    datalabels: {
+                        display: true,
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#c62828',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: v => v
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Số đơn lỗi: ${context.raw} đơn`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Đơn lỗi (đơn)', font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // ----------------------------------------------------
@@ -5031,9 +5084,11 @@ function renderGtcB2bKho() {
         groups[key].totalErrors += errors;
     });
     
+    // Sort primarily by timeLabel descending, secondarily by warehouse alphabetical ascending
     const rows = Object.values(groups).sort((a, b) => {
-        if (a.warehouse !== b.warehouse) return a.warehouse.localeCompare(b.warehouse);
-        return b.timeLabel.localeCompare(a.timeLabel);
+        const timeCompare = b.timeLabel.localeCompare(a.timeLabel);
+        if (timeCompare !== 0) return timeCompare;
+        return a.warehouse.localeCompare(b.warehouse);
     });
     
     // Aggregate by warehouse for overview stats
@@ -5177,7 +5232,6 @@ function renderGtcB2bKho() {
                 const gtcPct = total > 0 ? (gtc / total * 100) : 0;
                 const errorPct = total > 0 ? (errors / total * 100) : 0;
                 
-                // Đánh giá
                 let evaluation = 'Tốt';
                 let evalClass = 'badge green';
                 if (gtcPct < 75) {
@@ -5210,73 +5264,204 @@ function renderGtcB2bKho() {
         }
     }
     
-    // 4. Render Chart
-    renderB2bWarehouseChart(warehouseList);
+    // 4. Extract data for Kho charts
+    let chartDataList = [];
+    let latestTimeLabel = '';
+    const availableDays = [...new Set((state.gtcB2bData || []).map(r => parseDateToYmd(r['time_view'])).filter(Boolean))].sort();
+    
+    if (b2bKhoChartTab === 'day') {
+        if (availableDays.length > 0) {
+            const latestDay = availableDays[availableDays.length - 1];
+            let rawChart = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === latestDay);
+            if (selectedB2bKhoRegions.length > 0) {
+                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+            }
+            if (selectedB2bKhoWarehouses.length > 0) {
+                rawChart = rawChart.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
+            }
+            latestTimeLabel = 'Ngày ' + latestDay;
+            chartDataList = rawChart;
+        }
+    } else {
+        const availableMonths = [...new Set(availableDays.map(getMonthFromYmd).filter(Boolean))].sort();
+        if (availableMonths.length > 0) {
+            const latestMonth = availableMonths[availableMonths.length - 1];
+            let rawChart = (state.gtcB2bData || []).filter(r => getMonthFromYmd(parseDateToYmd(r['time_view'])) === latestMonth);
+            if (selectedB2bKhoRegions.length > 0) {
+                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+            }
+            if (selectedB2bKhoWarehouses.length > 0) {
+                rawChart = rawChart.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
+            }
+            latestTimeLabel = 'Tháng ' + latestMonth;
+            chartDataList = rawChart;
+        }
+    }
+    
+    const chartGroups = {};
+    chartDataList.forEach(row => {
+        const warehouse = row['warehouse_name'] || '';
+        const region = getRegionForWarehouse(warehouse);
+        if (!chartGroups[warehouse]) {
+            chartGroups[warehouse] = {
+                name: warehouse,
+                region: region,
+                totalPriority: 0,
+                totalErrors: 0
+            };
+        }
+        chartGroups[warehouse].totalPriority += parseInt(row['Số đơn ưu tiên']) || 0;
+        chartGroups[warehouse].totalErrors += parseInt(row['Đơn ưu tiên chưa giao (lỗi vận hành )']) || 0;
+    });
+    
+    const finalChartData = Object.values(chartGroups).map(w => {
+        w.gtcRate = w.totalPriority > 0 ? (w.totalPriority - w.totalErrors) / w.totalPriority : 0;
+        return w;
+    });
+    
+    // Update GTC Kho chart headers
+    const rateHeader = document.getElementById('title-b2b-kho-rate');
+    if (rateHeader) rateHeader.innerHTML = `<i class="fa-solid fa-chart-bar"></i> % GTC theo Kho - ${latestTimeLabel}`;
+    
+    const errHeader = document.getElementById('title-b2b-kho-errors');
+    if (errHeader) errHeader.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="color:var(--yellow)"></i> Đơn lỗi theo Kho - ${latestTimeLabel}`;
+    
+    renderB2bWarehouseCharts(finalChartData);
 }
 
-function renderB2bWarehouseChart(dataList) {
-    destroyChart('gtcB2bKho');
-    const canvas = document.getElementById('chart-gtc-b2b-kho');
-    if (!canvas || !dataList.length) return;
+function renderB2bWarehouseCharts(dataList) {
+    destroyChart('gtcB2bKhoRate');
+    destroyChart('gtcB2bKhoErrors');
     
-    // Sort so lowest GTC is first
-    const sorted = [...dataList].sort((a, b) => a.gtcRate - b.gtcRate);
+    const canvasRate = document.getElementById('chart-gtc-b2b-kho-rate');
+    const canvasErrors = document.getElementById('chart-gtc-b2b-kho-errors');
+    if (!dataList.length) return;
     
-    const labels = sorted.map(r => shortKho(r.name));
-    const gtcRates = sorted.map(r => (r.gtcRate * 100).toFixed(1));
+    // Sort data for Rate chart (lowest GTC rate first)
+    const sortedForRate = [...dataList].sort((a, b) => a.gtcRate - b.gtcRate);
+    const labelsRate = sortedForRate.map(r => shortKho(r.name));
+    const rates = sortedForRate.map(r => parseFloat((r.gtcRate * 100).toFixed(1)));
     
-    const ctx = canvas.getContext('2d');
-    charts.gtcB2bKho = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
+    // Sort data for Errors chart (highest error counts first)
+    const sortedForErrors = [...dataList].sort((a, b) => b.totalErrors - a.totalErrors);
+    const labelsErrors = sortedForErrors.map(r => shortKho(r.name));
+    const errors = sortedForErrors.map(r => r.totalErrors);
+    
+    if (canvasRate) {
+        const ctx = canvasRate.getContext('2d');
+        charts.gtcB2bKhoRate = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labelsRate,
+                datasets: [{
                     label: 'Tỷ lệ GTC B2B (%)',
-                    data: gtcRates,
-                    // Red if GTC < 90%, Teal (#0ca678) if GTC >= 90%
-                    backgroundColor: sorted.map(r => r.gtcRate < 0.90 ? 'rgba(245, 54, 92, 0.85)' : 'rgba(12, 166, 120, 0.85)'),
-                    borderColor: sorted.map(r => r.gtcRate < 0.90 ? 'rgb(245, 54, 92)' : 'rgb(12, 166, 120)'),
+                    data: rates,
+                    backgroundColor: sortedForRate.map(r => r.gtcRate < 0.90 ? 'rgba(245, 54, 92, 0.85)' : 'rgba(12, 166, 120, 0.85)'),
+                    borderColor: sortedForRate.map(r => r.gtcRate < 0.90 ? 'rgb(245, 54, 92)' : 'rgb(12, 166, 120)'),
                     borderWidth: 1.5,
                     barThickness: 14,
-                    maxBarThickness: 20
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y', // Horizontal bars
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const raw = sorted[context.dataIndex];
-                            return [
-                                `Tỷ lệ GTC B2B: ${(raw.gtcRate * 100).toFixed(1)}%`,
-                                `Tổng đơn: ${raw.totalPriority} đơn`,
-                                `Tổng GTC: ${raw.totalPriority - raw.totalErrors} đơn`,
-                                `Số đơn lỗi: ${raw.totalErrors} đơn`
-                            ];
+                    maxBarThickness: 20,
+                    datalabels: {
+                        display: true,
+                        anchor: 'end',
+                        align: 'right',
+                        color: '#495057',
+                        font: { weight: 'bold', size: 9 },
+                        formatter: v => v + '%'
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // Horizontal bars
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const raw = sortedForRate[context.dataIndex];
+                                return [
+                                    `Tỷ lệ GTC B2B: ${(raw.gtcRate * 100).toFixed(1)}%`,
+                                    `Tổng đơn: ${raw.totalPriority} đơn`,
+                                    `Tổng GTC: ${raw.totalPriority - raw.totalErrors} đơn`,
+                                    `Đơn lỗi: ${raw.totalErrors} đơn`
+                                ];
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                x: {
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: 'Tỷ lệ GTC (%)', font: { size: 11 } }
                 },
-                y: {
-                    ticks: {
-                        font: { size: 10 }
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: 'Tỷ lệ GTC (%)', font: { size: 11 } }
+                    },
+                    y: {
+                        ticks: { font: { size: 10 } }
                     }
                 }
             }
-        }
-    });
+        });
+    }
+    
+    if (canvasErrors) {
+        const ctx = canvasErrors.getContext('2d');
+        charts.gtcB2bKhoErrors = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labelsErrors,
+                datasets: [{
+                    label: 'Đơn lỗi B2B (đơn)',
+                    data: errors,
+                    backgroundColor: 'rgba(255, 193, 7, 0.85)', // màu vàng
+                    borderColor: 'rgb(255, 193, 7)',
+                    borderWidth: 1.5,
+                    barThickness: 14,
+                    maxBarThickness: 20,
+                    datalabels: {
+                        display: true,
+                        anchor: 'end',
+                        align: 'right',
+                        color: '#c62828',
+                        font: { weight: 'bold', size: 9 },
+                        formatter: v => v
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // Horizontal bars
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const raw = sortedForErrors[context.dataIndex];
+                                return [
+                                    `Đơn lỗi B2B: ${raw.totalErrors} đơn`,
+                                    `Tổng đơn: ${raw.totalPriority} đơn`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Đơn lỗi (đơn)', font: { size: 11 } }
+                    },
+                    y: {
+                        ticks: { font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // ----------------------------------------------------

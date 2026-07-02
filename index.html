@@ -1527,18 +1527,28 @@
                 <div id="alert-b2b-vung" style="margin: 20px 0;"></div>
 
                 <!-- CHARTS -->
-                <div class="charts-row" style="grid-template-columns: 1fr; margin-top:20px;">
+                <div class="charts-row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-top:20px;">
+                    <!-- Chart 1: % GTC theo Vùng -->
                     <div class="chart-card">
                         <div class="chart-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                            <h3><i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Vùng</h3>
+                            <h3 id="title-b2b-vung-rate"><i class="fa-solid fa-chart-pie"></i> % GTC theo Vùng</h3>
                             <!-- Chart Mini Tab Filter -->
                             <div class="chart-tab-filter" style="display:flex; background:#e2e8f0; padding:3px; border-radius:8px;">
-                                <button id="btn-chart-tab-day" class="active" style="border:none; background:white; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text1);" onclick="window.switchB2bChartTab('day')">Ngày</button>
+                                <button id="btn-chart-tab-day" class="active" style="border:none; background:white; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text1); box-shadow:var(--shadow-sm);" onclick="window.switchB2bChartTab('day')">Ngày</button>
                                 <button id="btn-chart-tab-month" style="border:none; background:transparent; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text2);" onclick="window.switchB2bChartTab('month')">Tháng</button>
                             </div>
                         </div>
                         <div class="chart-container" style="position:relative; min-height:320px;">
-                            <canvas id="chart-gtc-b2b-vung"></canvas>
+                            <canvas id="chart-gtc-b2b-vung-rate"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 2: Đơn lỗi theo Vùng -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 id="title-b2b-vung-errors"><i class="fa-solid fa-circle-exclamation" style="color:var(--yellow)"></i> Đơn lỗi theo Vùng</h3>
+                        </div>
+                        <div class="chart-container" style="position:relative; min-height:320px;">
+                            <canvas id="chart-gtc-b2b-vung-errors"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1599,13 +1609,28 @@
                 <div id="alert-b2b-kho" style="margin: 20px 0;"></div>
 
                 <!-- CHARTS -->
-                <div class="charts-row" style="grid-template-columns: 1fr; margin-top:20px;">
+                <div class="charts-row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-top:20px;">
+                    <!-- Chart 1: % GTC theo Kho -->
                     <div class="chart-card">
-                        <div class="chart-header">
-                            <h3><i class="fa-solid fa-chart-bar"></i> Biểu đồ so sánh tỷ lệ GTC B2B ưu tiên giữa các Kho</h3>
+                        <div class="chart-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <h3 id="title-b2b-kho-rate"><i class="fa-solid fa-chart-bar"></i> % GTC theo Kho</h3>
+                            <!-- Chart Mini Tab Filter -->
+                            <div class="chart-tab-filter" style="display:flex; background:#e2e8f0; padding:3px; border-radius:8px;">
+                                <button id="btn-kho-chart-tab-day" class="active" style="border:none; background:white; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text1); box-shadow:var(--shadow-sm);" onclick="window.switchB2bKhoChartTab('day')">Ngày</button>
+                                <button id="btn-kho-chart-tab-month" style="border:none; background:transparent; font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; color:var(--text2);" onclick="window.switchB2bKhoChartTab('month')">Tháng</button>
+                            </div>
                         </div>
                         <div class="chart-container" style="position:relative; min-height:320px;">
-                            <canvas id="chart-gtc-b2b-kho"></canvas>
+                            <canvas id="chart-gtc-b2b-kho-rate"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 2: Đơn lỗi theo Kho -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 id="title-b2b-kho-errors"><i class="fa-solid fa-circle-exclamation" style="color:var(--yellow)"></i> Đơn lỗi theo Kho</h3>
+                        </div>
+                        <div class="chart-container" style="position:relative; min-height:320px;">
+                            <canvas id="chart-gtc-b2b-kho-errors"></canvas>
                         </div>
                     </div>
                 </div>
