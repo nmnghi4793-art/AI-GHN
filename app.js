@@ -62,22 +62,28 @@ const C_RED = '#EF4444'; // Red
 const C_PURPLE = '#BC53FA'; // Purple
 const C_YELLOW = '#F59E0B'; // Yellow
 
+// Detect initial theme for Chart.js defaults
+const initialTheme = localStorage.getItem('ghn_theme') || 'dark';
+const isInitialLight = initialTheme === 'light';
+const defaultTextColor = isInitialLight ? '#4B5563' : '#9CA3AF';
+const defaultGridColor = isInitialLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)';
+
 Chart.defaults.font.family = "'Outfit', sans-serif";
-Chart.defaults.color = '#9CA3AF';
-Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+Chart.defaults.color = defaultTextColor;
+Chart.defaults.borderColor = defaultGridColor;
 
 if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
-    Chart.defaults.plugins.legend.labels.color = '#9CA3AF';
+    Chart.defaults.plugins.legend.labels.color = defaultTextColor;
 }
 
 if (!Chart.defaults.scales) Chart.defaults.scales = {};
 Chart.defaults.scales.category = {
-    grid: { color: 'rgba(255, 255, 255, 0.08)' },
-    ticks: { color: '#9CA3AF' }
+    grid: { color: defaultGridColor },
+    ticks: { color: defaultTextColor }
 };
 Chart.defaults.scales.linear = {
-    grid: { color: 'rgba(255, 255, 255, 0.08)' },
-    ticks: { color: '#9CA3AF' }
+    grid: { color: defaultGridColor },
+    ticks: { color: defaultTextColor }
 };
 
 // Ensure DataLabels plugin is registered for charts to show percentage
@@ -516,6 +522,10 @@ function renderGtcTrendChart() {
 
     destroyChart('gtcTrend');
     const ctx = document.getElementById('chart-gtc-trend').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 350);
+    grad.addColorStop(0, 'rgba(255, 102, 0, 0.22)');
+    grad.addColorStop(1, 'rgba(255, 102, 0, 0)');
+
     charts.gtcTrend = new Chart(ctx, {
         type: 'line',
         data: {
@@ -524,17 +534,35 @@ function renderGtcTrendChart() {
                 label: '% GTC',
                 data: values,
                 borderColor: C_ORANGE,
-                backgroundColor: 'rgba(255,82,0,0.1)',
-                borderWidth: 2,
+                backgroundColor: grad,
+                borderWidth: 3,
                 fill: true,
                 tension: 0.4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: C_ORANGE,
+                pointBorderWidth: 2,
                 pointRadius: 4,
-                datalabels: { align: 'top', color: C_ORANGE, font: { size: 10, weight: 'bold' }, formatter: v => v + '%' }
+                pointHoverRadius: 6,
+                datalabels: { display: false }
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, datalabels: { display: true } },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#F3F4F6',
+                    bodyColor: '#F3F4F6',
+                    borderColor: 'rgba(0, 240, 255, 0.15)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: { label: c => ' ' + c.raw + '%' }
+                }
+            },
             scales: {
                 y: { min: 60, max: 100, ticks: { callback: v => v + '%' } },
                 x: { grid: { display: false } }
@@ -661,6 +689,10 @@ function renderOverviewB2bChart() {
     
     destroyChart('overviewB2bGtcTrend');
     const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 350);
+    grad.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+    grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
     charts.overviewB2bGtcTrend = new Chart(ctx, {
         type: 'line',
         data: {
@@ -668,18 +700,17 @@ function renderOverviewB2bChart() {
             datasets: [{
                 label: '% GTC B2B',
                 data: values,
-                borderColor: '#2E7D32',
-                backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                borderWidth: 2,
+                borderColor: C_GREEN,
+                backgroundColor: grad,
+                borderWidth: 3,
                 fill: true,
                 tension: 0.4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: C_GREEN,
+                pointBorderWidth: 2,
                 pointRadius: 4,
-                datalabels: {
-                    align: 'top',
-                    color: '#2E7D32',
-                    font: { size: 10, weight: 'bold' },
-                    formatter: v => v + '%'
-                }
+                pointHoverRadius: 6,
+                datalabels: { display: false }
             }]
         },
         options: {
@@ -687,7 +718,18 @@ function renderOverviewB2bChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                datalabels: { display: true }
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#F3F4F6',
+                    bodyColor: '#F3F4F6',
+                    borderColor: 'rgba(0, 240, 255, 0.15)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: { label: c => ' ' + c.raw + '%' }
+                }
             },
             scales: {
                 y: {
@@ -1352,15 +1394,30 @@ function renderBacklogByKhoChart() {
         type: 'bar',
         data: {
             labels: sorted.map(e => e[0]),
-            datasets: [{ label: 'Số đơn tồn', data: sorted.map(e => e[1]), backgroundColor: 'rgba(245,54,92,0.7)', borderRadius: 5 }]
+            datasets: [{
+                label: 'Số đơn tồn',
+                data: sorted.map(e => e[1]),
+                backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                borderRadius: 5,
+                datalabels: {
+                    anchor: 'end',
+                    align: 'right',
+                    color: C_RED,
+                    font: { weight: 'bold', size: 10 },
+                    formatter: v => v.toLocaleString('vi-VN')
+                }
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             indexAxis: 'y',
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: true }
+            },
             scales: {
-                x: { grid: { color: '#F0F3F8' }, ticks: { font: { size: 11 } } },
+                x: { ticks: { font: { size: 11 } } },
                 y: { grid: { display: false }, ticks: { font: { size: 11 } } }
             }
         }
@@ -1500,12 +1557,8 @@ function renderReturnsFDChart() {
                 pointBorderColor: C_RED,
                 pointBorderWidth: 2,
                 pointRadius: 4,
-                datalabels: {
-                    align: 'top',
-                    color: C_RED,
-                    font: { weight: '700', size: 10 },
-                    formatter: v => v + '%'
-                }
+                pointHoverRadius: 6,
+                datalabels: { display: false }
             }]
         },
         options: {
@@ -1513,11 +1566,21 @@ function renderReturnsFDChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: c => ' ' + c.raw + '%' } },
-                datalabels: { display: true }
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#F3F4F6',
+                    bodyColor: '#F3F4F6',
+                    borderColor: 'rgba(0, 240, 255, 0.15)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: { label: c => ' ' + c.raw + '%' }
+                }
             },
             scales: {
-                y: { min: 0, max: 15, grid: { color: '#F0F3F8', drawBorder: false }, ticks: { callback: v => v + '%', font: { size: 10 } } },
+                y: { min: 0, max: 15, ticks: { callback: v => v + '%', font: { size: 10 } } },
                 x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } }
             }
         }
@@ -3323,6 +3386,72 @@ document.getElementById('sidebar-toggle').addEventListener('click', () => {
     sb.style.width = sb.style.width === '56px' ? '240px' : '56px';
 });
 
+// Theme Toggle Logic
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+if (themeToggleBtn) {
+    const themeToggleIcon = document.getElementById('theme-toggle-icon');
+    const isLight = document.documentElement.classList.contains('light-mode');
+    if (themeToggleIcon) {
+        themeToggleIcon.className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        const isCurrentLight = document.documentElement.classList.toggle('light-mode');
+        const theme = isCurrentLight ? 'light' : 'dark';
+        localStorage.setItem('ghn_theme', theme);
+        
+        if (themeToggleIcon) {
+            themeToggleIcon.className = isCurrentLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        }
+        
+        updateChartTheme(theme);
+    });
+}
+
+function updateChartTheme(theme) {
+    const isLight = theme === 'light';
+    const textColor = isLight ? '#4B5563' : '#9CA3AF';
+    const gridColor = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)';
+
+    Chart.defaults.color = textColor;
+    Chart.defaults.borderColor = gridColor;
+
+    if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
+        Chart.defaults.plugins.legend.labels.color = textColor;
+    }
+    if (Chart.defaults.scales) {
+        if (Chart.defaults.scales.category && Chart.defaults.scales.category.grid) {
+            Chart.defaults.scales.category.grid.color = gridColor;
+            Chart.defaults.scales.category.ticks.color = textColor;
+        }
+        if (Chart.defaults.scales.linear && Chart.defaults.scales.linear.grid) {
+            Chart.defaults.scales.linear.grid.color = gridColor;
+            Chart.defaults.scales.linear.ticks.color = textColor;
+        }
+    }
+
+    Object.values(charts).forEach(chart => {
+        if (!chart) return;
+        
+        if (chart.options.scales) {
+            Object.values(chart.options.scales).forEach(scale => {
+                if (scale.grid) {
+                    scale.grid.color = gridColor;
+                }
+                if (scale.ticks) {
+                    scale.ticks.color = textColor;
+                }
+            });
+        }
+        
+        if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+            chart.options.plugins.legend.labels.color = textColor;
+        }
+
+        chart.update();
+    });
+}
+
 // Filters
 document.getElementById('filter-kho-gtc').addEventListener('input', e => renderGtcSection(e.target.value));
 document.getElementById('filter-kho-gtc-select')?.addEventListener('change', () => renderGtcSection());
@@ -3622,7 +3751,7 @@ function renderDonTaoSection() {
                 datasets: [
                     {
                         label: `Tổng Đơn Tạo: ${totalDonChart.toLocaleString('vi-VN')}`, data: donVals,
-                        backgroundColor: 'rgba(245,54,92,0.75)', borderColor: C_RED, borderWidth: 1,
+                        backgroundColor: 'rgba(239, 68, 68, 0.75)', borderColor: C_RED, borderWidth: 1,
                         yAxisID: 'y',
                         datalabels: { display: true, anchor: 'end', align: 'end', color: C_RED, font: { size: 9, weight: 'bold' }, formatter: v => v.toLocaleString('vi-VN') }
                     },
@@ -3638,12 +3767,12 @@ function renderDonTaoSection() {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { position: 'top', labels: { color: '#525F7F', padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 } },
+                    legend: { position: 'top', labels: { padding: 12, font: { size: 11, weight: 'bold' }, boxWidth: 12 } },
                     datalabels: { display: true }
                 },
                 scales: {
                     x: { ticks: { maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
-                    y: { type: 'linear', position: 'left', beginAtZero: true, grid: { borderDash: [2, 4], color: '#E8EDF5' }, ticks: { color: C_RED, font: { size: 10 } }, title: { display: true, text: 'Tổng Đơn', color: C_RED, font: { size: 11 } } },
+                    y: { type: 'linear', position: 'left', beginAtZero: true, grid: { borderDash: [2, 4] }, ticks: { color: C_RED, font: { size: 10 } }, title: { display: true, text: 'Tổng Đơn', color: C_RED, font: { size: 11 } } },
                     y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { color: '#FBC02D', font: { size: 10 } }, title: { display: true, text: 'Tổng KG', color: '#FBC02D', font: { size: 11 } } }
                 }
             }
