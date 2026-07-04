@@ -5936,6 +5936,14 @@ window.renderB2BMapSection = function() {
         b2bMapInitialized = true;
     }
     
+    // Force Leaflet size recalculation and bounds refit after container transition
+    setTimeout(() => {
+        if (window.b2bLeafletMap) {
+            window.b2bLeafletMap.invalidateSize();
+            filterB2BMapData();
+        }
+    }, 150);
+    
     filterB2BMapData();
 };
 
@@ -6071,10 +6079,12 @@ function filterB2BMapData() {
         }
     });
     
-    // Zoom map to fit all visible markers
-    if (validCoords.length > 0) {
+    // Zoom map to fit all visible markers dynamically
+    if (validCoords.length === 1) {
+        window.b2bLeafletMap.setView(validCoords[0], 12);
+    } else if (validCoords.length > 1) {
         const bounds = L.latLngBounds(validCoords);
-        window.b2bLeafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 9 });
+        window.b2bLeafletMap.fitBounds(bounds, { padding: [60, 60] });
     }
 }
 
