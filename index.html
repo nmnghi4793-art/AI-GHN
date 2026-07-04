@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --orange: #FF5200;
@@ -114,7 +116,7 @@
             color: var(--text3);
         }
     </style>
-    <link rel="stylesheet" href="styles.css?v=1.1">
+    <link rel="stylesheet" href="styles.css?v=1.2">
     <script>
         (function() {
             const savedTheme = localStorage.getItem('ghn_theme') || 'dark';
@@ -203,6 +205,9 @@
             </a>
             <a href="#" class="nav-item" data-section="khoxe" id="nav-khoxe">
                 <i class="fa-solid fa-warehouse"></i><span>Kho và Xe GXT</span>
+            </a>
+            <a href="#" class="nav-item" data-section="b2b-map" id="nav-b2b-map">
+                <i class="fa-solid fa-map-location-dot"></i><span>Bản Đồ B2B Miền Trung</span>
             </a>
         </nav>
 
@@ -1668,6 +1673,53 @@
                     </div>
             </div>
         </section>
+
+        <!-- ===== SECTION: BẢN ĐỒ B2B MIỀN TRUNG ===== -->
+        <section class="section" id="section-b2b-map">
+            <!-- Filters -->
+            <div class="section-filters ghn-filter-row" style="display:flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-card);">
+                <div class="filter-group" style="display:flex; align-items:center; gap:8px;">
+                    <label for="b2b-map-search" style="font-size: 0.85rem; font-weight: 600; color: var(--text2);">Tìm kiếm:</label>
+                    <input type="text" id="b2b-map-search" placeholder="Nhập tên hoặc ID kho..." style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-card); background: var(--bg-universe); color: var(--text); outline: none; font-size: 0.85rem; width: 220px;">
+                </div>
+                <div class="filter-group" style="display:flex; align-items:center; gap:8px;">
+                    <label for="b2b-map-status-filter" style="font-size: 0.85rem; font-weight: 600; color: var(--text2);">Trạng thái:</label>
+                    <select id="b2b-map-status-filter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-card); background: var(--bg-universe); color: var(--text); outline: none; font-size: 0.85rem; cursor: pointer;">
+                        <option value="all">Tất cả kho</option>
+                        <option value="mapped">Đã có vị trí trên bản đồ</option>
+                        <option value="unmapped">Chưa lấy được vị trí</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="chart-card" style="margin-bottom: 20px; padding: 12px; height: 500px; position: relative;">
+                <div id="b2b-leaflet-map" style="width: 100%; height: 100%; border-radius: 8px; z-index: 1;"></div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fa-solid fa-list-check"></i> Chi tiết vị trí kho Giao Hàng Nặng</h3>
+                </div>
+                <div class="table-container" style="overflow-x:auto;">
+                    <table class="ghn-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>ID Kho</th>
+                                <th>Tên Kho</th>
+                                <th>Địa Chỉ</th>
+                                <th>Google Maps Link</th>
+                                <th>Trạng Thái Bản Đồ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-b2b-map">
+                            <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text3)">Đang tải dữ liệu vị trí kho...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 
@@ -1702,7 +1754,7 @@
     </div>
 </div>
 
-<script src="app.js?v=4.4"></script>
+<script src="app.js?v=4.5"></script>
 </body>
 
 </html>

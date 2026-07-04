@@ -76,9 +76,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # unsafe-inline cần thiết do onclick attrs trong index.html;
             # refactor to addEventListener để xóa dc unsafe-inline sau này
             "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'unsafe-inline'; "
-            "style-src 'self' fonts.googleapis.com cdnjs.cloudflare.com 'unsafe-inline'; "
+            "style-src 'self' fonts.googleapis.com cdnjs.cloudflare.com cdn.jsdelivr.net 'unsafe-inline'; "
             "font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com data:; "
-            "img-src 'self' data:; "
+            "img-src 'self' data: *.tile.openstreetmap.org; "
             "connect-src 'self' api.telegram.org; "
             "frame-ancestors 'none'; "           # chống Clickjacking (tăng cường X-Frame-Options)
             "base-uri 'self'; "                  # chống Base Tag Injection
@@ -480,11 +480,164 @@ def get_xe_su_co(force: bool = False):
     data, last_sync = read_csv("xe_su_co", force)
     return {"data": data, "last_sync": last_sync}
 
+# Cache for Google Maps coordinates
+COORDS_CACHE_FILE = os.path.join(BASE_DIR, "scratch", "coords_cache.json")
+_COORDS_CACHE = {}
+
+def load_coords_cache():
+    global _COORDS_CACHE
+    if os.path.exists(COORDS_CACHE_FILE):
+        try:
+            with open(COORDS_CACHE_FILE, "r", encoding="utf-8") as f:
+                _COORDS_CACHE = json.load(f)
+                print(f"[CACHE] Loaded {len(_COORDS_CACHE)} resolved coordinates from cache.")
+        except Exception as e:
+            print(f"[CACHE] Error loading coords cache: {e}")
+    return _COORDS_CACHE
+
+def save_coords_cache():
+    try:
+        os.makedirs(os.path.dirname(COORDS_CACHE_FILE), exist_ok=True)
+        with open(COORDS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(_COORDS_CACHE, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[CACHE] Error saving coords cache: {e}")
+
+load_coords_cache()
+
+def get_coords_from_url(url: str):
+    if not url: return None
+    import re
+    import urllib.parse
+    url = urllib.parse.unquote(url)
+    
+    # 1. @lat,lng
+    m = re.search(r'@([-\d.]+),([-\d.]+)', url)
+    if m:
+        return [float(m.group(1)), float(m.group(2))]
+    # 2. !3dlat!4dlng
+    m = re.search(r'!3d([-\d.]+)!4d([-\d.]+)', url)
+    if m:
+        return [float(m.group(1)), float(m.group(2))]
+    # 3. general lat,lng (e.g. search/16.407685,+107.589266)
+    m = re.search(r'([-\d\.]+),\s*\+?([-\d\.]+)', url)
+    if m:
+        try:
+            lat = float(m.group(1))
+            lng = float(m.group(2))
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                return [lat, lng]
+        except ValueError:
+            pass
+    return None
+
+def resolve_and_get_coords(url: str):
+    if not url: return None
+    if url in _COORDS_CACHE:
+        return _COORDS_CACHE[url]
+    
+    # Try resolving redirect
+    final_url = url
+    if "maps.app.goo.gl" in url or "goo.gl/maps" in url:
+        try:
+            import urllib.request
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                final_url = response.geturl()
+        except Exception as e:
+            print(f"[COORD] Error resolving short url {url}: {e}")
+            
+    coords = get_coords_from_url(final_url)
+    _COORDS_CACHE[url] = coords
+    save_coords_cache()
+    return coords
+
 # ---- DATA KHO GXT ----
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
-    data, last_sync = read_csv("kho_gxt", force)
-    return {"data": data, "last_sync": last_sync}
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    if os.path.exists(sa_path):
+        try:
+            import json
+            import time
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+            
+            creds = Credentials.from_service_account_file(
+                sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+            )
+            service = build("sheets", "v4", credentials=creds)
+            
+            result = service.spreadsheets().get(
+                spreadsheetId=SHEET_ID,
+                ranges=["Kho Giao Hàng Nặng!A1:M100"],
+                fields="sheets(data(rowData(values(hyperlink,formattedValue))))"
+            ).execute()
+            
+            sheets = result.get("sheets", [])
+            if sheets:
+                data_rows = sheets[0].get("data", [])[0].get("rowData", [])
+                headers = [col.get("formattedValue", "") for col in data_rows[0].get("values", [])]
+                
+                id_kho_idx = headers.index("ID Kho") if "ID Kho" in headers else -1
+                ten_kho_idx = headers.index("Tên Kho GXT") if "Tên Kho GXT" in headers else -1
+                dia_chi_idx = headers.index("Địa chỉ kho") if "Địa chỉ kho" in headers else -1
+                link_ggm_idx = headers.index("Link GGM") if "Link GGM" in headers else -1
+                vung_idx = headers.index("Vùng") if "Vùng" in headers else -1
+                tinh_idx = headers.index("Tỉnh") if "Tỉnh" in headers else -1
+                tinh_trang_idx = headers.index("Tình trạng") if "Tình trạng" in headers else -1
+                
+                output = []
+                for row in data_rows[1:]:
+                    values = row.get("values", [])
+                    if not values or not any(v.get("formattedValue") for v in values):
+                        continue
+                    
+                    id_kho = values[id_kho_idx].get("formattedValue", "") if len(values) > id_kho_idx and id_kho_idx != -1 else ""
+                    ten_kho = values[ten_kho_idx].get("formattedValue", "") if len(values) > ten_kho_idx and ten_kho_idx != -1 else ""
+                    dia_chi = values[dia_chi_idx].get("formattedValue", "Chưa có địa chỉ") if len(values) > dia_chi_idx and dia_chi_idx != -1 else "Chưa có địa chỉ"
+                    if not dia_chi:
+                        dia_chi = "Chưa có địa chỉ"
+                    
+                    link_cell = values[link_ggm_idx] if len(values) > link_ggm_idx and link_ggm_idx != -1 else {}
+                    link_ggm = link_cell.get("hyperlink", "")
+                    
+                    vung = values[vung_idx].get("formattedValue", "") if len(values) > vung_idx and vung_idx != -1 else ""
+                    tinh = values[tinh_idx].get("formattedValue", "") if len(values) > tinh_idx and tinh_idx != -1 else ""
+                    tinh_trang = values[tinh_trang_idx].get("formattedValue", "") if len(values) > tinh_trang_idx and tinh_trang_idx != -1 else ""
+                    
+                    coords = resolve_and_get_coords(link_ggm) if link_ggm else None
+                    
+                    output.append({
+                        "id_kho": id_kho,
+                        "ten_kho": ten_kho,
+                        "dia_chi": dia_chi,
+                        "link_ggm": link_ggm,
+                        "vung": vung,
+                        "tinh": tinh,
+                        "tinh_trang": tinh_trang,
+                        "coords": coords
+                    })
+                
+                return {"data": output, "last_sync": time.time()}
+        except Exception as e:
+            print(f"[API ERROR] Error fetching sheet via Sheets API: {e}")
+            
+    # Fallback to CSV
+    csv_rows, last_sync = read_csv("kho_gxt", force)
+    output = []
+    for r in csv_rows:
+        output.append({
+            "id_kho": r.get("ID Kho", ""),
+            "ten_kho": r.get("Tên Kho GXT", ""),
+            "dia_chi": r.get("Địa chỉ kho", "Chưa có địa chỉ") or "Chưa có địa chỉ",
+            "link_ggm": r.get("Link GGM", ""),
+            "vung": r.get("Vùng", ""),
+            "tinh": r.get("Tỉnh", ""),
+            "tinh_trang": r.get("Tình trạng", ""),
+            "coords": None
+        })
+    return {"data": output, "last_sync": last_sync}
 
 # ---- DATA ĐƠN TẠO N-1 ----
 @app.get("/api/don-tao", dependencies=[Depends(require_api_token)])

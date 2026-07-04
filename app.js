@@ -76,18 +76,11 @@ if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.pl
     Chart.defaults.plugins.legend.labels.color = defaultTextColor;
 }
 
-if (!Chart.defaults.scales) Chart.defaults.scales = {};
-if (!Chart.defaults.scales.category) Chart.defaults.scales.category = {};
-if (!Chart.defaults.scales.category.grid) Chart.defaults.scales.category.grid = {};
-Chart.defaults.scales.category.grid.color = defaultGridColor;
-if (!Chart.defaults.scales.category.ticks) Chart.defaults.scales.category.ticks = {};
-Chart.defaults.scales.category.ticks.color = defaultTextColor;
-
-if (!Chart.defaults.scales.linear) Chart.defaults.scales.linear = {};
-if (!Chart.defaults.scales.linear.grid) Chart.defaults.scales.linear.grid = {};
-Chart.defaults.scales.linear.grid.color = defaultGridColor;
-if (!Chart.defaults.scales.linear.ticks) Chart.defaults.scales.linear.ticks = {};
-Chart.defaults.scales.linear.ticks.color = defaultTextColor;
+if (!Chart.defaults.scale) Chart.defaults.scale = {};
+if (!Chart.defaults.scale.grid) Chart.defaults.scale.grid = {};
+Chart.defaults.scale.grid.color = defaultGridColor;
+if (!Chart.defaults.scale.ticks) Chart.defaults.scale.ticks = {};
+Chart.defaults.scale.ticks.color = defaultTextColor;
 
 // Ensure DataLabels plugin is registered for charts to show percentage
 Chart.register(ChartDataLabels);
@@ -293,6 +286,7 @@ function renderAll() {
         { name: 'DonTaoSection', fn: renderDonTaoSection },
         { name: 'ForecastSection', fn: renderForecastSection },
         { name: 'GtcB2bPrioSection', fn: renderGtcB2bPrioSection },
+        { name: 'B2BMapSection', fn: renderB2BMapSection },
         { name: 'NavBadges', fn: updateNavBadges }
     ];
 
@@ -3089,35 +3083,37 @@ function renderNangSuatVungSection() {
         const rowWeek = getWeekNumber(d);
         const rowMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 
-        // Tích lũy cho 3 khoảng thời gian
-        if (rowDay === targetDay_YYYYMMDD) {
-            vungMap[vung].gtc_day += donGtc;
-            vungMap[vung].gan_day += donGan;
-        }
-        if (rowWeek === targetWeek) {
-            vungMap[vung].gtc_week += donGtc;
-            vungMap[vung].gan_week += donGan;
-        }
-        if (rowMonth === targetMonth) {
-            vungMap[vung].gtc_month += donGtc;
-            vungMap[vung].gan_month += donGan;
-        }
+        if (vungMap[vung]) {
+            // Tích lũy cho 3 khoảng thời gian
+            if (rowDay === targetDay_YYYYMMDD) {
+                vungMap[vung].gtc_day += donGtc;
+                vungMap[vung].gan_day += donGan;
+            }
+            if (rowWeek === targetWeek) {
+                vungMap[vung].gtc_week += donGtc;
+                vungMap[vung].gan_week += donGan;
+            }
+            if (rowMonth === targetMonth) {
+                vungMap[vung].gtc_month += donGtc;
+                vungMap[vung].gan_month += donGan;
+            }
 
-        // Kiểm tra khớp với kỳ đang hoạt động
-        let matchActive = false;
-        if (activePeriod === 'day' && rowDay === targetDay_YYYYMMDD) matchActive = true;
-        if (activePeriod === 'week' && rowWeek === currPeriodKey) matchActive = true;
-        if (activePeriod === 'month' && rowMonth === currPeriodKey) matchActive = true;
+            // Kiểm tra khớp với kỳ đang hoạt động
+            let matchActive = false;
+            if (activePeriod === 'day' && rowDay === targetDay_YYYYMMDD) matchActive = true;
+            if (activePeriod === 'week' && rowWeek === currPeriodKey) matchActive = true;
+            if (activePeriod === 'month' && rowMonth === currPeriodKey) matchActive = true;
 
-        if (matchActive) {
-            vungMap[vung].totalGtc += donGtc;
-            vungMap[vung].totalGan += donGan;
-            const whName = shortKho(r['Kho']);
-            if (!vungMap[vung].warehouseGtcMap[whName]) vungMap[vung].warehouseGtcMap[whName] = 0;
-            if (!vungMap[vung].warehouseGanMap[whName]) vungMap[vung].warehouseGanMap[whName] = 0;
-            vungMap[vung].warehouseGtcMap[whName] += donGtc;
-            vungMap[vung].warehouseGanMap[whName] += donGan;
-            vungMap[vung].khoSet.add(whName);
+            if (matchActive) {
+                vungMap[vung].totalGtc += donGtc;
+                vungMap[vung].totalGan += donGan;
+                const whName = shortKho(r['Kho']);
+                if (!vungMap[vung].warehouseGtcMap[whName]) vungMap[vung].warehouseGtcMap[whName] = 0;
+                if (!vungMap[vung].warehouseGanMap[whName]) vungMap[vung].warehouseGanMap[whName] = 0;
+                vungMap[vung].warehouseGtcMap[whName] += donGtc;
+                vungMap[vung].warehouseGanMap[whName] += donGan;
+                vungMap[vung].khoSet.add(whName);
+            }
         }
     });
 
@@ -3146,7 +3142,7 @@ function renderNangSuatVungSection() {
         if (activePeriod === 'week' && rowWeek === currPeriodKey) matchActive = true;
         if (activePeriod === 'month' && rowMonth === currPeriodKey) matchActive = true;
 
-        if (matchActive) {
+        if (matchActive && vungMap[vung]) {
             vungMap[vung].totalStaff += 1;
             const whShort = shortKho(r['kho gxt'] || r['Kho'] || '');
             if (whShort && whShort !== '--') {
@@ -3352,6 +3348,7 @@ const SECTION_META = {
     khogxt:         ['Kho và Xe GXT',           'Tab Kho GXT'],
     dontao:         ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
     'gtc-b2b-prio': ['GTC đơn B2B Ưu Tiên',     'Theo dõi tỷ lệ GTC đơn B2B ưu tiên theo vùng/kho và xử lý đơn lỗi'],
+    'b2b-map':      ['Bản Đồ B2B Miền Trung',   'Bản đồ vị trí và thông tin chi tiết các kho Giao Hàng Nặng Miền Trung'],
 };
 
 
@@ -3383,6 +3380,13 @@ function showSection(name) {
     const [title, sub] = SECTION_META[name] || ['--', '--'];
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;
+    
+    // Invalidate Leaflet map size to render correct dimensions upon showing section
+    if (name === 'b2b-map' && window.b2bLeafletMap) {
+        setTimeout(() => {
+            window.b2bLeafletMap.invalidateSize();
+        }, 100);
+    }
 }
 
 // ---- EVENT LISTENERS ----
@@ -3436,16 +3440,11 @@ function updateChartTheme(theme) {
     if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
         Chart.defaults.plugins.legend.labels.color = textColor;
     }
-    if (Chart.defaults.scales) {
-        if (Chart.defaults.scales.category && Chart.defaults.scales.category.grid) {
-            Chart.defaults.scales.category.grid.color = gridColor;
-            Chart.defaults.scales.category.ticks.color = textColor;
-        }
-        if (Chart.defaults.scales.linear && Chart.defaults.scales.linear.grid) {
-            Chart.defaults.scales.linear.grid.color = gridColor;
-            Chart.defaults.scales.linear.ticks.color = textColor;
-        }
-    }
+    if (!Chart.defaults.scale) Chart.defaults.scale = {};
+    if (!Chart.defaults.scale.grid) Chart.defaults.scale.grid = {};
+    Chart.defaults.scale.grid.color = gridColor;
+    if (!Chart.defaults.scale.ticks) Chart.defaults.scale.ticks = {};
+    Chart.defaults.scale.ticks.color = textColor;
 
     Object.values(charts).forEach(chart => {
         if (!chart) return;
@@ -5894,6 +5893,151 @@ function renderB2bDetailedTable() {
                 </tr>
             `).join('');
         }
+    }
+}
+
+// =====================================================================
+// BẢN ĐỒ B2B MIỀN TRUNG SECTION
+// =====================================================================
+let b2bMapInitialized = false;
+window.b2bLeafletMap = null;
+window.b2bMapMarkersGroup = null;
+
+window.renderB2BMapSection = function() {
+    const mapContainer = document.getElementById('b2b-leaflet-map');
+    if (!mapContainer) return;
+    
+    // Initialize map once
+    if (!b2bMapInitialized) {
+        // Centered at Central Vietnam (Da Nang coordinates)
+        window.b2bLeafletMap = L.map('b2b-leaflet-map').setView([16.0544, 108.2021], 7);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(window.b2bLeafletMap);
+        
+        window.b2bMapMarkersGroup = L.layerGroup().addTo(window.b2bLeafletMap);
+        
+        // Bind search and filter events
+        const searchInput = document.getElementById('b2b-map-search');
+        const statusFilter = document.getElementById('b2b-map-status-filter');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => filterB2BMapData());
+        }
+        if (statusFilter) {
+            statusFilter.addEventListener('change', () => filterB2BMapData());
+        }
+        
+        b2bMapInitialized = true;
+    }
+    
+    filterB2BMapData();
+};
+
+function filterB2BMapData() {
+    if (!window.b2bLeafletMap || !window.b2bMapMarkersGroup) return;
+    
+    const searchVal = (document.getElementById('b2b-map-search')?.value || "").trim().toLowerCase();
+    const statusVal = document.getElementById('b2b-map-status-filter')?.value || "all";
+    
+    const rawList = state.khoGxtData || [];
+    
+    // Clear existing markers
+    window.b2bMapMarkersGroup.clearLayers();
+    
+    const tbody = document.getElementById('tbody-b2b-map');
+    if (!tbody) return;
+    
+    // Filter list
+    const filtered = rawList.filter(item => {
+        // Search term match
+        const id = String(item.id_kho || item['ID Kho'] || '').toLowerCase();
+        const name = String(item.ten_kho || item['Tên Kho GXT'] || '').toLowerCase();
+        const matchesSearch = !searchVal || id.includes(searchVal) || name.includes(searchVal);
+        
+        // Status filter match
+        const hasCoords = !!(item.coords && item.coords.length === 2);
+        let matchesStatus = true;
+        if (statusVal === 'mapped') {
+            matchesStatus = hasCoords;
+        } else if (statusVal === 'unmapped') {
+            matchesStatus = !hasCoords;
+        }
+        
+        return matchesSearch && matchesStatus;
+    });
+    
+    // Render table rows
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text3)">Không tìm thấy kho phù hợp.</td></tr>`;
+    } else {
+        tbody.innerHTML = filtered.map(item => {
+            const id = item.id_kho || item['ID Kho'] || '--';
+            const name = item.ten_kho || item['Tên Kho GXT'] || '--';
+            const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+            const link = item.link_ggm || item['Link GGM'] || '#';
+            const hasCoords = !!(item.coords && item.coords.length === 2);
+            
+            const linkHtml = link && link !== '#' && link !== 'Link'
+                ? `<a href="${link}" target="_blank" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Bản Đồ</a>`
+                : `<span style="color:var(--text3)">Không có link</span>`;
+                
+            const statusHtml = hasCoords
+                ? `<span class="badge green">Đã có vị trí</span>`
+                : `<span class="badge red">Chưa lấy được vị trí</span>`;
+                
+            return `
+                <tr>
+                    <td style="font-weight:600; color:var(--text1);">${id}</td>
+                    <td style="font-weight:600; color:var(--text2);">${name}</td>
+                    <td>${address}</td>
+                    <td>${linkHtml}</td>
+                    <td>${statusHtml}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Add markers to Leaflet map
+    let validCoords = [];
+    filtered.forEach(item => {
+        const name = item.ten_kho || item['Tên Kho GXT'] || '--';
+        const id = item.id_kho || item['ID Kho'] || '--';
+        const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+        const link = item.link_ggm || item['Link GGM'] || '#';
+        
+        if (item.coords && item.coords.length === 2) {
+            const [lat, lng] = item.coords;
+            validCoords.push([lat, lng]);
+            
+            const marker = L.marker([lat, lng]).addTo(window.b2bMapMarkersGroup);
+            
+            const popupContent = `
+                <div style="font-family:'Outfit', sans-serif; font-size:0.85rem; color:var(--text); padding:4px;">
+                    <h4 style="margin:0 0 4px; font-weight:700; color:var(--green);">${name}</h4>
+                    <p style="margin:0 0 4px; color:var(--text2);"><strong>ID:</strong> ${id}</p>
+                    <p style="margin:0 0 6px; line-height:1.4; color:var(--text2);"><strong>Địa chỉ:</strong> ${address}</p>
+                    ${link && link !== '#' && link !== 'Link' ? `<a href="${link}" target="_blank" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem trên Google Maps</a>` : ''}
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            
+            // Tooltip (marker hover) to display the warehouse name directly
+            marker.bindTooltip(name, {
+                permanent: false,
+                direction: 'top',
+                className: 'ghn-map-tooltip'
+            });
+        }
+    });
+    
+    // Zoom map to fit all visible markers
+    if (validCoords.length > 0) {
+        const bounds = L.latLngBounds(validCoords);
+        window.b2bLeafletMap.fitBounds(bounds, { padding: [40, 40] });
     }
 }
 
