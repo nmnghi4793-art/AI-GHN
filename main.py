@@ -728,11 +728,27 @@ def get_kho_gxt_xlsx_fallback():
                     dien_tich = dien_tich.split(".")[0]
             else:
                 dien_tich = ""
+                
+            ten_quan_ly, _ = get_cell_by_header(row_cells, "Tên", r_num)
+            so_dien_thoai, _ = get_cell_by_header(row_cells, "Số điện thoại", r_num)
             
             coords = resolve_and_get_coords(link_ggm) if link_ggm else None
             mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
             
             output.append({
+                # Original Vietnamese keys for "Kho GXT" compatibility
+                "ID Kho": id_kho,
+                "Tên": ten_quan_ly or "",
+                "Số điện thoại": so_dien_thoai or "",
+                "Tên Kho GXT": ten_kho or "",
+                "Tỉnh": tinh or "",
+                "Diện Tích": dien_tich,
+                "Tình trạng": tinh_trang or "",
+                "Địa chỉ kho": dia_chi,
+                "Link GGM": link_ggm or "",
+                "Vùng": vung or "",
+                
+                # New camelCase / snake_case keys
                 "id_kho": id_kho,
                 "idKho": id_kho,
                 "ten_kho": ten_kho,
@@ -756,7 +772,6 @@ def get_kho_gxt_xlsx_fallback():
         print(f"[XLSX FALLBACK ERROR] Failed to parse XLSX: {e}")
         return None
 
-# ---- DATA KHO GXT ----
 # ---- DATA KHO GXT ----
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
@@ -790,6 +805,8 @@ def get_kho_gxt(force: bool = False):
                 tinh_idx = headers.index("Tỉnh") if "Tỉnh" in headers else -1
                 tinh_trang_idx = headers.index("Tình trạng") if "Tình trạng" in headers else -1
                 dien_tich_idx = headers.index("Diện Tích") if "Diện Tích" in headers else (headers.index("Diện tích") if "Diện tích" in headers else -1)
+                ten_idx = headers.index("Tên") if "Tên" in headers else -1
+                sdt_idx = headers.index("Số điện thoại") if "Số điện thoại" in headers else -1
                 
                 output = []
                 for row in data_rows[1:]:
@@ -814,6 +831,9 @@ def get_kho_gxt(force: bool = False):
                             dien_tich = dien_tich.split(".")[0]
                     else:
                         dien_tich = ""
+                        
+                    ten_quan_ly = values[ten_idx].get("formattedValue", "") if len(values) > ten_idx and ten_idx != -1 else ""
+                    so_dien_thoai = values[sdt_idx].get("formattedValue", "") if len(values) > sdt_idx and sdt_idx != -1 else ""
                     
                     link_cell = values[link_ggm_idx] if len(values) > link_ggm_idx and link_ggm_idx != -1 else {}
                     link_ggm = link_cell.get("hyperlink", "")
@@ -832,6 +852,19 @@ def get_kho_gxt(force: bool = False):
                     mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
                     
                     output.append({
+                        # Original Vietnamese keys for "Kho GXT" compatibility
+                        "ID Kho": id_kho,
+                        "Tên": ten_quan_ly or "",
+                        "Số điện thoại": so_dien_thoai or "",
+                        "Tên Kho GXT": ten_kho or "",
+                        "Tỉnh": tinh or "",
+                        "Diện Tích": dien_tich,
+                        "Tình trạng": tinh_trang or "",
+                        "Địa chỉ kho": dia_chi,
+                        "Link GGM": link_ggm or "",
+                        "Vùng": vung or "",
+                        
+                        # New camelCase / snake_case keys
                         "id_kho": id_kho,
                         "idKho": id_kho,
                         "ten_kho": ten_kho,
@@ -901,11 +934,27 @@ def get_kho_gxt(force: bool = False):
         else:
             dien_tich = ""
             
+        ten_quan_ly = (r.get("Tên") or "").strip()
+        so_dien_thoai = (r.get("Số điện thoại") or "").strip()
+            
         coords = resolve_and_get_coords(link_ggm) if link_ggm else None
         
         mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
         
         output.append({
+            # Original Vietnamese keys for "Kho GXT" compatibility
+            "ID Kho": id_kho,
+            "Tên": ten_quan_ly or "",
+            "Số điện thoại": so_dien_thoai or "",
+            "Tên Kho GXT": ten_kho or "",
+            "Tỉnh": tinh or "",
+            "Diện Tích": dien_tich,
+            "Tình trạng": tinh_trang or "",
+            "Địa chỉ kho": dia_chi,
+            "Link GGM": link_ggm or "",
+            "Vùng": vung or "",
+            
+            # New camelCase / snake_case keys
             "id_kho": id_kho,
             "idKho": id_kho,
             "ten_kho": ten_kho,
