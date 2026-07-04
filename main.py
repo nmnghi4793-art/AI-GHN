@@ -3,6 +3,7 @@ import os
 import io
 import secrets
 import time
+import json
 from collections import defaultdict
 
 # Setup encoding for windows stdout / log output (Windows-only to avoid issues)
@@ -488,11 +489,14 @@ def load_coords_cache():
     global _COORDS_CACHE
     if os.path.exists(COORDS_CACHE_FILE):
         try:
-            with open(COORDS_CACHE_FILE, "r", encoding="utf-8") as f:
-                _COORDS_CACHE = json.load(f)
-                print(f"[CACHE] Loaded {len(_COORDS_CACHE)} resolved coordinates from cache.")
+            if os.path.getsize(COORDS_CACHE_FILE) > 0:
+                with open(COORDS_CACHE_FILE, "r", encoding="utf-8") as f:
+                    _COORDS_CACHE = json.load(f)
+                    print(f"[CACHE] Loaded {len(_COORDS_CACHE)} resolved coordinates from cache.")
+                    return _COORDS_CACHE
         except Exception as e:
             print(f"[CACHE] Error loading coords cache: {e}")
+    _COORDS_CACHE = {}
     return _COORDS_CACHE
 
 def save_coords_cache():
@@ -599,12 +603,22 @@ def get_kho_gxt(force: bool = False):
                     if not dia_chi:
                         dia_chi = "Chưa có địa chỉ"
                     
-                    link_cell = values[link_ggm_idx] if len(values) > link_ggm_idx and link_ggm_idx != -1 else {}
-                    link_ggm = link_cell.get("hyperlink", "")
-                    
                     vung = values[vung_idx].get("formattedValue", "") if len(values) > vung_idx and vung_idx != -1 else ""
                     tinh = values[tinh_idx].get("formattedValue", "") if len(values) > tinh_idx and tinh_idx != -1 else ""
                     tinh_trang = values[tinh_trang_idx].get("formattedValue", "") if len(values) > tinh_trang_idx and tinh_trang_idx != -1 else ""
+                    
+                    link_cell = values[link_ggm_idx] if len(values) > link_ggm_idx and link_ggm_idx != -1 else {}
+                    link_ggm = link_cell.get("hyperlink", "")
+                    if not link_ggm:
+                        val = link_cell.get("formattedValue", "")
+                        if val and val.lower().strip().startswith("http"):
+                            link_ggm = val.strip()
+                    
+                    if link_ggm:
+                        link_ggm = link_ggm.strip()
+                        if link_ggm and not link_ggm.lower().startswith("http"):
+                            if "maps" in link_ggm.lower() or "google" in link_ggm.lower() or "goo.gl" in link_ggm.lower():
+                                link_ggm = "https://" + link_ggm
                     
                     coords = resolve_and_get_coords(link_ggm) if link_ggm else None
                     

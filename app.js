@@ -5977,16 +5977,23 @@ function filterB2BMapData() {
             const id = item.id_kho || item['ID Kho'] || '--';
             const name = item.ten_kho || item['Tên Kho GXT'] || '--';
             const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
-            const link = item.link_ggm || item['Link GGM'] || '#';
+            const link = (item.link_ggm || item['Link GGM'] || '').trim();
             const hasCoords = !!(item.coords && item.coords.length === 2);
             
-            const linkHtml = link && link !== '#' && link !== 'Link'
-                ? `<a href="${link}" target="_blank" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Bản Đồ</a>`
+            const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
+            
+            const linkHtml = hasLink
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở bản đồ</a>`
                 : `<span style="color:var(--text3)">Không có link</span>`;
                 
-            const statusHtml = hasCoords
-                ? `<span class="badge green">Đã có vị trí</span>`
-                : `<span class="badge red">Chưa lấy được vị trí</span>`;
+            let statusHtml = '';
+            if (hasLink && hasCoords) {
+                statusHtml = `<span class="badge storing">Đã hiển thị trên bản đồ</span>`;
+            } else if (hasLink && !hasCoords) {
+                statusHtml = `<span class="badge p2">Có link, chưa lấy được vị trí</span>`;
+            } else {
+                statusHtml = `<span class="badge p1">Chưa có link</span>`;
+            }
                 
             return `
                 <tr>
@@ -6006,7 +6013,8 @@ function filterB2BMapData() {
         const name = item.ten_kho || item['Tên Kho GXT'] || '--';
         const id = item.id_kho || item['ID Kho'] || '--';
         const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
-        const link = item.link_ggm || item['Link GGM'] || '#';
+        const link = (item.link_ggm || item['Link GGM'] || '').trim();
+        const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
         
         if (item.coords && item.coords.length === 2) {
             const [lat, lng] = item.coords;
@@ -6019,7 +6027,7 @@ function filterB2BMapData() {
                     <h4 style="margin:0 0 4px; font-weight:700; color:var(--green);">${name}</h4>
                     <p style="margin:0 0 4px; color:var(--text2);"><strong>ID:</strong> ${id}</p>
                     <p style="margin:0 0 6px; line-height:1.4; color:var(--text2);"><strong>Địa chỉ:</strong> ${address}</p>
-                    ${link && link !== '#' && link !== 'Link' ? `<a href="${link}" target="_blank" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem trên Google Maps</a>` : ''}
+                    ${hasLink ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem trên Google Maps</a>` : ''}
                 </div>
             `;
             
