@@ -1674,6 +1674,8 @@ function renderPersonnelSection(filter = '', posFilter = '') {
     }
     if (posFilter) data = data.filter(r => (r['Vị trí công việc'] || r['Tên vị trí'] || '').includes(posFilter));
     document.getElementById('personnel-count-label').textContent = data.length + ' người';
+    
+    // Render the main personnel list table
     document.getElementById('tbody-personnel').innerHTML = data.map((r, i) => {
         const loaiHD = r['Loại hợp đồng'] || r['Loại HĐ'] || '';
         return `
@@ -1688,6 +1690,111 @@ function renderPersonnelSection(filter = '', posFilter = '') {
             <td>${escapeHtml(r['Phòng ban'] || '')}</td>
         </tr>
     `}).join('');
+
+    // Render "Bảng tổng hợp nhân sự theo kho và vị trí" (Pivot Table)
+    const pivotTable = document.getElementById('personnel-pivot-table');
+    if (pivotTable) {
+        if (data.length === 0) {
+            pivotTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">STT</th>
+                        <th style="width: 250px;">Tên Kho</th>
+                        <th style="font-weight: 700; color: var(--blue);">Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text3); padding: 20px;">Không có dữ liệu</td>
+                    </tr>
+                </tbody>
+            `;
+        } else {
+            // Find all unique positions in the filtered data dynamically
+            const positionsSet = new Set();
+            data.forEach(r => {
+                const pos = (r['Vị trí công việc'] || r['Tên vị trí'] || '').trim();
+                if (pos) positionsSet.add(pos);
+            });
+            const positions = Array.from(positionsSet).sort();
+            
+            // Group by warehouse name
+            const pivot = {};
+            data.forEach(r => {
+                const rawKho = r['Kho làm việc'] || r['Kho'] || 'Chưa xác định';
+                const kho = shortKho(rawKho).trim();
+                const pos = (r['Vị trí công việc'] || r['Tên vị trí'] || 'Khác').trim();
+                
+                if (!pivot[kho]) {
+                    pivot[kho] = {};
+                }
+                pivot[kho][pos] = (pivot[kho][pos] || 0) + 1;
+            });
+            
+            // Format warehouse list with total counts
+            const warehouses = Object.keys(pivot).map(kho => {
+                let total = 0;
+                positions.forEach(pos => {
+                    total += (pivot[kho][pos] || 0);
+                });
+                return { name: kho, positions: pivot[kho], total: total };
+            });
+            
+            // Sort warehouses by total personnel descending
+            warehouses.sort((a, b) => b.total - a.total);
+            
+            console.log(`[PIVOT DEBUG] Found ${positions.length} unique positions and ${warehouses.length} warehouses.`);
+            if (warehouses.length > 0) {
+                console.log(`[PIVOT DEBUG] First warehouse: ${warehouses[0].name}, Total=${warehouses[0].total}`);
+            }
+            
+            // Calculate totals for each position and grand total
+            const positionTotals = {};
+            let grandTotal = 0;
+            positions.forEach(pos => {
+                let sum = 0;
+                warehouses.forEach(w => {
+                    sum += (w.positions[pos] || 0);
+                });
+                positionTotals[pos] = sum;
+                grandTotal += sum;
+            });
+            
+            // Construct table header
+            const theadHtml = `
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">STT</th>
+                        <th style="width: 250px;">Tên Kho</th>
+                        ${positions.map(pos => `<th>${escapeHtml(pos)}</th>`).join('')}
+                        <th style="font-weight: 700; color: var(--blue);">Tổng</th>
+                    </tr>
+                </thead>
+            `;
+            
+            // Construct table body
+            const tbodyHtml = `
+                <tbody>
+                    ${warehouses.map((w, idx) => `
+                        <tr>
+                            <td>${idx + 1}</td>
+                            <td style="font-weight: 600;">${escapeHtml(w.name)}</td>
+                            ${positions.map(pos => `<td>${w.positions[pos] || 0}</td>`).join('')}
+                            <td style="font-weight: 700; color: var(--blue);">${w.total}</td>
+                        </tr>
+                    `).join('')}
+                    <tr style="border-top: 2px solid var(--border-card); font-weight: 700; background-color: var(--bg-card);">
+                        <td style="font-weight: 700;">Tổng cộng</td>
+                        <td></td>
+                        ${positions.map(pos => `<td style="font-weight: 700; color: var(--orange);">${positionTotals[pos]}</td>`).join('')}
+                        <td style="font-weight: 700; color: var(--blue);">${grandTotal}</td>
+                    </tr>
+                </tbody>
+            `;
+            
+            pivotTable.innerHTML = theadHtml + tbodyHtml;
+        }
+    }
 }
 // ---- NĂNG SUẤT NV SECTION ----
 let currentNsPeriod = 'day';

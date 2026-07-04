@@ -1169,4 +1169,57 @@ nav {
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
+/* Frozen columns styling for #personnel-pivot-table */
+#personnel-pivot-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+#personnel-pivot-table th,
+#personnel-pivot-table td {
+    border: 1px solid var(--border-card) !important;
+    white-space: nowrap;
+    text-align: center;
+    padding: 10px 14px;
+}
+
+#personnel-pivot-table th:nth-child(1),
+#personnel-pivot-table td:nth-child(1) {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 10;
+    background-color: var(--bg-card) !important;
+    min-width: 50px;
+    max-width: 50px;
+}
+
+#personnel-pivot-table th:nth-child(2),
+#personnel-pivot-table td:nth-child(2) {
+    position: sticky !important;
+    left: 50px; /* offset by first column width */
+    z-index: 10;
+    background-color: var(--bg-card) !important;
+    min-width: 250px;
+    max-width: 250px;
+    text-align: left !important;
+}
+
+#personnel-pivot-table th:nth-child(1),
+#personnel-pivot-table th:nth-child(2) {
+    z-index: 11;
+}
+
+/* Light / Dark Mode sticky headers */
+#personnel-pivot-table thead tr th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background-color: var(--bg-card) !important;
+}
+
+#personnel-pivot-table thead tr th:nth-child(1),
+#personnel-pivot-table thead tr th:nth-child(2) {
+    z-index: 12 !important;
+}
+
 
