@@ -557,6 +557,194 @@ def resolve_and_get_coords(url: str):
     return coords
 
 # ---- DATA KHO GXT ----
+def get_kho_gxt_xlsx_fallback():
+    xlsx_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
+    import urllib.request
+    import zipfile
+    import io
+    import xml.etree.ElementTree as ET
+    
+    try:
+        req = urllib.request.Request(xlsx_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            file_bytes = response.read()
+            
+        zip_file = zipfile.ZipFile(io.BytesIO(file_bytes))
+        file_list = zip_file.namelist()
+        
+        # 1. Parse workbook.xml
+        wb_data = zip_file.read("xl/workbook.xml")
+        wb_root = ET.fromstring(wb_data)
+        
+        ns = {
+            'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+            'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+        }
+        
+        sheet_r_id = None
+        for sheet in wb_root.findall('.//main:sheet', ns):
+            name = sheet.get('name')
+            if name == "Kho Giao Hàng Nặng":
+                sheet_r_id = sheet.get(f"{{{ns['r']}}}id")
+                break
+                
+        if not sheet_r_id:
+            return None
+            
+        # 2. Get worksheet path
+        rels_data = zip_file.read("xl/_rels/workbook.xml.rels")
+        rels_root = ET.fromstring(rels_data)
+        
+        sheet_file = None
+        rel_ns = {'rel': 'http://schemas.openxmlformats.org/package/2006/relationships'}
+        for rel in rels_root.findall('.//rel:Relationship', rel_ns):
+            if rel.get('Id') == sheet_r_id:
+                target = rel.get('Target')
+                sheet_file = f"xl/{target}"
+                break
+                
+        if not sheet_file:
+            return None
+            
+        # 3. Read sharedStrings
+        shared_strings = []
+        if "xl/sharedStrings.xml" in file_list:
+            ss_data = zip_file.read("xl/sharedStrings.xml")
+            ss_root = ET.fromstring(ss_data)
+            for t in ss_root.findall('.//main:t', ns):
+                shared_strings.append(t.text or "")
+                
+        # 4. Parse worksheet XML
+        ws_data = zip_file.read(sheet_file)
+        ws_root = ET.fromstring(ws_data)
+        
+        # 5. Parse worksheet rels for hyperlinks
+        ws_rels_path = f"xl/worksheets/_rels/{os.path.basename(sheet_file)}.rels"
+        hyperlink_map = {}
+        if ws_rels_path in file_list:
+            ws_rels_data = zip_file.read(ws_rels_path)
+            ws_rels_root = ET.fromstring(ws_rels_data)
+            for rel in ws_rels_root.findall('.//rel:Relationship', rel_ns):
+                r_id = rel.get('Id')
+                target_url = rel.get('Target')
+                hyperlink_map[r_id] = target_url
+                
+        cell_hyperlinks = {}
+        for hl in ws_root.findall('.//main:hyperlink', ns):
+            ref = hl.get('ref')
+            r_id = hl.get(f"{{{ns['r']}}}id")
+            if r_id in hyperlink_map:
+                cell_hyperlinks[ref] = hyperlink_map[r_id]
+                
+        # 6. Parse cells
+        rows_data = []
+        for row in ws_root.findall('.//main:row', ns):
+            row_idx = row.get('r')
+            row_cells = {}
+            for cell in row.findall('./main:c', ns):
+                ref = cell.get('r')
+                cell_type = cell.get('t', '')
+                val_elem = cell.find('./main:v', ns)
+                val = val_elem.text if val_elem is not None else ""
+                
+                if cell_type == 's' and val:
+                    idx = int(val)
+                    cell_val = shared_strings[idx] if idx < len(shared_strings) else ""
+                else:
+                    cell_val = val
+                    
+                h_link = cell_hyperlinks.get(ref, "")
+                row_cells[ref] = {
+                    'value': cell_val,
+                    'hyperlink': h_link
+                }
+            rows_data.append((row_idx, row_cells))
+            
+        if not rows_data:
+            return None
+            
+        header_cells = rows_data[0][1]
+        headers = {}
+        for ref, cell in header_cells.items():
+            col_letter = "".join([c for c in ref if c.isalpha()])
+            headers[col_letter] = cell['value']
+            
+        col_map = {}
+        for col_letter, h_name in headers.items():
+            h_clean = h_name.strip()
+            col_map[h_clean] = col_letter
+            
+        def get_cell_by_header(row_cells, header_name, row_num):
+            col_letter = col_map.get(header_name)
+            if not col_letter:
+                return "", ""
+            cell_ref = f"{col_letter}{row_num}"
+            cell = row_cells.get(cell_ref)
+            if not cell:
+                return "", ""
+            return cell['value'], cell['hyperlink']
+            
+        output = []
+        for r_num, row_cells in rows_data[1:]:
+            id_kho, _ = get_cell_by_header(row_cells, "ID Kho", r_num)
+            if id_kho:
+                id_kho = id_kho.strip()
+                if "E" in id_kho or "e" in id_kho or "." in id_kho:
+                    try:
+                        id_kho = str(int(float(id_kho)))
+                    except ValueError:
+                        pass
+                        
+            if not id_kho:
+                continue
+                
+            ten_kho, _ = get_cell_by_header(row_cells, "Tên Kho GXT", r_num)
+            dia_chi, _ = get_cell_by_header(row_cells, "Địa chỉ kho", r_num)
+            if not dia_chi:
+                dia_chi = "Chưa có địa chỉ"
+                
+            _, link_ggm = get_cell_by_header(row_cells, "Link GGM", r_num)
+            if not link_ggm:
+                val_ggm, _ = get_cell_by_header(row_cells, "Link GGM", r_num)
+                if val_ggm and val_ggm.lower().strip().startswith("http"):
+                    link_ggm = val_ggm.strip()
+                    
+            if link_ggm:
+                link_ggm = link_ggm.strip()
+                if link_ggm and not link_ggm.lower().startswith("http"):
+                    if "maps" in link_ggm.lower() or "google" in link_ggm.lower() or "goo.gl" in link_ggm.lower():
+                        link_ggm = "https://" + link_ggm
+                        
+            vung, _ = get_cell_by_header(row_cells, "Vùng", r_num)
+            tinh, _ = get_cell_by_header(row_cells, "Tỉnh", r_num)
+            tinh_trang, _ = get_cell_by_header(row_cells, "Tình trạng", r_num)
+            
+            coords = resolve_and_get_coords(link_ggm) if link_ggm else None
+            mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
+            
+            output.append({
+                "id_kho": id_kho,
+                "idKho": id_kho,
+                "ten_kho": ten_kho,
+                "tenKho": ten_kho,
+                "dia_chi": dia_chi,
+                "diaChi": dia_chi,
+                "link_ggm": link_ggm,
+                "linkGGM": link_ggm,
+                "googleMapsLink": link_ggm,
+                "vung": vung,
+                "tinh": tinh,
+                "tinh_trang": tinh_trang,
+                "coords": coords,
+                "mapStatus": mapStatus
+            })
+            
+        return output
+    except Exception as e:
+        print(f"[XLSX FALLBACK ERROR] Failed to parse XLSX: {e}")
+        return None
+
+# ---- DATA KHO GXT ----
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
@@ -621,35 +809,68 @@ def get_kho_gxt(force: bool = False):
                                 link_ggm = "https://" + link_ggm
                     
                     coords = resolve_and_get_coords(link_ggm) if link_ggm else None
+                    mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
                     
                     output.append({
                         "id_kho": id_kho,
+                        "idKho": id_kho,
                         "ten_kho": ten_kho,
+                        "tenKho": ten_kho,
                         "dia_chi": dia_chi,
+                        "diaChi": dia_chi,
                         "link_ggm": link_ggm,
+                        "linkGGM": link_ggm,
+                        "googleMapsLink": link_ggm,
                         "vung": vung,
                         "tinh": tinh,
                         "tinh_trang": tinh_trang,
-                        "coords": coords
+                        "coords": coords,
+                        "mapStatus": mapStatus
                     })
                 
                 return {"data": output, "last_sync": time.time()}
         except Exception as e:
             print(f"[API ERROR] Error fetching sheet via Sheets API: {e}")
             
-    # Fallback to CSV
+    # Try public XLSX fallback next
+    print("[FALLBACK] Attempting XLSX public parsing fallback...")
+    output = get_kho_gxt_xlsx_fallback()
+    if output is not None:
+        return {"data": output, "last_sync": time.time()}
+        
+    # Last fallback: CSV
+    print("[FALLBACK] Attempting CSV fallback...")
     csv_rows, last_sync = read_csv("kho_gxt", force)
     output = []
     for r in csv_rows:
+        id_kho = r.get("ID Kho", "")
+        ten_kho = r.get("Tên Kho GXT", "")
+        dia_chi = r.get("Địa chỉ kho", "Chưa có địa chỉ") or "Chưa có địa chỉ"
+        link_ggm = r.get("Link GGM", "").strip()
+        if link_ggm.lower() in ["", "#", "link"]:
+            link_ggm = ""
+        vung = r.get("Vùng", "")
+        tinh = r.get("Tỉnh", "")
+        tinh_trang = r.get("Tình trạng", "")
+        coords = resolve_and_get_coords(link_ggm) if link_ggm else None
+        
+        mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
+        
         output.append({
-            "id_kho": r.get("ID Kho", ""),
-            "ten_kho": r.get("Tên Kho GXT", ""),
-            "dia_chi": r.get("Địa chỉ kho", "Chưa có địa chỉ") or "Chưa có địa chỉ",
-            "link_ggm": r.get("Link GGM", ""),
-            "vung": r.get("Vùng", ""),
-            "tinh": r.get("Tỉnh", ""),
-            "tinh_trang": r.get("Tình trạng", ""),
-            "coords": None
+            "id_kho": id_kho,
+            "idKho": id_kho,
+            "ten_kho": ten_kho,
+            "tenKho": ten_kho,
+            "dia_chi": dia_chi,
+            "diaChi": dia_chi,
+            "link_ggm": link_ggm,
+            "linkGGM": link_ggm,
+            "googleMapsLink": link_ggm,
+            "vung": vung,
+            "tinh": tinh,
+            "tinh_trang": tinh_trang,
+            "coords": coords,
+            "mapStatus": mapStatus
         })
     return {"data": output, "last_sync": last_sync}
 

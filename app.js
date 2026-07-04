@@ -5974,10 +5974,10 @@ function filterB2BMapData() {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text3)">Không tìm thấy kho phù hợp.</td></tr>`;
     } else {
         tbody.innerHTML = filtered.map(item => {
-            const id = item.id_kho || item['ID Kho'] || '--';
-            const name = item.ten_kho || item['Tên Kho GXT'] || '--';
-            const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
-            const link = (item.link_ggm || item['Link GGM'] || '').trim();
+            const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
+            const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
+            const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+            const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
             const hasCoords = !!(item.coords && item.coords.length === 2);
             
             const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
@@ -5987,9 +5987,10 @@ function filterB2BMapData() {
                 : `<span style="color:var(--text3)">Không có link</span>`;
                 
             let statusHtml = '';
-            if (hasLink && hasCoords) {
+            const mapStatus = item.mapStatus || item.map_status || '';
+            if (mapStatus === 'Đã hiển thị trên bản đồ' || (hasLink && hasCoords)) {
                 statusHtml = `<span class="badge storing">Đã hiển thị trên bản đồ</span>`;
-            } else if (hasLink && !hasCoords) {
+            } else if (mapStatus === 'Có link, chưa lấy được vị trí' || (hasLink && !hasCoords)) {
                 statusHtml = `<span class="badge p2">Có link, chưa lấy được vị trí</span>`;
             } else {
                 statusHtml = `<span class="badge p1">Chưa có link</span>`;
@@ -6010,10 +6011,10 @@ function filterB2BMapData() {
     // Add markers to Leaflet map
     let validCoords = [];
     filtered.forEach(item => {
-        const name = item.ten_kho || item['Tên Kho GXT'] || '--';
-        const id = item.id_kho || item['ID Kho'] || '--';
-        const address = item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
-        const link = (item.link_ggm || item['Link GGM'] || '').trim();
+        const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
+        const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
+        const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+        const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
         const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
         
         if (item.coords && item.coords.length === 2) {
