@@ -5909,8 +5909,11 @@ window.renderB2BMapSection = function() {
     
     // Initialize map once
     if (!b2bMapInitialized) {
-        // Centered at Central Vietnam (Da Nang coordinates)
-        window.b2bLeafletMap = L.map('b2b-leaflet-map').setView([16.0544, 108.2021], 7);
+        // Centered at Vietnam (Da Nang coordinates), minZoom and maxZoom constrained
+        window.b2bLeafletMap = L.map('b2b-leaflet-map', {
+            minZoom: 5,
+            maxZoom: 15
+        }).setView([16.0544, 108.2021], 6);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -6016,17 +6019,35 @@ function filterB2BMapData() {
         const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
         const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
         const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
+        const area = item.dienTich || item.dien_tich || '--';
         
         if (item.coords && item.coords.length === 2) {
             const [lat, lng] = item.coords;
             validCoords.push([lat, lng]);
             
-            const marker = L.marker([lat, lng]).addTo(window.b2bMapMarkersGroup);
+            // Clean up name for label: e.g. "Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá" -> "Đông Thọ - Thanh Hoá"
+            const labelName = name.replace("Kho Giao Hàng Nặng - ", "").replace("Kho Giao Hàng Nặng ", "").trim();
+            
+            const customIcon = L.divIcon({
+                html: `
+                    <div class="map-marker-warehouse" title="${name}">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <span class="marker-label">${labelName}</span>
+                    </div>
+                `,
+                className: 'custom-warehouse-marker',
+                iconSize: [60, 45],
+                iconAnchor: [30, 22],
+                popupAnchor: [0, -20]
+            });
+            
+            const marker = L.marker([lat, lng], { icon: customIcon }).addTo(window.b2bMapMarkersGroup);
             
             const popupContent = `
                 <div style="font-family:'Outfit', sans-serif; font-size:0.85rem; color:var(--text); padding:4px;">
                     <h4 style="margin:0 0 4px; font-weight:700; color:var(--green);">${name}</h4>
                     <p style="margin:0 0 4px; color:var(--text2);"><strong>ID:</strong> ${id}</p>
+                    <p style="margin:0 0 4px; color:var(--text2);"><strong>Diện tích:</strong> ${area} m²</p>
                     <p style="margin:0 0 6px; line-height:1.4; color:var(--text2);"><strong>Địa chỉ:</strong> ${address}</p>
                     ${hasLink ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem trên Google Maps</a>` : ''}
                 </div>
@@ -6034,8 +6055,15 @@ function filterB2BMapData() {
             
             marker.bindPopup(popupContent);
             
-            // Tooltip (marker hover) to display the warehouse name directly
-            marker.bindTooltip(name, {
+            // Tooltip (marker hover) to display the warehouse name and area
+            const tooltipContent = `
+                <div style="text-align: left; line-height: 1.4;">
+                    <strong>${name}</strong><br/>
+                    <span style="color:var(--text3); font-size: 0.75rem;">Diện tích: ${area} m²</span>
+                </div>
+            `;
+            
+            marker.bindTooltip(tooltipContent, {
                 permanent: false,
                 direction: 'top',
                 className: 'ghn-map-tooltip'
@@ -6046,7 +6074,7 @@ function filterB2BMapData() {
     // Zoom map to fit all visible markers
     if (validCoords.length > 0) {
         const bounds = L.latLngBounds(validCoords);
-        window.b2bLeafletMap.fitBounds(bounds, { padding: [40, 40] });
+        window.b2bLeafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 9 });
     }
 }
 

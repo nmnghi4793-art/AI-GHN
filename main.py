@@ -719,6 +719,16 @@ def get_kho_gxt_xlsx_fallback():
             tinh, _ = get_cell_by_header(row_cells, "Tỉnh", r_num)
             tinh_trang, _ = get_cell_by_header(row_cells, "Tình trạng", r_num)
             
+            dien_tich, _ = get_cell_by_header(row_cells, "Diện Tích", r_num)
+            if not dien_tich:
+                dien_tich, _ = get_cell_by_header(row_cells, "Diện tích", r_num)
+            if dien_tich:
+                dien_tich = dien_tich.strip()
+                if "." in dien_tich:
+                    dien_tich = dien_tich.split(".")[0]
+            else:
+                dien_tich = ""
+            
             coords = resolve_and_get_coords(link_ggm) if link_ggm else None
             mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
             
@@ -735,6 +745,8 @@ def get_kho_gxt_xlsx_fallback():
                 "vung": vung,
                 "tinh": tinh,
                 "tinh_trang": tinh_trang,
+                "dien_tich": dien_tich,
+                "dienTich": dien_tich,
                 "coords": coords,
                 "mapStatus": mapStatus
             })
@@ -777,6 +789,7 @@ def get_kho_gxt(force: bool = False):
                 vung_idx = headers.index("Vùng") if "Vùng" in headers else -1
                 tinh_idx = headers.index("Tỉnh") if "Tỉnh" in headers else -1
                 tinh_trang_idx = headers.index("Tình trạng") if "Tình trạng" in headers else -1
+                dien_tich_idx = headers.index("Diện Tích") if "Diện Tích" in headers else (headers.index("Diện tích") if "Diện tích" in headers else -1)
                 
                 output = []
                 for row in data_rows[1:]:
@@ -793,6 +806,14 @@ def get_kho_gxt(force: bool = False):
                     vung = values[vung_idx].get("formattedValue", "") if len(values) > vung_idx and vung_idx != -1 else ""
                     tinh = values[tinh_idx].get("formattedValue", "") if len(values) > tinh_idx and tinh_idx != -1 else ""
                     tinh_trang = values[tinh_trang_idx].get("formattedValue", "") if len(values) > tinh_trang_idx and tinh_trang_idx != -1 else ""
+                    
+                    dien_tich = values[dien_tich_idx].get("formattedValue", "") if len(values) > dien_tich_idx and dien_tich_idx != -1 else ""
+                    if dien_tich:
+                        dien_tich = dien_tich.strip()
+                        if "." in dien_tich:
+                            dien_tich = dien_tich.split(".")[0]
+                    else:
+                        dien_tich = ""
                     
                     link_cell = values[link_ggm_idx] if len(values) > link_ggm_idx and link_ggm_idx != -1 else {}
                     link_ggm = link_cell.get("hyperlink", "")
@@ -823,13 +844,15 @@ def get_kho_gxt(force: bool = False):
                         "vung": vung,
                         "tinh": tinh,
                         "tinh_trang": tinh_trang,
+                        "dien_tich": dien_tich,
+                        "dienTich": dien_tich,
                         "coords": coords,
                         "mapStatus": mapStatus
                     })
                 
                 print(f"[API SUCCESS] Loaded {len(output)} warehouses from Google Sheets API.")
                 if output:
-                    print(f"[API DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
+                    print(f"[API DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
                 return {"data": output, "last_sync": time.time()}
         except Exception as e:
             print(f"[API ERROR] Error fetching sheet via Sheets API: {e}")
@@ -840,7 +863,7 @@ def get_kho_gxt(force: bool = False):
     if output is not None:
         print(f"[FALLBACK SUCCESS] Loaded {len(output)} warehouses from public XLSX parser.")
         if output:
-            print(f"[FALLBACK DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
+            print(f"[FALLBACK DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
         return {"data": output, "last_sync": time.time()}
         
     # Last fallback: CSV
@@ -870,6 +893,14 @@ def get_kho_gxt(force: bool = False):
         vung = (r.get("Vùng") or "").strip()
         tinh = (r.get("Tỉnh") or "").strip()
         tinh_trang = (r.get("Tình trạng") or "").strip()
+        
+        dien_tich = (r.get("Diện Tích") or r.get("Diện tích") or "").strip()
+        if dien_tich:
+            if "." in dien_tich:
+                dien_tich = dien_tich.split(".")[0]
+        else:
+            dien_tich = ""
+            
         coords = resolve_and_get_coords(link_ggm) if link_ggm else None
         
         mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
@@ -887,12 +918,14 @@ def get_kho_gxt(force: bool = False):
             "vung": vung,
             "tinh": tinh,
             "tinh_trang": tinh_trang,
+            "dien_tich": dien_tich,
+            "dienTich": dien_tich,
             "coords": coords,
             "mapStatus": mapStatus
         })
     print(f"[CSV SUCCESS] Loaded {len(output)} warehouses from CSV fallback.")
     if output:
-        print(f"[CSV DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
+        print(f"[CSV DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
     return {"data": output, "last_sync": last_sync}
 
 # ---- DATA ĐƠN TẠO N-1 ----

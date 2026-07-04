@@ -1128,4 +1128,45 @@ nav {
     border-bottom: 1px solid var(--border-card) !important;
 }
 
+/* Custom Warehouse Marker Styling */
+.custom-warehouse-marker {
+    background: transparent !important;
+    border: none !important;
+}
+.map-marker-warehouse {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.map-marker-warehouse i {
+    font-size: 15px;
+    color: #10b981; /* Green */
+    background: var(--bg-card);
+    padding: 6px;
+    border-radius: 50%;
+    border: 2px solid #10b981;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+    transition: all 0.2s ease-in-out;
+}
+.map-marker-warehouse:hover i {
+    transform: scale(1.15);
+    color: #06b6d4; /* Cyan */
+    border-color: #06b6d4;
+}
+.map-marker-warehouse .marker-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text);
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-top: 3px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
 
