@@ -745,13 +745,12 @@ def get_kho_gxt_xlsx_fallback():
         return None
 
 # ---- DATA KHO GXT ----
+# ---- DATA KHO GXT ----
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
     if os.path.exists(sa_path):
         try:
-            import json
-            import time
             from google.oauth2.service_account import Credentials
             from googleapiclient.discovery import build
             
@@ -828,6 +827,9 @@ def get_kho_gxt(force: bool = False):
                         "mapStatus": mapStatus
                     })
                 
+                print(f"[API SUCCESS] Loaded {len(output)} warehouses from Google Sheets API.")
+                if output:
+                    print(f"[API DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
                 return {"data": output, "last_sync": time.time()}
         except Exception as e:
             print(f"[API ERROR] Error fetching sheet via Sheets API: {e}")
@@ -836,6 +838,9 @@ def get_kho_gxt(force: bool = False):
     print("[FALLBACK] Attempting XLSX public parsing fallback...")
     output = get_kho_gxt_xlsx_fallback()
     if output is not None:
+        print(f"[FALLBACK SUCCESS] Loaded {len(output)} warehouses from public XLSX parser.")
+        if output:
+            print(f"[FALLBACK DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
         return {"data": output, "last_sync": time.time()}
         
     # Last fallback: CSV
@@ -843,15 +848,28 @@ def get_kho_gxt(force: bool = False):
     csv_rows, last_sync = read_csv("kho_gxt", force)
     output = []
     for r in csv_rows:
-        id_kho = r.get("ID Kho", "")
-        ten_kho = r.get("Tên Kho GXT", "")
-        dia_chi = r.get("Địa chỉ kho", "Chưa có địa chỉ") or "Chưa có địa chỉ"
-        link_ggm = r.get("Link GGM", "").strip()
+        id_kho = (r.get("ID Kho") or "").strip()
+        if id_kho:
+            if "." in id_kho:
+                id_kho = id_kho.split(".")[0]
+            if "E" in id_kho or "e" in id_kho:
+                try:
+                    id_kho = str(int(float(id_kho)))
+                except ValueError:
+                    pass
+                    
+        ten_kho = (r.get("Tên Kho GXT") or "").strip()
+        dia_chi = (r.get("Địa chỉ kho") or "Chưa có địa chỉ").strip()
+        if not dia_chi:
+            dia_chi = "Chưa có địa chỉ"
+            
+        link_ggm = (r.get("Link GGM") or "").strip()
         if link_ggm.lower() in ["", "#", "link"]:
             link_ggm = ""
-        vung = r.get("Vùng", "")
-        tinh = r.get("Tỉnh", "")
-        tinh_trang = r.get("Tình trạng", "")
+            
+        vung = (r.get("Vùng") or "").strip()
+        tinh = (r.get("Tỉnh") or "").strip()
+        tinh_trang = (r.get("Tình trạng") or "").strip()
         coords = resolve_and_get_coords(link_ggm) if link_ggm else None
         
         mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
@@ -872,6 +890,9 @@ def get_kho_gxt(force: bool = False):
             "coords": coords,
             "mapStatus": mapStatus
         })
+    print(f"[CSV SUCCESS] Loaded {len(output)} warehouses from CSV fallback.")
+    if output:
+        print(f"[CSV DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Link={output[0]['linkGGM']}")
     return {"data": output, "last_sync": last_sync}
 
 # ---- DATA ĐƠN TẠO N-1 ----
