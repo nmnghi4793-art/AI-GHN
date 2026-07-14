@@ -3488,11 +3488,21 @@ function showSection(name) {
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;
     
-    // Invalidate Leaflet map size to render correct dimensions upon showing section
-    if (name === 'b2b-map' && window.b2bLeafletMap) {
+    // B2B Map: initialize + invalidate + re-render data on every tab switch
+    if (name === 'b2b-map') {
+        // Step 1: Init map (if not yet done) immediately
+        if (typeof window.renderB2BMapSection === 'function') {
+            window.renderB2BMapSection();
+        }
+        // Step 2: After DOM settles, invalidate Leaflet size then re-filter/refit markers
         setTimeout(() => {
-            window.b2bLeafletMap.invalidateSize();
-        }, 100);
+            if (window.b2bLeafletMap) {
+                window.b2bLeafletMap.invalidateSize();
+            }
+            if (typeof filterB2BMapData === 'function') {
+                filterB2BMapData();
+            }
+        }, 300);
     }
 }
 
@@ -6009,14 +6019,92 @@ function renderB2bDetailedTable() {
 let b2bMapInitialized = false;
 window.b2bLeafletMap = null;
 window.b2bMapMarkersGroup = null;
+// Track if a data fetch is in progress to prevent duplicate fetches
+let b2bMapFetchInProgress = false;
+
+// Show loading state in the map container and table body
+function showB2BMapLoading() {
+    const tbody = document.getElementById('tbody-b2b-map');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; color:var(--text3);"><i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>Đang tải dữ liệu kho...</td></tr>`;
+    }
+    // Show loading overlay on map if possible
+    const mapContainer = document.getElementById('b2b-leaflet-map');
+    if (mapContainer) {
+        let overlay = document.getElementById('b2b-map-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'b2b-map-loading-overlay';
+            overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg-card,rgba(0,0,0,0.5));z-index:1000;border-radius:12px;color:var(--text,#fff);font-size:1rem;gap:10px;';
+            overlay.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Đang tải dữ liệu kho...</span>';
+            const parent = mapContainer.parentElement;
+            if (parent) { parent.style.position = 'relative'; parent.appendChild(overlay); }
+        }
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideB2BMapLoading() {
+    const overlay = document.getElementById('b2b-map-loading-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function showB2BMapError(message) {
+    const tbody = document.getElementById('tbody-b2b-map');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center; padding:40px; color:var(--red,#ef4444);">
+                    <i class="fa-solid fa-triangle-exclamation" style="margin-right:8px;"></i>
+                    ${message}<br/>
+                    <button onclick="window.b2bMapRetryLoad()" style="margin-top:12px; padding:8px 20px; background:var(--blue,#3b82f6); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem;">
+                        <i class="fa-solid fa-rotate-right"></i> Tải lại dữ liệu
+                    </button>
+                </td>
+            </tr>`;
+    }
+    const overlay = document.getElementById('b2b-map-loading-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// Retry button handler
+window.b2bMapRetryLoad = async function() {
+    showB2BMapLoading();
+    await b2bMapFetchData();
+};
+
+// Dedicated fetch function for B2B map data only (used when khoGxtData is empty on first click)
+async function b2bMapFetchData() {
+    if (b2bMapFetchInProgress) return;
+    b2bMapFetchInProgress = true;
+    try {
+        const result = await authFetch(`${API}/kho-gxt`, { data: [] });
+        state.khoGxtData = result.data || [];
+        console.log(`[B2B MAP] Fetched ${state.khoGxtData.length} warehouse records.`);
+        hideB2BMapLoading();
+        if (state.khoGxtData.length === 0) {
+            showB2BMapError('Không có dữ liệu kho. Vui lòng thử lại.');
+        } else {
+            // Give Leaflet a moment to settle, then render
+            setTimeout(() => {
+                if (window.b2bLeafletMap) window.b2bLeafletMap.invalidateSize();
+                filterB2BMapData();
+            }, 200);
+        }
+    } catch (err) {
+        console.error('[B2B MAP] Failed to fetch warehouse data:', err);
+        showB2BMapError('Lỗi khi tải dữ liệu kho. Vui lòng thử lại.');
+    } finally {
+        b2bMapFetchInProgress = false;
+    }
+}
 
 window.renderB2BMapSection = function() {
     const mapContainer = document.getElementById('b2b-leaflet-map');
     if (!mapContainer) return;
     
-    // Initialize map once
+    // Initialize Leaflet map once
     if (!b2bMapInitialized) {
-        // Centered at Vietnam (Da Nang coordinates), minZoom and maxZoom constrained
         window.b2bLeafletMap = L.map('b2b-leaflet-map', {
             minZoom: 5,
             maxZoom: 15
@@ -6024,65 +6112,69 @@ window.renderB2BMapSection = function() {
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
+            attribution: '\u00a9 OpenStreetMap contributors'
         }).addTo(window.b2bLeafletMap);
         
         window.b2bMapMarkersGroup = L.layerGroup().addTo(window.b2bLeafletMap);
         
-        // Bind search and filter events
+        // Bind search and filter events once
         const searchInput = document.getElementById('b2b-map-search');
         const statusFilter = document.getElementById('b2b-map-status-filter');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => filterB2BMapData());
-        }
-        if (statusFilter) {
-            statusFilter.addEventListener('change', () => filterB2BMapData());
-        }
+        if (searchInput) searchInput.addEventListener('input', () => filterB2BMapData());
+        if (statusFilter) statusFilter.addEventListener('change', () => filterB2BMapData());
         
         b2bMapInitialized = true;
+        console.log('[B2B MAP] Leaflet map initialized.');
     }
     
-    // Force Leaflet size recalculation and bounds refit after container transition
-    setTimeout(() => {
-        if (window.b2bLeafletMap) {
-            window.b2bLeafletMap.invalidateSize();
-            filterB2BMapData();
-        }
-    }, 150);
+    // Check if data is already available in state
+    const hasData = state.khoGxtData && state.khoGxtData.length > 0;
     
-    filterB2BMapData();
+    if (!hasData) {
+        // Data not yet loaded - show loading state and trigger async fetch
+        console.log('[B2B MAP] khoGxtData is empty on first open — triggering fetch...');
+        showB2BMapLoading();
+        b2bMapFetchData();
+        return;
+    }
+    
+    // Data is available: invalidate size, then filter/render markers
+    setTimeout(() => {
+        if (window.b2bLeafletMap) window.b2bLeafletMap.invalidateSize();
+        filterB2BMapData();
+    }, 150);
 };
 
 function filterB2BMapData() {
     if (!window.b2bLeafletMap || !window.b2bMapMarkersGroup) return;
     
+    const rawList = state.khoGxtData || [];
+    
+    // If no data available at all, show loading
+    if (rawList.length === 0) {
+        console.warn('[B2B MAP] filterB2BMapData called but khoGxtData is empty.');
+        return;
+    }
+    
     const searchVal = (document.getElementById('b2b-map-search')?.value || "").trim().toLowerCase();
     const statusVal = document.getElementById('b2b-map-status-filter')?.value || "all";
     
-    const rawList = state.khoGxtData || [];
-    
-    // Clear existing markers
+    // Clear existing markers before re-render
     window.b2bMapMarkersGroup.clearLayers();
     
     const tbody = document.getElementById('tbody-b2b-map');
     if (!tbody) return;
     
-    // Filter list
+    // Filter list by search and status
     const filtered = rawList.filter(item => {
-        // Search term match
         const id = String(item.id_kho || item['ID Kho'] || '').toLowerCase();
         const name = String(item.ten_kho || item['Tên Kho GXT'] || '').toLowerCase();
         const matchesSearch = !searchVal || id.includes(searchVal) || name.includes(searchVal);
         
-        // Status filter match
         const hasCoords = !!(item.coords && item.coords.length === 2);
         let matchesStatus = true;
-        if (statusVal === 'mapped') {
-            matchesStatus = hasCoords;
-        } else if (statusVal === 'unmapped') {
-            matchesStatus = !hasCoords;
-        }
+        if (statusVal === 'mapped') matchesStatus = hasCoords;
+        else if (statusVal === 'unmapped') matchesStatus = !hasCoords;
         
         return matchesSearch && matchesStatus;
     });
@@ -6094,24 +6186,23 @@ function filterB2BMapData() {
         tbody.innerHTML = filtered.map(item => {
             const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
             const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
-            const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+            const address = item.diaChi || item.dia_chi || item['\u0110\u1ecba ch\u1ec9 kho'] || 'Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9';
             const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
             const hasCoords = !!(item.coords && item.coords.length === 2);
-            
             const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
             
             const linkHtml = hasLink
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở bản đồ</a>`
-                : `<span style="color:var(--text3)">Không có link</span>`;
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> M\u1edf b\u1ea3n \u0111\u1ed3</a>`
+                : `<span style="color:var(--text3)">Kh\u00f4ng c\u00f3 link</span>`;
                 
             let statusHtml = '';
             const mapStatus = item.mapStatus || item.map_status || '';
-            if (mapStatus === 'Đã hiển thị trên bản đồ' || (hasLink && hasCoords)) {
-                statusHtml = `<span class="badge storing">Đã hiển thị trên bản đồ</span>`;
-            } else if (mapStatus === 'Có link, chưa lấy được vị trí' || (hasLink && !hasCoords)) {
-                statusHtml = `<span class="badge p2">Có link, chưa lấy được vị trí</span>`;
+            if (mapStatus === '\u0110\u00e3 hi\u1ec3n th\u1ecb tr\u00ean b\u1ea3n \u0111\u1ed3' || (hasLink && hasCoords)) {
+                statusHtml = `<span class="badge storing">\u0110\u00e3 hi\u1ec3n th\u1ecb tr\u00ean b\u1ea3n \u0111\u1ed3</span>`;
+            } else if (mapStatus === 'C\u00f3 link, ch\u01b0a l\u1ea5y \u0111\u01b0\u1ee3c v\u1ecb tr\u00ed' || (hasLink && !hasCoords)) {
+                statusHtml = `<span class="badge p2">C\u00f3 link, ch\u01b0a l\u1ea5y \u0111\u01b0\u1ee3c v\u1ecb tr\u00ed</span>`;
             } else {
-                statusHtml = `<span class="badge p1">Chưa có link</span>`;
+                statusHtml = `<span class="badge p1">Ch\u01b0a c\u00f3 link</span>`;
             }
                 
             return `
@@ -6126,12 +6217,12 @@ function filterB2BMapData() {
         }).join('');
     }
     
-    // Add markers to Leaflet map
+    // Add markers to map
     let validCoords = [];
     filtered.forEach(item => {
         const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
         const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
-        const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+        const address = item.diaChi || item.dia_chi || item['\u0110\u1ecba ch\u1ec9 kho'] || 'Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9';
         const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
         const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
         const area = item.dienTich || item.dien_tich || '--';
@@ -6140,8 +6231,7 @@ function filterB2BMapData() {
             const [lat, lng] = item.coords;
             validCoords.push([lat, lng]);
             
-            // Clean up name for label: e.g. "Kho Giao Hàng Nặng - Đông Thọ - Thanh Hoá" -> "Đông Thọ - Thanh Hoá"
-            const labelName = name.replace("Kho Giao Hàng Nặng - ", "").replace("Kho Giao Hàng Nặng ", "").trim();
+            const labelName = name.replace('Kho Giao H\u00e0ng N\u1eb7ng - ', '').replace('Kho Giao H\u00e0ng N\u1eb7ng ', '').trim();
             
             const customIcon = L.divIcon({
                 html: `
@@ -6162,22 +6252,19 @@ function filterB2BMapData() {
                 <div style="font-family:'Outfit', sans-serif; font-size:0.85rem; color:var(--text); padding:4px;">
                     <h4 style="margin:0 0 4px; font-weight:700; color:var(--green);">${name}</h4>
                     <p style="margin:0 0 4px; color:var(--text2);"><strong>ID:</strong> ${id}</p>
-                    <p style="margin:0 0 4px; color:var(--text2);"><strong>Diện tích:</strong> ${area} m²</p>
-                    <p style="margin:0 0 6px; line-height:1.4; color:var(--text2);"><strong>Địa chỉ:</strong> ${address}</p>
-                    ${hasLink ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem trên Google Maps</a>` : ''}
+                    <p style="margin:0 0 4px; color:var(--text2);"><strong>Di\u1ec7n t\u00edch:</strong> ${area} m\u00b2</p>
+                    <p style="margin:0 0 6px; line-height:1.4; color:var(--text2);"><strong>\u0110\u1ecba ch\u1ec9:</strong> ${address}</p>
+                    ${hasLink ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="display:inline-block; background:var(--green); color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.75rem;"><i class="fa-solid fa-map-pin"></i> Xem tr\u00ean Google Maps</a>` : ''}
                 </div>
             `;
-            
             marker.bindPopup(popupContent);
             
-            // Tooltip (marker hover) to display the warehouse name and area
             const tooltipContent = `
                 <div style="text-align: left; line-height: 1.4;">
                     <strong>${name}</strong><br/>
-                    <span style="color:var(--text3); font-size: 0.75rem;">Diện tích: ${area} m²</span>
+                    <span style="color:var(--text3); font-size: 0.75rem;">Di\u1ec7n t\u00edch: ${area} m\u00b2</span>
                 </div>
             `;
-            
             marker.bindTooltip(tooltipContent, {
                 permanent: false,
                 direction: 'top',
@@ -6186,12 +6273,17 @@ function filterB2BMapData() {
         }
     });
     
-    // Zoom map to fit all visible markers dynamically
+    console.log(`[B2B MAP] Rendered ${validCoords.length} markers out of ${filtered.length} filtered warehouses.`);
+    
+    // Fit map to visible markers
     if (validCoords.length === 1) {
         window.b2bLeafletMap.setView(validCoords[0], 12);
     } else if (validCoords.length > 1) {
         const bounds = L.latLngBounds(validCoords);
         window.b2bLeafletMap.fitBounds(bounds, { padding: [60, 60] });
+    } else {
+        // No markers: default to central Vietnam view
+        window.b2bLeafletMap.setView([16.0544, 108.2021], 6);
     }
 }
 
