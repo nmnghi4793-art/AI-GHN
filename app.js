@@ -1478,7 +1478,7 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
     document.getElementById('tbody-backlog').innerHTML = data.map(r => `
         <tr>
             <td>${escapeHtml(r['status'] || '--')}</td>
-            <td>${escapeHtml(r['vung_giao'] || '--')}</td>
+            <td>${escapeHtml(getRegionByDate(r['kho_giao'] || r['Kho'], r['time_nhap_kho_giao']))}</td>
             <td>${escapeHtml(shortKho(getKho(r)))}</td>
             <td>${escapeHtml(r['PIC'] || '--')}</td>
             <td class="order-code">${escapeHtml(r['order_code'] || '')}</td>
@@ -1786,7 +1786,7 @@ function renderPersonnelSection(filter = '', posFilter = '') {
             <td>${escapeHtml(r['Vị trí công việc'] || r['Tên vị trí'] || '')}</td>
             <td><span class="badge ${loaiHD.includes('Xác định') || loaiHD.includes('chính thức') ? 'storing' : 'p3'}">${escapeHtml(loaiHD)}</span></td>
             <td>${escapeHtml(r['Thâm niên'] || '')}</td>
-            <td>${escapeHtml(shortKho(r['Kho làm việc'] || r['Kho']) || '')}</td>
+            <td>${escapeHtml(shortKho((r['Kho làm việc'] || r['Kho'] || '').trim() === 'Miền Trung 05' ? 'Miền Trung 02' : (r['Kho làm việc'] || r['Kho'] || '')) || '')}</td>
             <td>${escapeHtml(r['Phòng ban'] || '')}</td>
         </tr>
     `}).join('');
@@ -1821,7 +1821,8 @@ function renderPersonnelSection(filter = '', posFilter = '') {
             // Group by warehouse name
             const pivot = {};
             data.forEach(r => {
-                const rawKho = r['Kho làm việc'] || r['Kho'] || 'Chưa xác định';
+                const rawKhoRaw = r['Kho làm việc'] || r['Kho'] || 'Chưa xác định';
+                const rawKho = (rawKhoRaw.trim() === 'Miền Trung 05') ? 'Miền Trung 02' : rawKhoRaw;
                 const kho = shortKho(rawKho).trim();
                 const pos = (r['Vị trí công việc'] || r['Tên vị trí'] || 'Khác').trim();
                 
@@ -2904,11 +2905,52 @@ window.switchVungChartPeriod = function(period) {
     renderNangSuatVungSection();
 };
 
+function checkHasOldDataForVungFilter() {
+    const daySelect = document.getElementById('filter-vung-day');
+    const weekSelect = document.getElementById('filter-vung-week');
+    const monthSelect = document.getElementById('filter-vung-month');
+    
+    if (vungTimeMode === 'day' && daySelect && daySelect.value) {
+        const ymd = parseDateToYmdSafe(daySelect.value);
+        return ymd && ymd <= '2026-06-30';
+    }
+    if (vungTimeMode === 'week' && weekSelect && weekSelect.value) {
+        const weekStr = weekSelect.value;
+        const m = weekStr.match(/^(\d{4})-W(\d{2})$/);
+        if (m) {
+            const year = parseInt(m[1]);
+            const week = parseInt(m[2]);
+            if (year < 2026) return true;
+            if (year === 2026 && week <= 27) return true;
+        }
+        return false;
+    }
+    if (vungTimeMode === 'month' && monthSelect && monthSelect.value) {
+        const monthStr = monthSelect.value;
+        return monthStr && monthStr <= '2026-06';
+    }
+    return true; 
+}
+
+function getAvailableRegionsForPeriod(hasOldData = true) {
+    const baseRegions = [...new Set((state.khoGxtData || []).map(r => (r['Vùng'] || r['vung'] || '').trim()).filter(Boolean))];
+    if (hasOldData) {
+        if (!baseRegions.includes('Miền Trung 05')) {
+            baseRegions.push('Miền Trung 05');
+        }
+    } else {
+        return baseRegions.filter(r => r !== 'Miền Trung 05').sort();
+    }
+    return baseRegions.sort();
+}
+
 function populateVungRegionMultiselect() {
     const menu = document.getElementById('menu-vung-region');
-    if (!menu || menu.children.length > 0) return;
+    if (!menu) return;
     
-    const regions = [...new Set((state.khoGxtData || []).map(r => (r['Vùng'] || r['vung'] || '').trim()).filter(Boolean))].sort();
+    const currentlyChecked = Array.from(menu.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+    const hasOldData = checkHasOldDataForVungFilter();
+    const regions = getAvailableRegionsForPeriod(hasOldData);
     
     menu.innerHTML = '';
     regions.forEach(r => {
@@ -2919,6 +2961,7 @@ function populateVungRegionMultiselect() {
         chk.type = 'checkbox';
         chk.id = `chk-vung-region-${r}`;
         chk.value = r;
+        chk.checked = currentlyChecked.includes(r);
         chk.setAttribute('onchange', `window.updateVungRegionFilter()`);
         
         const lbl = document.createElement('label');
@@ -2929,6 +2972,16 @@ function populateVungRegionMultiselect() {
         item.appendChild(lbl);
         menu.appendChild(item);
     });
+    
+    selectedVungRegions = selectedVungRegions.filter(r => regions.includes(r));
+    const label = document.getElementById('label-vung-region');
+    if (label) {
+        if (selectedVungRegions.length === 0) {
+            label.innerText = 'Chọn Vùng...';
+        } else {
+            label.innerText = `${selectedVungRegions.length} vùng đã chọn`;
+        }
+    }
 }
 
 window.updateVungRegionFilter = function() {
@@ -3023,10 +3076,10 @@ function toYYYYMMDD(dateStr) {
 
 
 
-function getGtcAndGanForPeriod(vung, scope, periodKey, nameToVung) {
+function getGtcAndGanForPeriod(vung, scope, periodKey) {
     if (!periodKey) return { gtc: 0, gan: 0 };
     const filtered = (state.gtcData || []).filter(r => {
-        const rowVung = nameToVung[r['Kho']] || nameToVung[shortKho(r['Kho'])] || 'Chưa xác định';
+        const rowVung = getRegionByDate(r['Kho'], r['Ngày']);
         if (rowVung !== vung) return false;
         
         const ts = parseVN(r['Ngày']);
@@ -3129,24 +3182,8 @@ function renderNangSuatVungSection() {
     const tbody = document.getElementById('tbody-ns-vung');
     if (!tbody) return;
 
-    // --- 1. Xây dựng hai bản đồ ánh xạ từ khoGxtData ---
-    const nameToVung = {};
-    const idToVung = {};
-
-    (state.khoGxtData || []).forEach(row => {
-        const idKho   = (row['ID Kho'] || '').trim();
-        const khoName = (row['Tên Kho GXT'] || row['kho gxt'] || row['Tên'] || '').trim();
-        const vung    = (row['Vùng'] || row['vung'] || '').trim();
-        const mapped  = vung || 'Chưa xác định';
-        
-        if (khoName) {
-            nameToVung[khoName] = mapped;
-            nameToVung[shortKho(khoName)] = mapped;
-        }
-        if (idKho) {
-            idToVung[idKho] = mapped;
-        }
-    });
+    // Rebuild the multiselect checkboxes dynamic to current date filter
+    populateVungRegionMultiselect();
 
     // Reset filters of other periods to prevent conflicts before reading values
     const daySelect = document.getElementById('filter-vung-day');
@@ -3255,7 +3292,8 @@ function renderNangSuatVungSection() {
 
     // Khởi tạo vungMap
     const vungMap = {};
-    Object.values(nameToVung).forEach(v => {
+    const allRegions = ['Miền Trung 01', 'Miền Trung 02', 'Miền Trung 03', 'Miền Trung 04', 'Miền Trung 05'];
+    allRegions.forEach(v => {
         if (!vungMap[v]) {
             vungMap[v] = {
                 vung: v,
@@ -3279,7 +3317,7 @@ function renderNangSuatVungSection() {
 
     // --- 5. Tính toán GTC & Gán cho các khoảng thời gian ---
     gtcData.forEach(r => {
-        const vung = nameToVung[r['Kho']] || nameToVung[shortKho(r['Kho'])] || 'Chưa xác định';
+        const vung = getRegionByDate(r['Kho'], r['Ngày']);
         const ts = parseVN(r['Ngày']);
         if (!ts) return;
         const d = new Date(ts);
@@ -3327,11 +3365,10 @@ function renderNangSuatVungSection() {
     // --- 6. Tính toán Nhân sự cho kỳ hoạt động ---
     const nsData = state.nangSuatData || [];
     nsData.forEach(r => {
-        let vung = idToVung[(r['hub_id'] || '').trim()];
-        if (!vung) {
+        let vung = getRegionByDate((r['hub_id'] || '').trim(), r['Ngày']);
+        if (!vung || vung === 'Chưa xác định') {
             const whFull = (r['kho gxt'] || r['Kho'] || '').trim();
-            const whShort = shortKho(whFull);
-            vung = nameToVung[whFull] || nameToVung[whShort] || 'Chưa xác định';
+            vung = getRegionByDate(whFull, r['Ngày']);
         }
         
         const ts = parseVN(r['Ngày']);
@@ -3454,7 +3491,7 @@ function renderNangSuatVungSection() {
             const isHighestInNetwork = (bestVungName && vung === bestVungName);
             
             // Tính toán giảm tỷ lệ GTC so với kỳ trước
-            const prevData = getGtcAndGanForPeriod(vung, activePeriod, prevPeriodKey, nameToVung);
+            const prevData = getGtcAndGanForPeriod(vung, activePeriod, prevPeriodKey);
             const ratePrevious = prevData.gan > 0 ? (prevData.gtc / prevData.gan) * 100 : null;
             
             let isRateDropped = false;
@@ -3578,13 +3615,15 @@ function showSection(name) {
     // Mặc định khi vào khoxe → reset tab về Kho GXT
     if (name === 'khoxe') switchKhoXeTab('khogxt');
     // Mặc định khi vào gtc-b2b-prio -> reset tab về Vùng
-    if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const sectionEl = document.getElementById('section-' + name);
     const navEl = document.getElementById('nav-' + name);
     if (sectionEl) sectionEl.classList.add('active');
     if (navEl) navEl.classList.add('active');
+    
+    // Mặc định khi vào gtc-b2b-prio -> reset tab về Vùng
+    if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
     const [title, sub] = SECTION_META[name] || ['--', '--'];
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;
@@ -4859,28 +4898,104 @@ function getMonthFromYmd(ymd) {
     return ymd.substring(0, 7);
 }
 
-// Map warehouse name to region
-function getRegionForWarehouse(warehouseName) {
-    if (!warehouseName) return 'Chưa xác định';
-    warehouseName = warehouseName.trim();
+// Helper to convert any date representation safely to YYYY-MM-DD
+function parseDateToYmdSafe(dateVal) {
+    if (!dateVal) return '';
+    if (dateVal instanceof Date) {
+        const y = dateVal.getFullYear();
+        const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const d = String(dateVal.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    if (typeof dateVal === 'number') {
+        const dObj = new Date(dateVal);
+        if (!isNaN(dObj.getTime())) {
+            const y = dObj.getFullYear();
+            const m = String(dObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+    }
+    let s = String(dateVal).trim();
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+
+    // "1 thg 7, 2026"
+    let m = s.match(/^(\d+)\s+thg\s+(\d+),\s+(\d+)$/);
+    if (m) {
+        return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    }
+
+    // "01/07/2026"
+    let m2 = s.match(/^(\d+)\/(\d+)\/(\d+)$/);
+    if (m2) {
+        return `${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
+    }
+
+    // Thử dùng Date.parse
+    const ts = Date.parse(s);
+    if (!isNaN(ts)) {
+        const dObj = new Date(ts);
+        const y = dObj.getFullYear();
+        const m = String(dObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    return s;
+}
+
+// Check if warehouse is Lien Chieu
+function isLienChieu(val) {
+    if (!val) return false;
+    const s = String(val).trim().toLowerCase();
+    if (s === '21089000' || s === '21089000.0') return true;
+    if (s.includes('liên chiểu') || s.includes('lien chieu')) return true;
+    return false;
+}
+
+// Get Region of a warehouse according to a date
+function getRegionByDate(warehouseNameOrId, dateVal) {
+    if (!warehouseNameOrId) return 'Chưa xác định';
     
-    // Try to find in khoGxtData
+    const ymd = parseDateToYmdSafe(dateVal);
+    const isOldPeriod = ymd && ymd <= '2026-06-30';
+    const isLc = isLienChieu(warehouseNameOrId);
+    
+    if (isOldPeriod) {
+        if (isLc) return 'Miền Trung 05';
+        if (String(warehouseNameOrId).trim() === 'Miền Trung 05') return 'Miền Trung 05';
+    } else {
+        if (String(warehouseNameOrId).trim() === 'Miền Trung 05') return 'Miền Trung 02';
+    }
+    
     if (state.khoGxtData) {
+        const searchVal = String(warehouseNameOrId).trim();
         for (let row of state.khoGxtData) {
+            const idKho = (row['ID Kho'] || '').trim();
             const name = (row['Tên Kho GXT'] || row['kho gxt'] || row['Tên'] || '').trim();
-            if (name && (name === warehouseName || shortKho(name) === shortKho(warehouseName))) {
+            if (idKho && idKho === searchVal) {
                 const vung = (row['Vùng'] || row['vung'] || '').trim();
-                if (vung) return vung;
+                return vung || 'Chưa xác định';
+            }
+            if (name && (name === searchVal || shortKho(name) === shortKho(searchVal))) {
+                const vung = (row['Vùng'] || row['vung'] || '').trim();
+                return vung || 'Chưa xác định';
             }
         }
     }
     
-    // Fallback: extract suffix from name
-    let parts = warehouseName.split('-');
+    const nameStr = String(warehouseNameOrId).trim();
+    let parts = nameStr.split('-');
     if (parts.length >= 3) {
-        return parts[parts.length - 1].trim(); // e.g. "Thanh Hoá"
+        return parts[parts.length - 1].trim();
     }
     return 'Chưa xác định';
+}
+
+// Map warehouse name to region (updated to support dynamic date)
+function getRegionForWarehouse(warehouseName, dateStr) {
+    return getRegionByDate(warehouseName, dateStr);
 }
 
 window.switchGtcB2bPrioTab = function(tab) {
@@ -5040,6 +5155,7 @@ window.updateB2bFilterSelection = function(mode, val, checked) {
         else selectedB2bDetailMonths = selectedB2bDetailMonths.filter(v => v !== val);
         updateB2bLabels(mode, selectedB2bDetailMonths);
     }
+    rebuildB2bFilters();
     renderGtcB2bPrioSection();
 };
 
@@ -5053,6 +5169,88 @@ window.updateB2bDetailFilters = function() {
     selectedB2bDetailError = document.getElementById('filter-b2b-detail-error').value;
     renderGtcB2bPrioSection();
 };
+
+function checkHasOldDataForB2bFilter() {
+    if (selectedB2bVungDays.length > 0) {
+        return selectedB2bVungDays.some(d => d <= '2026-06-30');
+    }
+    if (selectedB2bVungMonths.length > 0) {
+        return selectedB2bVungMonths.some(m => m <= '2026-06');
+    }
+    return true;
+}
+
+function checkHasOldDataForB2bKhoFilter() {
+    if (selectedB2bKhoDays.length > 0) {
+        return selectedB2bKhoDays.some(d => d <= '2026-06-30');
+    }
+    if (selectedB2bKhoMonths.length > 0) {
+        return selectedB2bKhoMonths.some(m => m <= '2026-06');
+    }
+    return true;
+}
+
+function rebuildB2bFilters() {
+    if (!state.khoGxtData || !state.gtcB2bData) return;
+    
+    // 1. Vùng Filter
+    const hasOldData = checkHasOldDataForB2bFilter();
+    const regions = getAvailableRegionsForPeriod(hasOldData);
+    const menuVung = document.getElementById('menu-gtc-b2b-vung-region');
+    if (menuVung) {
+        const currentlyChecked = selectedB2bVungRegions;
+        menuVung.innerHTML = regions.map(val => {
+            const isChecked = currentlyChecked.includes(val);
+            return `
+                <div class="ghn-filter-item">
+                    <input type="checkbox" id="chk-b2b-vung-region-${val}" value="${val}" ${isChecked ? 'checked' : ''} onchange="window.updateB2bFilterSelection('vung-region', '${val}', this.checked)">
+                    <label for="chk-b2b-vung-region-${val}">${val}</label>
+                </div>
+            `;
+        }).join('');
+        selectedB2bVungRegions = selectedB2bVungRegions.filter(r => regions.includes(r));
+        updateB2bLabels('vung-region', selectedB2bVungRegions);
+    }
+    
+    // 2. Kho Region Filter
+    const hasOldDataKho = checkHasOldDataForB2bKhoFilter();
+    const regionsKho = getAvailableRegionsForPeriod(hasOldDataKho);
+    const menuKho = document.getElementById('menu-gtc-b2b-kho-region');
+    if (menuKho) {
+        const currentlyChecked = selectedB2bKhoRegions;
+        menuKho.innerHTML = regionsKho.map(val => {
+            const isChecked = currentlyChecked.includes(val);
+            return `
+                <div class="ghn-filter-item">
+                    <input type="checkbox" id="chk-b2b-kho-region-${val}" value="${val}" ${isChecked ? 'checked' : ''} onchange="window.updateB2bFilterSelection('kho-region', '${val}', this.checked)">
+                    <label for="chk-b2b-kho-region-${val}">${val}</label>
+                </div>
+            `;
+        }).join('');
+        selectedB2bKhoRegions = selectedB2bKhoRegions.filter(r => regionsKho.includes(r));
+        updateB2bLabels('kho-region', selectedB2bKhoRegions);
+    }
+    
+    // 3. Detail Region Filter
+    let hasOldDataDetail = true;
+    if (selectedB2bDetailDays.length > 0) {
+        hasOldDataDetail = selectedB2bDetailDays.some(d => d <= '2026-06-30');
+    } else if (selectedB2bDetailMonths.length > 0) {
+        hasOldDataDetail = selectedB2bDetailMonths.some(m => m <= '2026-06');
+    }
+    const regionsDetail = getAvailableRegionsForPeriod(hasOldDataDetail);
+    const drSelect = document.getElementById('filter-b2b-detail-region');
+    if (drSelect) {
+        const currentVal = drSelect.value;
+        drSelect.innerHTML = '<option value="">Tất cả Vùng</option>' + regionsDetail.map(r => `<option value="${r}">${r}</option>`).join('');
+        if (regionsDetail.includes(currentVal)) {
+            drSelect.value = currentVal;
+        } else {
+            selectedB2bDetailRegion = '';
+            drSelect.value = '';
+        }
+    }
+}
 
 function populateGtcB2bPrioFilters() {
     if (b2bFiltersPopulated || !state.gtcB2bData || !state.gtcB2bData.length) return;
@@ -5145,14 +5343,14 @@ function renderGtcB2bVung() {
         rawData = rawData.filter(r => selectedB2bVungMonths.includes(getMonthFromYmd(parseDateToYmd(r['time_view']))));
     }
     if (selectedB2bVungRegions.length > 0) {
-        rawData = rawData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+        rawData = rawData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
     }
     
     // Group by Region + time_view for table
     const groups = {};
     rawData.forEach(row => {
         const warehouse = row['warehouse_name'] || '';
-        const region = getRegionForWarehouse(warehouse);
+        const region = getRegionForWarehouse(warehouse, row['time_view']);
         const ymd = parseDateToYmd(row['time_view']);
         const timeKey = (selectedB2bVungMonths.length > 0 && selectedB2bVungDays.length === 0) ? getMonthFromYmd(ymd) : ymd;
         const key = `${region}|${timeKey}`;
@@ -5193,7 +5391,7 @@ function renderGtcB2bVung() {
     
     let cardData = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === cardDay);
     if (selectedB2bVungRegions.length > 0) {
-        cardData = cardData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+        cardData = cardData.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
     }
     
     const cardRegionStats = {};
@@ -5201,7 +5399,7 @@ function renderGtcB2bVung() {
     let cardTotalErrorsGlobal = 0;
     
     cardData.forEach(row => {
-        const region = getRegionForWarehouse(row['warehouse_name']);
+        const region = getRegionForWarehouse(row['warehouse_name'], row['time_view']);
         if (!cardRegionStats[region]) {
             cardRegionStats[region] = {
                 totalPriority: 0,
@@ -5382,7 +5580,7 @@ function renderGtcB2bVung() {
             const latestDay = availableDays[availableDays.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === latestDay);
             if (selectedB2bVungRegions.length > 0) {
-                rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+                rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
             }
             latestTimeLabel = 'Ngày ' + latestDay;
             chartDataList = rawChart;
@@ -5393,7 +5591,7 @@ function renderGtcB2bVung() {
             const latestMonth = availableMonths[availableMonths.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => getMonthFromYmd(parseDateToYmd(r['time_view'])) === latestMonth);
             if (selectedB2bVungRegions.length > 0) {
-                rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+                rawChart = rawChart.filter(r => selectedB2bVungRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
             }
             latestTimeLabel = 'Tháng ' + latestMonth;
             chartDataList = rawChart;
@@ -5402,7 +5600,7 @@ function renderGtcB2bVung() {
     
     const chartGroups = {};
     chartDataList.forEach(row => {
-        const region = getRegionForWarehouse(row['warehouse_name']);
+        const region = getRegionForWarehouse(row['warehouse_name'], row['time_view']);
         if (!chartGroups[region]) {
             chartGroups[region] = {
                 name: region,
@@ -5577,7 +5775,7 @@ function renderGtcB2bKho() {
         rawData = rawData.filter(r => selectedB2bKhoMonths.includes(getMonthFromYmd(parseDateToYmd(r['time_view']))));
     }
     if (selectedB2bKhoRegions.length > 0) {
-        rawData = rawData.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+        rawData = rawData.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
     }
     if (selectedB2bKhoWarehouses.length > 0) {
         rawData = rawData.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
@@ -5586,7 +5784,7 @@ function renderGtcB2bKho() {
     const groups = {};
     rawData.forEach(row => {
         const warehouse = row['warehouse_name'] || '';
-        const region = getRegionForWarehouse(warehouse);
+        const region = getRegionForWarehouse(warehouse, row['time_view']);
         const ymd = parseDateToYmd(row['time_view']);
         const timeKey = (selectedB2bKhoMonths.length > 0 && selectedB2bKhoDays.length === 0) ? getMonthFromYmd(ymd) : ymd;
         const key = `${warehouse}|${timeKey}`;
@@ -5630,7 +5828,7 @@ function renderGtcB2bKho() {
     
     let cardData = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === cardDay);
     if (selectedB2bKhoRegions.length > 0) {
-        cardData = cardData.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+        cardData = cardData.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
     }
     if (selectedB2bKhoWarehouses.length > 0) {
         cardData = cardData.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
@@ -5642,7 +5840,7 @@ function renderGtcB2bKho() {
     
     cardData.forEach(row => {
         const warehouse = row['warehouse_name'] || '';
-        const region = getRegionForWarehouse(warehouse);
+        const region = getRegionForWarehouse(warehouse, row['time_view']);
         if (!warehouseStats[warehouse]) {
             warehouseStats[warehouse] = {
                 name: warehouse,
@@ -5822,7 +6020,7 @@ function renderGtcB2bKho() {
             const latestDay = availableDays[availableDays.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => parseDateToYmd(r['time_view']) === latestDay);
             if (selectedB2bKhoRegions.length > 0) {
-                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
             }
             if (selectedB2bKhoWarehouses.length > 0) {
                 rawChart = rawChart.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
@@ -5836,7 +6034,7 @@ function renderGtcB2bKho() {
             const latestMonth = availableMonths[availableMonths.length - 1];
             let rawChart = (state.gtcB2bData || []).filter(r => getMonthFromYmd(parseDateToYmd(r['time_view'])) === latestMonth);
             if (selectedB2bKhoRegions.length > 0) {
-                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'])));
+                rawChart = rawChart.filter(r => selectedB2bKhoRegions.includes(getRegionForWarehouse(r['warehouse_name'], r['time_view'])));
             }
             if (selectedB2bKhoWarehouses.length > 0) {
                 rawChart = rawChart.filter(r => selectedB2bKhoWarehouses.includes(r['warehouse_name']));
@@ -5849,7 +6047,7 @@ function renderGtcB2bKho() {
     const chartGroups = {};
     chartDataList.forEach(row => {
         const warehouse = row['warehouse_name'] || '';
-        const region = getRegionForWarehouse(warehouse);
+        const region = getRegionForWarehouse(warehouse, row['time_view']);
         if (!chartGroups[warehouse]) {
             chartGroups[warehouse] = {
                 name: warehouse,
@@ -6029,7 +6227,7 @@ function renderB2bDetailedTable() {
         rawOrders = rawOrders.filter(r => selectedB2bDetailMonths.includes(getMonthFromYmd(parseDateToYmd(r['Ngày ưu tiên']))));
     }
     if (selectedB2bDetailRegion) {
-        rawOrders = rawOrders.filter(r => getRegionForWarehouse(r['Kho hiện tại']) === selectedB2bDetailRegion);
+        rawOrders = rawOrders.filter(r => getRegionForWarehouse(r['Kho hiện tại'], r['Ngày ưu tiên']) === selectedB2bDetailRegion);
     }
     if (selectedB2bDetailWarehouse) {
         rawOrders = rawOrders.filter(r => r['Kho hiện tại'] === selectedB2bDetailWarehouse);
@@ -6106,7 +6304,7 @@ function renderB2bDetailedTable() {
             tbody.innerHTML = rawOrders.map(r => `
                 <tr>
                     <td>${escapeHtml(r['Ngày ưu tiên'])}</td>
-                    <td>${escapeHtml(getRegionForWarehouse(r['Kho hiện tại']))}</td>
+                    <td>${escapeHtml(getRegionForWarehouse(r['Kho hiện tại'], r['Ngày ưu tiên']))}</td>
                     <td style="font-weight:600;">${escapeHtml(shortKho(r['Kho hiện tại']))}</td>
                     <td><span class="badge secondary" style="font-size:11px; font-family:monospace; cursor:pointer;" onclick="navigator.clipboard.writeText('${r['Mã đơn']}'); showToast('Đã copy mã đơn!')">${escapeHtml(r['Mã đơn'])}</span></td>
                     <td>${escapeHtml(r['Tên khách'])}</td>
