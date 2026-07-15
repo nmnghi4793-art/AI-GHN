@@ -1222,4 +1222,227 @@ nav {
     z-index: 12 !important;
 }
 
+/* =========================================================
+   XE VẬN HÀNH DAILY — KPI Styles
+   ========================================================= */
+
+/* Overview Cards Row */
+.xe-daily-overview-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+@media (max-width: 1200px) {
+    .xe-daily-overview-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .xe-daily-overview-cards { grid-template-columns: 1fr; }
+}
+
+/* Reuse existing overview-card pattern */
+.xe-daily-overview-cards .overview-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    cursor: default;
+}
+.xe-daily-overview-cards .overview-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    border-color: rgba(0,240,255,0.3);
+}
+.xe-daily-overview-cards .overview-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+.xe-daily-overview-cards .overview-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.xe-daily-overview-cards .overview-card-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+}
+.xe-daily-overview-cards .overview-card-label {
+    font-size: 0.78rem;
+    color: var(--text3);
+    font-weight: 500;
+}
+
+/* Form rows container */
+#xe-daily-rows-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Each xe row card */
+.xe-daily-row {
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    background: rgba(0,240,255,0.02);
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.xe-daily-row:hover {
+    border-color: rgba(0,240,255,0.2);
+}
+
+/* Row header */
+.xe-daily-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0,240,255,0.05);
+    border-bottom: 1px solid var(--border-card);
+}
+.xe-daily-row-header span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--cyan);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.xe-daily-row-delete {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.2s;
+}
+.xe-daily-row-delete:hover {
+    background: rgba(239,68,68,0.2);
+}
+
+/* Field grid: 4 cols on wide, 2 on mid, 1 on small */
+.xe-daily-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 14px;
+}
+@media (max-width: 1100px) {
+    .xe-daily-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .xe-daily-grid { grid-template-columns: 1fr; }
+}
+
+/* Field group */
+.xe-daily-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.xe-daily-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.03em;
+}
+.xe-daily-field label .req {
+    color: var(--red);
+    margin-left: 2px;
+}
+.xe-daily-field input,
+.xe-daily-field select,
+.xe-daily-field textarea {
+    background: var(--bg);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.xe-daily-field input:focus,
+.xe-daily-field select:focus,
+.xe-daily-field textarea:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgba(0,240,255,0.1);
+}
+.xe-daily-field input.error,
+.xe-daily-field select.error {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+}
+.xe-daily-field .trong-tai-hint {
+    font-size: 0.7rem;
+    color: var(--text3);
+    margin-top: 2px;
+}
+
+/* Loại badge colors in history table */
+.badge-tang-cuong {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(16,185,129,0.15);
+    color: #10b981;
+    border: 1px solid rgba(16,185,129,0.3);
+    white-space: nowrap;
+}
+.badge-off-xe {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(239,68,68,0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.3);
+    white-space: nowrap;
+}
+
+/* Delete button in history table */
+.btn-xed-delete {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.btn-xed-delete:hover {
+    background: rgba(239,68,68,0.22);
+}
+
+/* Toast notification (reuse global showToast) */
 

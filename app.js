@@ -14,6 +14,82 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+/**
+ * Hiển thị thông báo Toast nhanh trên màn hình
+ */
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
+        document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-message ${type}`;
+    toast.style.minWidth = '280px';
+    toast.style.padding = '12px 20px';
+    toast.style.borderRadius = '8px';
+    toast.style.color = '#ffffff';
+    toast.style.fontFamily = "'Outfit', sans-serif";
+    toast.style.fontSize = '0.88rem';
+    toast.style.fontWeight = '500';
+    toast.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.1)';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '10px';
+    toast.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    toast.style.transform = 'translateX(120%)';
+    toast.style.opacity = '0';
+    
+    let bgColor = '#1e293b'; 
+    let borderCol = '#475569';
+    let icon = '<i class="fa-solid fa-circle-info" style="color:#38bdf8"></i>';
+    
+    if (type === 'success') {
+        bgColor = '#064e3b';
+        borderCol = '#059669';
+        icon = '<i class="fa-solid fa-circle-check" style="color:#34d399"></i>';
+    } else if (type === 'error') {
+        bgColor = '#7f1d1d';
+        borderCol = '#dc2626';
+        icon = '<i class="fa-solid fa-circle-exclamation" style="color:#f87171"></i>';
+    } else if (type === 'warning') {
+        bgColor = '#78350f';
+        borderCol = '#d97706';
+        icon = '<i class="fa-solid fa-triangle-exclamation" style="color:#fbbf24"></i>';
+    }
+    
+    toast.style.backgroundColor = bgColor;
+    toast.style.border = `1px solid ${borderCol}`;
+    toast.innerHTML = `${icon} <span>${message}</span>`;
+    
+    container.appendChild(toast);
+    
+    // Force reflow and animate in
+    setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+    }, 10);
+    
+    // Hide and remove after 4 seconds
+    setTimeout(() => {
+        toast.style.transform = 'translateX(120%)';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 4000);
+}
+
+
 // ---- API TOKEN MANAGEMENT ----
 const SESSION_KEY = 'ghn_session_token';
 
@@ -91,7 +167,10 @@ let state = {
     backlogData: [], b2bData: [], personnelData: [], nangSuatData: [],
     warningsData: [], returnsByClientData: [], xeGxtData: [],
     xeSuCoData: [], khoGxtData: [],
-    overview: {}
+    overview: {},
+    // Xe Vận Hành Daily
+    xeDailyMeta: { kho_list: [], ncc_map: {}, ncc_all: [] },
+    xeDailyRecords: [],
 };
 let charts = {};
 
@@ -166,6 +245,27 @@ async function authFetch(url, fallback = null) {
         }
         return await r.json();
     } catch (e) {
+        return fallback;
+    }
+}
+
+/** authPost - POST JSON to an authenticated endpoint */
+async function authPost(url, body, fallback = null) {
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (r.status === 401 || r.status === 403) {
+            clearApiToken();
+            localStorage.removeItem('ghn_logged_in');
+            window.location.reload();
+            return fallback;
+        }
+        return await r.json();
+    } catch (e) {
+        console.error('[authPost] Error:', e);
         return fallback;
     }
 }
@@ -3456,6 +3556,7 @@ const SECTION_META = {
     dontao:         ['Đơn Tạo N-1',             'Thống kê đơn hàng tạo trong ngày N-1 theo từng kho'],
     'gtc-b2b-prio': ['GTC đơn B2B Ưu Tiên',     'Theo dõi tỷ lệ GTC đơn B2B ưu tiên theo vùng/kho và xử lý đơn lỗi'],
     'b2b-map':      ['Bản Đồ B2B Miền Trung',   'Bản đồ vị trí và thông tin chi tiết các kho Giao Hàng Nặng Miền Trung'],
+    'xe-daily':     ['Xe Vận Hành Daily',        'Ghi nhận xe tăng cường và xe không hoạt động hằng ngày'],
 };
 
 
@@ -3503,6 +3604,10 @@ function showSection(name) {
                 filterB2BMapData();
             }
         }, 300);
+    }
+    // Xe Vận Hành Daily: load meta + records on first visit
+    if (name === 'xe-daily') {
+        renderXeDailySection();
     }
 }
 
@@ -6287,4 +6392,488 @@ function filterB2BMapData() {
     }
 }
 
+
+
+// =====================================================================
+// XE VẬN HÀNH DAILY — MODULE
+// =====================================================================
+
+// ---- State riêng cho Xe Daily ----
+let xeDailyMetaLoaded = false;
+let xeDailyRowCount = 0; // counter for unique row IDs
+
+// ---- Helpers ----
+function _getTodayVN() {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+}
+
+function _getLast10Days() {
+    const days = [];
+    const now = new Date();
+    for (let i = 0; i < 10; i++) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yy = d.getFullYear();
+        days.push(`${dd}/${mm}/${yy}`);
+    }
+    return days;
+}
+
+function _formatTimestamp(iso) {
+    if (!iso) return '--';
+    try {
+        const d = new Date(iso);
+        // Convert UTC to Vietnam time (UTC+7)
+        const vn = new Date(d.getTime() + 7 * 3600 * 1000);
+        const dd = String(vn.getUTCDate()).padStart(2, '0');
+        const mm = String(vn.getUTCMonth() + 1).padStart(2, '0');
+        const yy = vn.getUTCFullYear();
+        const hh = String(vn.getUTCHours()).padStart(2, '0');
+        const mi = String(vn.getUTCMinutes()).padStart(2, '0');
+        return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+    } catch {
+        return iso;
+    }
+}
+
+function _trongTaiLabel(val) {
+    const n = parseInt(val);
+    if (!n) return '';
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace('.0', '')} tấn`;
+    return `${n} kg`;
+}
+
+// ---- Render main section ----
+function renderXeDailySection() {
+    // Load meta (kho/NCC) once
+    if (!xeDailyMetaLoaded) {
+        loadXeDailyMeta();
+    }
+
+    // Init form with 1 default row if empty
+    const container = document.getElementById('xe-daily-rows-container');
+    if (container && container.children.length === 0) {
+        addXeDailyRow();
+    }
+
+    // Load history records
+    loadXeDailyRecords();
+}
+
+// ---- Load kho/NCC metadata ----
+async function loadXeDailyMeta() {
+    try {
+        const result = await authFetch(`${API}/xe-van-hanh/meta`, { kho_list: [], ncc_map: {}, ncc_all: [] });
+        state.xeDailyMeta = result;
+        xeDailyMetaLoaded = true;
+        console.log(`[XE DAILY] Meta loaded: ${result.kho_list?.length || 0} kho, ${result.ncc_all?.length || 0} NCC`);
+        // Refresh all existing rows' dropdowns
+        document.querySelectorAll('.xe-daily-row').forEach(row => {
+            const rowId = row.dataset.rowId;
+            _populateKhoDropdown(rowId);
+            _populateNccDropdown(rowId, '');
+        });
+        // Populate filter dropdowns
+        _populateFilterDropdowns();
+    } catch (err) {
+        console.error('[XE DAILY] Failed to load meta:', err);
+    }
+}
+
+function _populateKhoDropdown(rowId) {
+    const sel = document.getElementById(`xed-kho-${rowId}`);
+    if (!sel) return;
+    const khoList = state.xeDailyMeta?.kho_list || [];
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Chọn kho --</option>' +
+        khoList.map(k => `<option value="${escapeHtml(k)}"${currentVal === k ? ' selected' : ''}>${escapeHtml(k)}</option>`).join('');
+}
+
+function _populateNccDropdown(rowId, selectedKho) {
+    const sel = document.getElementById(`xed-ncc-${rowId}`);
+    if (!sel) return;
+    const meta = state.xeDailyMeta || { ncc_map: {}, ncc_all: [] };
+    const currentVal = sel.value;
+    let nccList = [];
+    if (selectedKho && meta.ncc_map?.[selectedKho]?.length > 0) {
+        nccList = meta.ncc_map[selectedKho];
+    } else {
+        nccList = meta.ncc_all || [];
+    }
+    sel.innerHTML = '<option value="">-- Chọn NCC --</option>' +
+        nccList.map(n => `<option value="${escapeHtml(n)}"${currentVal === n ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+}
+
+// ---- Add a form row ----
+function addXeDailyRow() {
+    const container = document.getElementById('xe-daily-rows-container');
+    if (!container) return;
+
+    xeDailyRowCount++;
+    const rowId = `r${xeDailyRowCount}`;
+    const today = _getTodayVN();
+    const days = _getLast10Days();
+
+    const rowEl = document.createElement('div');
+    rowEl.className = 'xe-daily-row';
+    rowEl.dataset.rowId = rowId;
+
+    rowEl.innerHTML = `
+        <div class="xe-daily-row-header">
+            <span><i class="fa-solid fa-truck-moving"></i> Dòng xe ${xeDailyRowCount}</span>
+            <button class="xe-daily-row-delete" onclick="removeXeDailyRow('${rowId}')" title="Xóa dòng này">
+                <i class="fa-solid fa-trash-can"></i> Xóa
+            </button>
+        </div>
+        <div class="xe-daily-grid">
+            <div class="xe-daily-field">
+                <label for="xed-ngay-${rowId}">Ngày <span class="req">*</span></label>
+                <select id="xed-ngay-${rowId}">
+                    ${days.map(d => `<option value="${d}"${d === today ? ' selected' : ''}>${d}</option>`).join('')}
+                </select>
+            </div>
+            <div class="xe-daily-field">
+                <label for="xed-kho-${rowId}">Tên kho <span class="req">*</span></label>
+                <select id="xed-kho-${rowId}" onchange="onXedKhoChange('${rowId}')">
+                    <option value="">-- Chọn kho --</option>
+                </select>
+            </div>
+            <div class="xe-daily-field">
+                <label for="xed-loai-${rowId}">Loại ghi nhận <span class="req">*</span></label>
+                <select id="xed-loai-${rowId}">
+                    <option value="">-- Chọn loại --</option>
+                    <option value="Xe tăng cường">🟢 Xe tăng cường</option>
+                    <option value="Xe không hoạt động">🔴 Xe không hoạt động</option>
+                </select>
+            </div>
+            <div class="xe-daily-field">
+                <label for="xed-sl-${rowId}">Số lượng xe <span class="req">*</span></label>
+                <select id="xed-sl-${rowId}">
+                    <option value="1">1 xe</option>
+                    <option value="2">2 xe</option>
+                    <option value="3">3 xe</option>
+                    <option value="4">4 xe</option>
+                    <option value="5">5 xe</option>
+                </select>
+            </div>
+            <div class="xe-daily-field" style="grid-column: span 2;">
+                <label for="xed-bien-${rowId}">Biển số xe <span class="req">*</span></label>
+                <input type="text" id="xed-bien-${rowId}" placeholder="VD: 50H-806.25" autocomplete="off">
+            </div>
+            <div class="xe-daily-field">
+                <label for="xed-ncc-${rowId}">Tên NCC <span class="req">*</span></label>
+                <select id="xed-ncc-${rowId}">
+                    <option value="">-- Chọn NCC --</option>
+                </select>
+            </div>
+            <div class="xe-daily-field">
+                <label for="xed-tt-${rowId}">Trọng tải (kg) <span class="req">*</span></label>
+                <input type="number" id="xed-tt-${rowId}" placeholder="VD: 1400, 1900, 2500" min="0" step="100"
+                    oninput="updateTrongTaiHint('${rowId}')">
+                <span class="trong-tai-hint" id="xed-tt-hint-${rowId}"></span>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(rowEl);
+
+    // Populate kho dropdown
+    _populateKhoDropdown(rowId);
+    _populateNccDropdown(rowId, '');
+}
+
+// Called when kho is changed — update NCC dropdown
+function onXedKhoChange(rowId) {
+    const khoSel = document.getElementById(`xed-kho-${rowId}`);
+    if (khoSel) {
+        _populateNccDropdown(rowId, khoSel.value);
+    }
+}
+
+// Update trong-tai hint label
+function updateTrongTaiHint(rowId) {
+    const inp = document.getElementById(`xed-tt-${rowId}`);
+    const hint = document.getElementById(`xed-tt-hint-${rowId}`);
+    if (!inp || !hint) return;
+    const label = _trongTaiLabel(inp.value);
+    hint.textContent = label ? `≈ ${label}` : '';
+}
+
+// ---- Remove a form row ----
+function removeXeDailyRow(rowId) {
+    const container = document.getElementById('xe-daily-rows-container');
+    if (!container) return;
+    const row = container.querySelector(`.xe-daily-row[data-row-id="${rowId}"]`);
+    if (row) {
+        // Don't remove if it's the only row
+        if (container.children.length <= 1) {
+            showToast('Cần ít nhất 1 dòng xe trong form.', 'warning');
+            return;
+        }
+        row.remove();
+    }
+}
+
+// ---- Validate and Save ----
+async function saveXeDaily() {
+    const container = document.getElementById('xe-daily-rows-container');
+    if (!container) return;
+
+    const rows = container.querySelectorAll('.xe-daily-row');
+    if (!rows.length) {
+        showToast('Chưa có dòng xe nào để lưu.', 'warning');
+        return;
+    }
+
+    const records = [];
+    let hasError = false;
+
+    rows.forEach(rowEl => {
+        const rowId = rowEl.dataset.rowId;
+
+        // Clear previous error state
+        rowEl.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+
+        const ngay   = document.getElementById(`xed-ngay-${rowId}`)?.value?.trim() || '';
+        const tenKho = document.getElementById(`xed-kho-${rowId}`)?.value?.trim() || '';
+        const loai   = document.getElementById(`xed-loai-${rowId}`)?.value?.trim() || '';
+        const slXe   = document.getElementById(`xed-sl-${rowId}`)?.value || '1';
+        const bien   = document.getElementById(`xed-bien-${rowId}`)?.value?.trim() || '';
+        const tenNcc = document.getElementById(`xed-ncc-${rowId}`)?.value?.trim() || '';
+        const tt     = document.getElementById(`xed-tt-${rowId}`)?.value?.trim() || '';
+
+        let rowOk = true;
+
+        if (!ngay) { rowOk = false; hasError = true; }
+        if (!tenKho) { rowOk = false; hasError = true; document.getElementById(`xed-kho-${rowId}`)?.classList.add('error'); }
+        if (!loai)  { rowOk = false; hasError = true; document.getElementById(`xed-loai-${rowId}`)?.classList.add('error'); }
+        if (!bien)  { rowOk = false; hasError = true; document.getElementById(`xed-bien-${rowId}`)?.classList.add('error'); }
+        if (!tenNcc){ rowOk = false; hasError = true; document.getElementById(`xed-ncc-${rowId}`)?.classList.add('error'); }
+        if (!tt)    { rowOk = false; hasError = true; document.getElementById(`xed-tt-${rowId}`)?.classList.add('error'); }
+
+        if (rowOk) {
+            records.push({
+                ngay: ngay,
+                ten_kho: tenKho,
+                loai: loai,
+                so_luong_xe: parseInt(slXe) || 1,
+                bien_so_xe: bien,
+                ten_ncc: tenNcc,
+                trong_tai: parseInt(tt) || 0,
+            });
+        }
+    });
+
+    if (hasError) {
+        showToast('Vui lòng điền đầy đủ các trường bắt buộc (được đánh dấu *).', 'error');
+        return;
+    }
+
+    if (!records.length) {
+        showToast('Không có dữ liệu hợp lệ để lưu.', 'warning');
+        return;
+    }
+
+    // Disable save button
+    const saveBtn = document.getElementById('btn-save-xe-daily');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+    }
+
+    try {
+        const resp = await authPost(`${API}/xe-van-hanh/records`, { records }, { status: 'error', message: 'Network error' });
+
+        if (resp.status === 'ok') {
+            showToast(`✅ Đã lưu ghi nhận ${resp.saved} xe vận hành daily.`, 'success');
+            // Reset form
+            const c = document.getElementById('xe-daily-rows-container');
+            if (c) c.innerHTML = '';
+            xeDailyRowCount = 0;
+            addXeDailyRow();
+            // Reload history
+            await loadXeDailyRecords();
+        } else {
+            showToast(`❌ Lỗi: ${resp.message || 'Không thể lưu.'}`, 'error');
+        }
+    } catch (err) {
+        console.error('[XE DAILY] Save error:', err);
+        showToast('Lỗi kết nối. Vui lòng thử lại.', 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu ghi nhận';
+        }
+    }
+}
+
+// ---- Load history records ----
+async function loadXeDailyRecords() {
+    const tbody = document.getElementById('tbody-xed-history');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...</td></tr>`;
+
+    try {
+        // Build query params from current filter values
+        const dateVal = document.getElementById('xed-filter-date')?.value || '';
+        const khoVal  = document.getElementById('xed-filter-kho')?.value || '';
+        const nccVal  = document.getElementById('xed-filter-ncc')?.value || '';
+        const loaiVal = document.getElementById('xed-filter-loai')?.value || '';
+
+        let url = `${API}/xe-van-hanh/records`;
+        const params = [];
+        if (dateVal) params.push(`date=${encodeURIComponent(dateVal)}`);
+        if (khoVal)  params.push(`kho=${encodeURIComponent(khoVal)}`);
+        if (nccVal)  params.push(`ncc=${encodeURIComponent(nccVal)}`);
+        if (loaiVal) params.push(`loai=${encodeURIComponent(loaiVal)}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const resp = await authFetch(url, { data: [], total: 0 });
+        state.xeDailyRecords = resp.data || [];
+        renderXeDailyHistoryTable(state.xeDailyRecords);
+        updateXeDailyCards();
+        _populateFilterDropdowns();
+    } catch (err) {
+        console.error('[XE DAILY] Load records error:', err);
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--red)">Lỗi khi tải dữ liệu. Vui lòng thử lại.</td></tr>`;
+    }
+}
+
+// ---- Render history table ----
+function renderXeDailyHistoryTable(records) {
+    const tbody = document.getElementById('tbody-xed-history');
+    const countEl = document.getElementById('xed-history-count');
+    if (!tbody) return;
+
+    if (countEl) countEl.textContent = `${records.length} bản ghi`;
+
+    if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Chưa có ghi nhận nào. Hãy thêm ở form bên trên.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = records.map(r => {
+        const loaiBadge = r.loai === 'Xe tăng cường'
+            ? `<span class="badge-tang-cuong"><i class="fa-solid fa-circle-plus"></i> Xe tăng cường</span>`
+            : `<span class="badge-off-xe"><i class="fa-solid fa-circle-xmark"></i> Xe không hoạt động</span>`;
+
+        const ttLabel = _trongTaiLabel(r.trong_tai) || `${r.trong_tai || '--'} kg`;
+
+        return `<tr>
+            <td style="font-weight:600;color:var(--cyan);white-space:nowrap">${escapeHtml(r.ngay || '--')}</td>
+            <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(r.ten_kho || '--')}</td>
+            <td>${loaiBadge}</td>
+            <td style="text-align:center;font-weight:700">${r.so_luong_xe || 1}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:var(--text)">${escapeHtml(r.bien_so_xe || '--')}</td>
+            <td style="font-size:0.82rem">${escapeHtml(r.ten_ncc || '--')}</td>
+            <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(ttLabel)}</td>
+            <td style="font-size:0.8rem;color:var(--text3)">${escapeHtml(r.nguoi_nhap || '--')}</td>
+            <td style="font-size:0.78rem;color:var(--text3);white-space:nowrap">${_formatTimestamp(r.thoi_gian_ghi_nhan)}</td>
+            <td>
+                <button class="btn-xed-delete" onclick="deleteXeDailyRecord('${r.id}')">
+                    <i class="fa-solid fa-trash-can"></i> Xóa
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ---- Filter table ----
+function filterXeDailyTable() {
+    loadXeDailyRecords();
+}
+
+// ---- Update overview cards ----
+function updateXeDailyCards() {
+    const dateFilter = document.getElementById('xed-filter-date')?.value || '';
+    // Filter records for the selected date (or today if no filter)
+    const targetDate = dateFilter || _getTodayVN();
+    const dayRecords = state.xeDailyRecords;
+
+    // If filter is active, use all loaded records; otherwise recalculate for today
+    const forToday = dateFilter
+        ? dayRecords
+        : dayRecords.filter(r => r.ngay === targetDate);
+
+    const tangCuong  = forToday.filter(r => r.loai === 'Xe tăng cường').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
+    const offXe      = forToday.filter(r => r.loai === 'Xe không hoạt động').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
+    const khoSet     = new Set(forToday.map(r => r.ten_kho).filter(Boolean));
+    const nccSet     = new Set(forToday.map(r => r.ten_ncc).filter(Boolean));
+
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+    setVal('xed-val-tang-cuong', tangCuong || '0');
+    setVal('xed-val-off', offXe || '0');
+    setVal('xed-val-kho', khoSet.size || '0');
+    setVal('xed-val-ncc', nccSet.size || '0');
+}
+
+// ---- Populate filter dropdowns ----
+function _populateFilterDropdowns() {
+    const allRecords = state.xeDailyRecords || [];
+
+    // Date filter
+    const dateSel = document.getElementById('xed-filter-date');
+    if (dateSel) {
+        const currentDate = dateSel.value;
+        const days10 = _getLast10Days();
+        // Add any dates from records not in last 10 days
+        const recordDates = [...new Set(allRecords.map(r => r.ngay).filter(Boolean))];
+        const allDates = [...new Set([...days10, ...recordDates])].sort((a, b) => {
+            // Sort dd/mm/yyyy desc
+            const toNum = s => {
+                const [d, m, y] = (s || '').split('/');
+                return parseInt(y || 0) * 10000 + parseInt(m || 0) * 100 + parseInt(d || 0);
+            };
+            return toNum(b) - toNum(a);
+        });
+        dateSel.innerHTML = '<option value="">Tất cả ngày</option>' +
+            allDates.map(d => `<option value="${d}"${d === currentDate ? ' selected' : ''}>${d}</option>`).join('');
+    }
+
+    // Kho filter
+    const khoSel = document.getElementById('xed-filter-kho');
+    if (khoSel) {
+        const currentKho = khoSel.value;
+        const khoList = state.xeDailyMeta?.kho_list || [...new Set(allRecords.map(r => r.ten_kho).filter(Boolean))];
+        khoSel.innerHTML = '<option value="">Tất cả kho</option>' +
+            khoList.map(k => `<option value="${k}"${k === currentKho ? ' selected' : ''}>${escapeHtml(k)}</option>`).join('');
+    }
+
+    // NCC filter
+    const nccSel = document.getElementById('xed-filter-ncc');
+    if (nccSel) {
+        const currentNcc = nccSel.value;
+        const nccList = state.xeDailyMeta?.ncc_all || [...new Set(allRecords.map(r => r.ten_ncc).filter(Boolean))];
+        nccSel.innerHTML = '<option value="">Tất cả NCC</option>' +
+            nccList.map(n => `<option value="${n}"${n === currentNcc ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    }
+}
+
+// ---- Delete a record ----
+async function deleteXeDailyRecord(recordId) {
+    if (!confirm('Bạn có chắc muốn xóa bản ghi này không?\nThao tác này không thể hoàn tác.')) return;
+
+    try {
+        const resp = await authPost(`${API}/xe-van-hanh/records/${recordId}/delete`, {}, { status: 'error', message: '' });
+        if (resp.status === 'ok') {
+            showToast('✅ Đã xóa bản ghi thành công.', 'success');
+            await loadXeDailyRecords();
+        } else {
+            showToast(`❌ Lỗi: ${resp.message || 'Không thể xóa.'}`, 'error');
+        }
+    } catch (err) {
+        console.error('[XE DAILY] Delete error:', err);
+        showToast('Lỗi kết nối. Vui lòng thử lại.', 'error');
+    }
+}
 

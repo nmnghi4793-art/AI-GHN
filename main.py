@@ -1279,7 +1279,199 @@ async def send_telegram_report(payload: dict):
         return {"status": "error", "message": str(e)}
 
 
+# =====================================================================
+# XE VẬN HÀNH DAILY — CRUD APIs
+# =====================================================================
+
+XE_DAILY_DATA_FILE = os.path.join(BASE_DIR, "scratch", "xe_van_hanh_daily.json")
+
+def _load_xe_daily_records():
+    """Load xe vận hành daily records từ JSON file."""
+    try:
+        os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
+        if os.path.exists(XE_DAILY_DATA_FILE) and os.path.getsize(XE_DAILY_DATA_FILE) > 0:
+            with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[XE DAILY] Error loading records: {e}")
+    return []
+
+def _save_xe_daily_records(records: list):
+    """Ghi xe vận hành daily records vào JSON file."""
+    try:
+        os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
+        with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(records, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"[XE DAILY] Error saving records: {e}")
+        return False
+
+
+@app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
+def get_xe_van_hanh_meta(force: bool = False):
+    """
+    Trả về danh sách kho (từ sheet Xe GXT) và danh sách NCC (từ sheet Xe GXT).
+    Frontend dùng để populate dropdown kho và NCC trong form ghi nhận.
+    """
+    xe_data, _ = read_csv("xe_gxt", force)
+
+    kho_set = []
+    kho_seen = set()
+    ncc_map: dict = {}   # { ten_kho: [ncc1, ncc2, ...] }
+    ncc_all_set = set()
+
+    for row in xe_data:
+        ten_kho = (
+            row.get("Tên Kho GXT") or row.get("Ten Kho GXT") or
+            row.get("TÃªn Kho GXT") or row.get("Kho") or ""
+        ).strip()
+        ten_ncc = (
+            row.get("Tên NCC") or row.get("Ten NCC") or
+            row.get("TÃªn NCC") or ""
+        ).strip()
+
+        if ten_kho and ten_kho not in kho_seen:
+            kho_set.append(ten_kho)
+            kho_seen.add(ten_kho)
+
+        if ten_ncc:
+            ncc_all_set.add(ten_ncc)
+            if ten_kho:
+                if ten_kho not in ncc_map:
+                    ncc_map[ten_kho] = []
+                if ten_ncc not in ncc_map[ten_kho]:
+                    ncc_map[ten_kho].append(ten_ncc)
+
+    return {
+        "kho_list": sorted(kho_set),
+        "ncc_map": ncc_map,
+        "ncc_all": sorted(ncc_all_set),
+    }
+
+
+@app.get("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
+def get_xe_van_hanh_records(
+    date: str = Query(None),
+    kho: str = Query(None),
+    ncc: str = Query(None),
+    loai: str = Query(None),
+):
+    """
+    Trả về danh sách bản ghi xe vận hành daily, có thể filter theo:
+    - date: dd/mm/yyyy
+    - kho: tên kho
+    - ncc: tên NCC
+    - loai: 'Xe tăng cường' | 'Xe không hoạt động'
+    """
+    records = _load_xe_daily_records()
+
+    if date:
+        records = [r for r in records if r.get("ngay", "") == date]
+    if kho:
+        records = [r for r in records if kho.lower() in r.get("ten_kho", "").lower()]
+    if ncc:
+        records = [r for r in records if ncc.lower() in r.get("ten_ncc", "").lower()]
+    if loai:
+        records = [r for r in records if r.get("loai", "") == loai]
+
+    # Sort by thoi_gian_ghi_nhan desc
+    records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan", ""), reverse=True)
+    return {"data": records, "total": len(records)}
+
+
+@app.post("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
+async def save_xe_van_hanh_records(request: Request):
+    """
+    Lưu một hoặc nhiều bản ghi xe vận hành daily.
+    Body: { "records": [ { ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu? }, ... ] }
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    new_items = payload.get("records", [])
+    if not new_items or not isinstance(new_items, list):
+        raise HTTPException(status_code=400, detail="Field 'records' is required and must be a non-empty list")
+
+    REQUIRED_FIELDS = ["ngay", "ten_kho", "loai", "so_luong_xe", "bien_so_xe", "ten_ncc", "trong_tai"]
+    VALID_LOAI = ["Xe tăng cường", "Xe không hoạt động"]
+
+    saved = []
+    existing = _load_xe_daily_records()
+    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    for idx, item in enumerate(new_items):
+        # Validate required fields
+        missing = [f for f in REQUIRED_FIELDS if not str(item.get(f, "")).strip()]
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Dòng {idx+1}: Thiếu các trường bắt buộc: {', '.join(missing)}"
+            )
+
+        loai = str(item.get("loai", "")).strip()
+        if loai not in VALID_LOAI:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Dòng {idx+1}: Loại ghi nhận không hợp lệ. Chỉ chấp nhận: {', '.join(VALID_LOAI)}"
+            )
+
+        # Sanitize and normalize
+        try:
+            so_luong_xe = int(item.get("so_luong_xe", 1))
+            if so_luong_xe < 1 or so_luong_xe > 10:
+                so_luong_xe = max(1, min(10, so_luong_xe))
+        except (ValueError, TypeError):
+            so_luong_xe = 1
+
+        try:
+            trong_tai = int(str(item.get("trong_tai", "0")).replace(",", "").strip())
+        except (ValueError, TypeError):
+            trong_tai = 0
+
+        record = {
+            "id": secrets.token_hex(8),
+            "ngay": str(item.get("ngay", "")).strip(),
+            "ten_kho": str(item.get("ten_kho", "")).strip(),
+            "loai": loai,
+            "so_luong_xe": so_luong_xe,
+            "bien_so_xe": str(item.get("bien_so_xe", "")).strip(),
+            "ten_ncc": str(item.get("ten_ncc", "")).strip(),
+            "trong_tai": trong_tai,
+            "ghi_chu": str(item.get("ghi_chu", "")).strip(),
+            "nguoi_nhap": str(item.get("nguoi_nhap", "Manager")).strip()[:50],
+            "thoi_gian_ghi_nhan": now_iso,
+        }
+        existing.append(record)
+        saved.append(record)
+
+    if _save_xe_daily_records(existing):
+        print(f"[XE DAILY] Saved {len(saved)} new records. Total: {len(existing)}")
+        return {"status": "ok", "saved": len(saved), "data": saved}
+    else:
+        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu. Vui lòng thử lại.")
+
+
+@app.post("/api/xe-van-hanh/records/{record_id}/delete", dependencies=[Depends(require_api_token)])
+async def delete_xe_van_hanh_record(record_id: str):
+    """Xóa một bản ghi xe vận hành daily theo ID."""
+    records = _load_xe_daily_records()
+    original_len = len(records)
+    records = [r for r in records if r.get("id") != record_id]
+
+    if len(records) == original_len:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy bản ghi ID={record_id}")
+
+    if _save_xe_daily_records(records):
+        return {"status": "ok", "message": "Đã xóa bản ghi thành công."}
+    else:
+        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi xóa.")
+
+
 # ---- SERVE FRONTEND ----
+
 
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
