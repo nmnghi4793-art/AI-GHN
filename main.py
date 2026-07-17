@@ -1119,7 +1119,63 @@ def get_don_tao(date: str = Query(None), force: bool = False):
 # ---- DATA CẢNH BÁO ----
 @app.get("/api/warnings", dependencies=[Depends(require_api_token)])
 def get_warnings(force: bool = False):
-    data, last_sync = read_csv("warnings", force)
+    # Dùng chung logic của risk-alert để có đầy đủ debug log
+    return get_risk_alert(force)
+
+@app.get("/api/risk-alert", dependencies=[Depends(require_api_token)])
+def get_risk_alert(force: bool = False):
+    print("[API DEBUG] /api/risk-alert (warnings) được gọi.")
+    
+    # 1. Số dòng backlog đọc được
+    backlog_data = []
+    try:
+        backlog_data, _ = read_csv("backlog", force)
+    except: pass
+    print(f"[API DEBUG] Số dòng backlog đọc được: {len(backlog_data)}")
+    
+    # 2. Số dòng GTC đọc được
+    gtc_data = []
+    try:
+        gtc_data, _ = read_csv("gtc", force)
+    except: pass
+    print(f"[API DEBUG] Số dòng GTC đọc được: {len(gtc_data)}")
+    
+    # 3. Số dòng đơn N-1 đọc được
+    don_tao_data = []
+    try:
+        don_tao_data, _ = read_csv("don_tao", force)
+    except: pass
+    print(f"[API DEBUG] Số dòng đơn N-1 đọc được: {len(don_tao_data)}")
+    
+    # Kéo warnings data
+    data = []
+    last_sync = 0
+    try:
+        data, last_sync = read_csv("warnings", force)
+    except: pass
+    
+    # 4. Số kho sau khi merge data
+    total_kho = len(data)
+    print(f"[API DEBUG] Số kho sau khi merge data: {total_kho}")
+    print(f"[API DEBUG] Số kho render ra bảng: {total_kho}")
+    
+    # 5. Dữ liệu mẫu của 3 kho đầu tiên sau khi parse
+    if data:
+        print(f"[API DEBUG] Dữ liệu mẫu của 3 kho đầu tiên:")
+        for idx, w in enumerate(data[:3]):
+            print(f"  Kho {idx+1}:")
+            print(f"    Kho: {w.get('kho gxt') or w.get('Kho') or '--'}")
+            print(f"    Trạng thái: {w.get('Tình hình hiện tại') or w.get('trạng thái hiện tại') or '--'}")
+            print(f"    Số ngày: {w.get('Số ngày trở về ngày thường') or w.get('Total ngày') or '--'}")
+    
+    # Cache key đang dùng & thời gian cập nhật cache
+    print(f"[API DEBUG] Cache key đang dùng: warnings")
+    print(f"[API DEBUG] Thời gian cập nhật cache gần nhất: {last_sync}")
+    
+    # Nếu số kho sau merge = 0
+    if total_kho == 0:
+        print(f"[API DEBUG WARNING] Số kho sau merge = 0! Lý do: Không có data warnings hoặc cache rỗng.")
+        
     return {"data": data, "last_sync": last_sync}
 
 # ---- DASHBOARD OVERVIEW ----
@@ -2170,6 +2226,14 @@ async def sync_dashboard_cache(force=False):
         
         start_time = time.time()
         
+        # ĐỌC OLD CACHE TRƯỚC Ở ĐẦU để khôi phục khi xảy ra lỗi/rỗng
+        old_cache = {}
+        if os.path.exists(DASHBOARD_CACHE_PATH):
+            try:
+                with open(DASHBOARD_CACHE_PATH, "r", encoding="utf-8") as f:
+                    old_cache = json.load(f)
+            except: pass
+            
         other_keys = [
             "gtc", "b2b", "backlog", "returns", "nang_suat", 
             "warnings", "xe_gxt", "xe_su_co", 
@@ -2208,25 +2272,55 @@ async def sync_dashboard_cache(force=False):
         for idx, key in enumerate(other_keys):
             res = results[idx]
             elapsed = time.time() - start_time
+            mapped_key = key_map[key]
+            
+            # Check valid (không lỗi và không rỗng dòng)
+            is_valid = True
+            err_msg = ""
             if isinstance(res, Exception):
-                print(f"[SYNC ERROR] Sheet {key} lỗi: {res}")
-                sheet_status[key] = {"success": False, "error": str(res), "time": round(elapsed, 2)}
-                if key in CACHE:
-                    cached_data[key_map[key]] = CACHE[key]['data']
+                is_valid = False
+                err_msg = str(res)
+            else:
+                data, cache_time = res
+                if not data or len(data) == 0:
+                    is_valid = False
+                    err_msg = "Dữ liệu trả về rỗng"
+                    
+            if not is_valid:
+                print(f"[SYNC WARNING] Sheet {key} lỗi hoặc rỗng. Khôi phục từ old cache...")
+                sheet_status[key] = {"success": False, "error": err_msg, "time": round(elapsed, 2)}
+                
+                # Khôi phục từ old cache nếu có dữ liệu tốt
+                if old_cache and "data" in old_cache and mapped_key in old_cache["data"] and len(old_cache["data"][mapped_key]) > 0:
+                    cached_data[mapped_key] = old_cache["data"][mapped_key]
+                elif key in CACHE and len(CACHE[key]['data']) > 0:
+                    cached_data[mapped_key] = CACHE[key]['data']
                 else:
-                    cached_data[key_map[key]] = []
+                    cached_data[mapped_key] = []
             else:
                 data, cache_time = res
                 sheet_status[key] = {"success": True, "time": round(elapsed, 2)}
-                cached_data[key_map[key]] = data
+                cached_data[mapped_key] = data
                 
         # Xử lý kết quả get_kho_gxt ở cuối
         kho_res = results[-1]
         elapsed = time.time() - start_time
+        
+        is_kho_valid = True
+        kho_err = ""
         if isinstance(kho_res, Exception):
-            print(f"[SYNC ERROR] get_kho_gxt lỗi: {kho_res}")
-            sheet_status["kho_gxt"] = {"success": False, "error": str(kho_res), "time": round(elapsed, 2)}
-            if old_cache and "data" in old_cache and "khoGxtData" in old_cache["data"]:
+            is_kho_valid = False
+            kho_err = str(kho_res)
+        else:
+            kho_data = kho_res.get("data", [])
+            if not kho_data or len(kho_data) == 0:
+                is_kho_valid = False
+                kho_err = "Kho data rỗng"
+                
+        if not is_kho_valid:
+            print("[SYNC WARNING] get_kho_gxt lỗi hoặc rỗng. Khôi phục từ old cache...")
+            sheet_status["kho_gxt"] = {"success": False, "error": kho_err, "time": round(elapsed, 2)}
+            if old_cache and "data" in old_cache and "khoGxtData" in old_cache["data"] and len(old_cache["data"]["khoGxtData"]) > 0:
                 cached_data["khoGxtData"] = old_cache["data"]["khoGxtData"]
             else:
                 cached_data["khoGxtData"] = []
@@ -2246,13 +2340,6 @@ async def sync_dashboard_cache(force=False):
         total_time = time.time() - start_time
         print(f"[SYNC COMPLETED] Hoàn thành đồng bộ toàn bộ dữ liệu dashboard trong {total_time:.2f}s.")
         
-        old_cache = {}
-        if os.path.exists(DASHBOARD_CACHE_PATH):
-            try:
-                with open(DASHBOARD_CACHE_PATH, "r", encoding="utf-8") as f:
-                    old_cache = json.load(f)
-            except: pass
-            
         final_cache = {
             "sync_info": {
                 "last_sync": last_sync_str,
@@ -2262,11 +2349,11 @@ async def sync_dashboard_cache(force=False):
             "data": cached_data
         }
         
-        # Nếu có sheet nào lỗi, giữ lại data cache cũ của sheet đó
+        # Giữ lại cache cũ cho sheet nào lỗi/rỗng (Safety Double Check)
         if old_cache and "data" in old_cache:
             for key in key_map.keys():
                 mapped_key = key_map[key]
-                if not sheet_status[key]["success"] and mapped_key in old_cache["data"]:
+                if not sheet_status[key]["success"] and mapped_key in old_cache["data"] and len(old_cache["data"][mapped_key]) > 0:
                     final_cache["data"][mapped_key] = old_cache["data"][mapped_key]
                     print(f"[SYNC FALLBACK] Giữ lại cache cũ của sheet lỗi: {key}")
                     

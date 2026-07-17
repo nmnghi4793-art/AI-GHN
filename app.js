@@ -7899,6 +7899,11 @@ async function ensureSectionData(name, force = false) {
             { key: 'donB2bData', url: `/api/kpi/don-b2b${query}` }
         ];
         if (force || !state.gtcB2bData || state.gtcB2bData.length === 0) needsLoad = true;
+    } else if (name === 'cbr') {
+        endpoints = [
+            { key: 'warningsData', url: `/api/warnings${query}` }
+        ];
+        if (force || !state.warningsData || state.warningsData.length === 0) needsLoad = true;
     }
 
     if (!needsLoad) {
@@ -7998,6 +8003,8 @@ function renderSection(name) {
         }, 100);
     } else if (name === 'gtc-b2b-prio') {
         renderGtcB2bPrioSection();
+    } else if (name === 'cbr') {
+        renderWarningsSection();
     }
     updateNavBadges();
 }
