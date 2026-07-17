@@ -31,7 +31,7 @@ def load_env():
 
 load_env()
 
-from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request
+from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -1468,6 +1468,277 @@ async def delete_xe_van_hanh_record(record_id: str):
         return {"status": "ok", "message": "Đã xóa bản ghi thành công."}
     else:
         raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi xóa.")
+
+
+@app.post("/api/xe-van-hanh/import", dependencies=[Depends(require_api_token)])
+async def import_xe_van_hanh_records(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """
+    Import nhiều bản ghi xe vận hành daily từ file CSV (hoặc XLSX đã convert sang CSV).
+    Validate từng dòng, kiểm tra trùng, lưu các dòng hợp lệ.
+    Trả về: { status, saved, errors, duplicates, error_details }
+    """
+    import re as _re
+
+    VALID_LOAI = ["Xe tăng cường", "Xe không hoạt động"]
+    MIN_DATE = "2026-07-01"  # ISO so sánh được
+
+    def _ddmmyyyy_to_iso(date_str: str):
+        """Chuyển dd/mm/yyyy → YYYY-MM-DD để so sánh. Trả None nếu lỗi."""
+        s = (date_str or "").strip()
+        # Accept dd/mm/yyyy or dd-mm-yyyy
+        m = _re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$", s)
+        if not m:
+            return None
+        d, mo, y = m.group(1), m.group(2), m.group(3)
+        try:
+            from datetime import date as _date
+            dt = _date(int(y), int(mo), int(d))
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return None
+
+    def _today_iso():
+        from datetime import datetime, timezone, timedelta
+        vn_now = datetime.now(timezone(timedelta(hours=7)))
+        return vn_now.strftime("%Y-%m-%d")
+
+    # ---- Read raw bytes ----
+    raw_bytes = await file.read()
+    filename = (file.filename or "").lower()
+
+    # ---- Parse to rows ----
+    rows = []
+    parse_error = None
+
+    if filename.endswith(".xlsx") or filename.endswith(".xls"):
+        # Try openpyxl (xlsx) or xlrd (xls)
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), read_only=True, data_only=True)
+            ws = wb.active
+            all_rows = list(ws.iter_rows(values_only=True))
+            wb.close()
+            if not all_rows:
+                return {"status": "error", "message": "File Excel rỗng."}
+            header = [str(c).strip() if c is not None else "" for c in all_rows[0]]
+            for r in all_rows[1:]:
+                row_dict = {header[i]: (str(r[i]).strip() if r[i] is not None else "") for i in range(min(len(header), len(r)))}
+                rows.append(row_dict)
+        except ImportError:
+            parse_error = "Server chưa cài openpyxl. Vui lòng upload file .csv."
+        except Exception as e:
+            parse_error = f"Không thể đọc file Excel: {e}"
+    else:
+        # CSV
+        try:
+            text = raw_bytes.decode("utf-8-sig")  # handles BOM
+        except UnicodeDecodeError:
+            try:
+                text = raw_bytes.decode("cp1258")
+            except Exception:
+                text = raw_bytes.decode("latin-1")
+        reader = csv.DictReader(io.StringIO(text))
+        try:
+            rows = list(reader)
+        except Exception as e:
+            parse_error = f"Không thể đọc file CSV: {e}"
+
+    if parse_error:
+        return {"status": "error", "message": parse_error}
+
+    if not rows:
+        return {"status": "error", "message": "File không có dữ liệu (chỉ có header hoặc rỗng)."}
+
+    # ---- Normalize column names (flexible mapping) ----
+    COL_MAP = {
+        "ngay":         ["ngày", "ngay", "date", "Ngày", "Ngay"],
+        "ten_kho":      ["tên kho", "ten kho", "tenkho", "kho", "Tên kho", "Ten kho"],
+        "loai":         ["loại ghi nhận", "loai ghi nhan", "loai", "Loại ghi nhận", "Loai ghi nhan"],
+        "so_luong_xe":  ["số lượng xe", "so luong xe", "sl xe", "sl_xe", "Số lượng xe", "So luong xe"],
+        "bien_so_xe":   ["biển số xe", "bien so xe", "biensoxe", "bien_so", "Biển số xe", "Bien so xe"],
+        "ten_ncc":      ["tên ncc", "ten ncc", "ncc", "Tên NCC", "Ten NCC"],
+        "trong_tai":    ["trọng tải", "trong tai", "trongtai", "Trọng tải", "Trong tai"],
+    }
+
+    def _find_col(row_keys, variants):
+        row_keys_lower = [k.lower().strip() for k in row_keys]
+        for v in variants:
+            if v.lower().strip() in row_keys_lower:
+                idx = row_keys_lower.index(v.lower().strip())
+                return list(row_keys)[idx]
+        return None
+
+    if not rows:
+        return {"status": "error", "message": "Không có dòng dữ liệu nào."}
+
+    first_row_keys = list(rows[0].keys())
+    col_refs = {field: _find_col(first_row_keys, variants) for field, variants in COL_MAP.items()}
+
+    # Check required columns exist
+    missing_cols = [f for f, c in col_refs.items() if c is None]
+    if missing_cols:
+        return {
+            "status": "error",
+            "message": f"File thiếu các cột bắt buộc: {', '.join(missing_cols)}. "
+                       f"Các cột tìm thấy trong file: {', '.join(first_row_keys)}"
+        }
+
+    # ---- Load existing records for duplicate check ----
+    existing = _load_xe_daily_records()
+    dup_keys = set()
+    for r in existing:
+        dk = (
+            str(r.get("ngay", "")).strip(),
+            str(r.get("ten_kho", "")).strip().lower(),
+            str(r.get("loai", "")).strip(),
+            str(r.get("bien_so_xe", "")).strip().lower(),
+            str(r.get("ten_ncc", "")).strip().lower(),
+        )
+        dup_keys.add(dk)
+
+    # ---- Validate & collect ----
+    today_iso = _today_iso()
+    saved_records = []
+    error_details = []
+    duplicate_count = 0
+    import_dup_keys = set()  # track within this import batch
+
+    for i, row in enumerate(rows):
+        row_num = i + 2  # 1-indexed, +1 for header
+        err_list = []
+
+        def get_col(field):
+            col = col_refs.get(field)
+            return row.get(col, "").strip() if col else ""
+
+        raw_ngay    = get_col("ngay")
+        raw_kho     = get_col("ten_kho")
+        raw_loai    = get_col("loai")
+        raw_sl      = get_col("so_luong_xe")
+        raw_bien    = get_col("bien_so_xe")
+        raw_ncc     = get_col("ten_ncc")
+        raw_tt      = get_col("trong_tai")
+
+        # Skip completely empty rows
+        if not any([raw_ngay, raw_kho, raw_loai, raw_sl, raw_bien, raw_ncc, raw_tt]):
+            continue
+
+        # 1. Ngày
+        if not raw_ngay:
+            err_list.append("Thiếu ngày")
+        else:
+            iso = _ddmmyyyy_to_iso(raw_ngay)
+            if iso is None:
+                err_list.append(f"Sai định dạng ngày '{raw_ngay}' (cần dd/mm/yyyy)")
+            elif iso < MIN_DATE:
+                err_list.append(f"Ngày '{raw_ngay}' nhỏ hơn 01/07/2026")
+            elif iso > today_iso:
+                err_list.append(f"Ngày '{raw_ngay}' lớn hơn ngày hiện tại")
+            else:
+                raw_ngay = _re.sub(r"^(\d)[/\-]", r"0\1/", raw_ngay.replace("-", "/"))
+                raw_ngay = _re.sub(r"/(\d)[/\-]", r"/0\1/", raw_ngay)
+                # Normalize to dd/mm/yyyy
+                parts = raw_ngay.replace("-", "/").split("/")
+                raw_ngay = f"{parts[0].zfill(2)}/{parts[1].zfill(2)}/{parts[2]}"
+
+        # 2. Tên kho
+        if not raw_kho:
+            err_list.append("Thiếu tên kho")
+
+        # 3. Loại ghi nhận
+        if not raw_loai:
+            err_list.append("Thiếu loại ghi nhận")
+        elif raw_loai not in VALID_LOAI:
+            err_list.append(f"Loại ghi nhận '{raw_loai}' không hợp lệ (chỉ nhận: {', '.join(VALID_LOAI)})")
+
+        # 4. Số lượng xe
+        sl_xe = 1
+        if not raw_sl:
+            err_list.append("Thiếu số lượng xe")
+        else:
+            try:
+                sl_xe = int(float(raw_sl))
+                if sl_xe < 1 or sl_xe > 5:
+                    err_list.append(f"Số lượng xe '{raw_sl}' phải từ 1 đến 5")
+            except ValueError:
+                err_list.append(f"Số lượng xe '{raw_sl}' không phải số nguyên")
+
+        # 5. Biển số xe
+        if not raw_bien:
+            err_list.append("Thiếu biển số xe")
+
+        # 6. Tên NCC
+        if not raw_ncc:
+            err_list.append("Thiếu tên NCC")
+
+        # 7. Trọng tải
+        trong_tai = 0
+        if not raw_tt:
+            err_list.append("Thiếu trọng tải")
+        else:
+            try:
+                trong_tai = int(float(str(raw_tt).replace(",", "").strip()))
+                if trong_tai <= 0:
+                    err_list.append(f"Trọng tải '{raw_tt}' phải lớn hơn 0")
+            except ValueError:
+                err_list.append(f"Trọng tải '{raw_tt}' không phải số")
+
+        if err_list:
+            error_details.append({"row": row_num, "errors": err_list})
+            continue
+
+        # ---- Duplicate check ----
+        dup_key = (
+            raw_ngay.strip(),
+            raw_kho.strip().lower(),
+            raw_loai.strip(),
+            raw_bien.strip().lower(),
+            raw_ncc.strip().lower(),
+        )
+        if dup_key in dup_keys or dup_key in import_dup_keys:
+            duplicate_count += 1
+            continue
+        import_dup_keys.add(dup_key)
+
+        # ---- Build record ----
+        now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        record = {
+            "id": secrets.token_hex(8),
+            "ngay": raw_ngay,
+            "ten_kho": raw_kho,
+            "loai": raw_loai,
+            "so_luong_xe": sl_xe,
+            "bien_so_xe": raw_bien,
+            "ten_ncc": raw_ncc,
+            "trong_tai": trong_tai,
+            "ghi_chu": "",
+            "nguoi_nhap": "Import Excel",
+            "thoi_gian_ghi_nhan": now_iso,
+        }
+        existing.append(record)
+        saved_records.append(record)
+        dup_keys.add(dup_key)
+
+    # ---- Save ----
+    if saved_records:
+        if not _save_xe_daily_records(existing):
+            raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi import.")
+
+    total_read = len(rows)
+    print(f"[XE DAILY IMPORT] Read={total_read}, Saved={len(saved_records)}, Errors={len(error_details)}, Dups={duplicate_count}")
+
+    return {
+        "status": "ok",
+        "total_read": total_read,
+        "saved": len(saved_records),
+        "errors": len(error_details),
+        "duplicates": duplicate_count,
+        "error_details": error_details,
+    }
+
 
 
 # ---- SERVE FRONTEND ----

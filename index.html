@@ -1788,6 +1788,31 @@
                     </button>
                 </div>
                 <div style="padding:16px">
+                    <!-- ===== IMPORT EXCEL BLOCK ===== -->
+                    <div id="xed-import-block" style="background:var(--bg-card2,rgba(255,255,255,0.04));border:1.5px dashed var(--border-card);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <i class="fa-solid fa-file-arrow-up" style="color:var(--orange);font-size:1.1rem;"></i>
+                            <span style="font-weight:600;font-size:0.95rem;">Import file ghi nhận xe</span>
+                            <span style="font-size:0.78rem;color:var(--text3);margin-left:4px;">(.csv / .xlsx)</span>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                            <label for="xed-import-file" class="btn btn-outline" style="cursor:pointer;font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;">
+                                <i class="fa-solid fa-folder-open"></i> Chọn file
+                            </label>
+                            <input type="file" id="xed-import-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="onXedImportFileChange()">
+                            <span id="xed-import-filename" style="font-size:0.82rem;color:var(--text3);font-style:italic;">Chưa chọn file</span>
+                            <button onclick="importXeDailyFile()" class="btn btn-primary" id="btn-xed-import" style="font-size:0.82rem;padding:7px 16px;display:flex;align-items:center;gap:6px;" disabled>
+                                <i class="fa-solid fa-file-import"></i> Import Excel
+                            </button>
+                            <button onclick="downloadXeDailySampleFile()" class="btn btn-outline" style="font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;color:var(--cyan);border-color:var(--cyan);">
+                                <i class="fa-solid fa-download"></i> Tải file mẫu
+                            </button>
+                        </div>
+                        <!-- Result report -->
+                        <div id="xed-import-result" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.84rem;line-height:1.6;"></div>
+                    </div>
+                    <!-- ===== END IMPORT BLOCK ===== -->
+
                     <div id="xe-daily-rows-container">
                         <!-- Rows injected by JS -->
                     </div>

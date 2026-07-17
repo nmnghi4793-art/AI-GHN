@@ -7160,3 +7160,181 @@ function exportXeDailyExcel() {
     showToast(`✅ Đã xuất ${records.length} bản ghi ra file ${filename}`, 'success');
 }
 
+// =====================================================================
+// XE DAILY — IMPORT FILE FUNCTIONS
+// =====================================================================
+
+// Called when user selects a file in the import input
+function onXedImportFileChange() {
+    const input = document.getElementById('xed-import-file');
+    const nameEl = document.getElementById('xed-import-filename');
+    const btn = document.getElementById('btn-xed-import');
+    const resultEl = document.getElementById('xed-import-result');
+
+    if (input && input.files && input.files[0]) {
+        const f = input.files[0];
+        if (nameEl) nameEl.textContent = f.name;
+        if (btn) btn.disabled = false;
+    } else {
+        if (nameEl) nameEl.textContent = 'Chưa chọn file';
+        if (btn) btn.disabled = true;
+    }
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+}
+
+// Download a sample CSV file with correct headers and one example row
+function downloadXeDailySampleFile() {
+    const BOM = '\uFEFF';
+    const headers = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải'];
+    const exampleRow = [
+        '17/07/2026',
+        'Kho Giao Hàng Nặng - Hòa Xuân - Đà Nẵng',
+        'Xe không hoạt động',
+        '1',
+        '43C-251.12',
+        'Trần Xuân Phúc',
+        '1400'
+    ];
+    const notes = [
+        '# Ghi chú:',
+        '# - Ngày: định dạng dd/mm/yyyy (từ 01/07/2026 đến hôm nay)',
+        '# - Loại ghi nhận: chỉ nhận Xe tăng cường hoặc Xe không hoạt động',
+        '# - Số lượng xe: số nguyên từ 1 đến 5',
+        '# - Trọng tải: nhập số kg (ví dụ 1400 = 1.4 tấn)',
+        '#'
+    ];
+    const escape = v => {
+        const s = String(v ?? '');
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    };
+    const lines = [...notes, headers.map(escape).join(','), exampleRow.map(escape).join(',')];
+    const csvContent = BOM + lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mau-import-xe-van-hanh-daily.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Đã tải file mẫu import xe vận hành.', 'success');
+}
+
+// Import file: read, send to backend, show result
+async function importXeDailyFile() {
+    const input = document.getElementById('xed-import-file');
+    const resultEl = document.getElementById('xed-import-result');
+    const btn = document.getElementById('btn-xed-import');
+
+    if (!input || !input.files || !input.files[0]) {
+        showToast('Vui lòng chọn file trước.', 'warning');
+        return;
+    }
+
+    const file = input.files[0];
+    const allowedExts = ['.csv', '.xlsx', '.xls'];
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    if (!allowedExts.includes(ext)) {
+        showToast('Chỉ hỗ trợ file .csv, .xlsx, .xls', 'error');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang import...';
+    }
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const token = (state && state.token) ? state.token : (sessionStorage.getItem('api_token') || '');
+        const resp = await fetch(API + '/xe-van-hanh/import', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+
+        let data;
+        try { data = await resp.json(); } catch(e) { data = { status: 'error', message: 'Phản hồi không hợp lệ từ server.' }; }
+
+        if (!resp.ok || data.status === 'error') {
+            const msg = (data && (data.message || data.detail)) || 'Lỗi không xác định từ server.';
+            _showImportResult(resultEl, 'error', 'Lỗi: ' + msg, []);
+            showToast('Import thất bại: ' + msg, 'error');
+            return;
+        }
+
+        const saved = data.saved || 0;
+        const errors = data.errors || 0;
+        const dups = data.duplicates || 0;
+        const total = data.total_read || 0;
+        const errDetails = data.error_details || [];
+
+        let summary = 'Import hoàn tất: <strong>' + saved + ' dòng thành công</strong>';
+        if (errors > 0) summary += ', <span style="color:#ef4444">' + errors + ' dòng lỗi</span>';
+        if (dups > 0) summary += ', <span style="color:#f59e0b">' + dups + ' dòng trùng (bỏ qua)</span>';
+        summary += '. Tổng đọc: ' + total + ' dòng.';
+
+        _showImportResult(resultEl, saved > 0 ? 'success' : (errors > 0 ? 'error' : 'warning'), summary, errDetails);
+
+        if (saved > 0) {
+            showToast('Import thành công ' + saved + '/' + total + ' bản ghi xe.', 'success');
+            input.value = '';
+            const nameEl = document.getElementById('xed-import-filename');
+            if (nameEl) nameEl.textContent = 'Chưa chọn file';
+            if (btn) btn.disabled = true;
+            await loadXeDailyRecords();
+        } else if (errors === 0 && dups > 0) {
+            showToast('Tất cả ' + dups + ' dòng đã tồn tại trong hệ thống.', 'warning');
+        } else {
+            showToast('Không có dòng nào được lưu. Kiểm tra lại dữ liệu file.', 'warning');
+        }
+
+    } catch (err) {
+        console.error('[XE DAILY IMPORT]', err);
+        _showImportResult(resultEl, 'error', 'Lỗi kết nối: ' + err.message, []);
+        showToast('Lỗi kết nối. Vui lòng thử lại.', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-import"></i> Import Excel';
+        }
+    }
+}
+
+// Helper: show import result panel
+function _showImportResult(el, type, html, errorDetails) {
+    if (!el) return;
+    const colors = {
+        success: { bg: 'rgba(16,185,129,0.1)', border: '#10b981' },
+        error:   { bg: 'rgba(239,68,68,0.1)',  border: '#ef4444' },
+        warning: { bg: 'rgba(245,158,11,0.1)', border: '#f59e0b' },
+    };
+    const c = colors[type] || colors.warning;
+    el.style.display = 'block';
+    el.style.background = c.bg;
+    el.style.border = '1px solid ' + c.border;
+    el.style.borderRadius = '8px';
+
+    let inner = '<div>' + html + '</div>';
+    if (errorDetails && errorDetails.length > 0) {
+        const MAX_SHOW = 10;
+        const shown = errorDetails.slice(0, MAX_SHOW);
+        inner += '<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600;color:#ef4444">Chi tiết ' + errorDetails.length + ' dòng lỗi ▾</summary>';
+        inner += '<ul style="margin:6px 0 0 16px;padding:0;list-style:disc;">';
+        shown.forEach(d => {
+            inner += '<li><strong>Dòng ' + d.row + ':</strong> ' + escapeHtml(d.errors.join('; ')) + '</li>';
+        });
+        if (errorDetails.length > MAX_SHOW) {
+            inner += '<li style="opacity:0.6">... và ' + (errorDetails.length - MAX_SHOW) + ' dòng lỗi khác.</li>';
+        }
+        inner += '</ul></details>';
+    }
+    el.innerHTML = inner;
+}
