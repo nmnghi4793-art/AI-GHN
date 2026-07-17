@@ -7253,7 +7253,7 @@ async function importXeDailyFile() {
         const formData = new FormData();
         formData.append('file', file);
 
-        const token = (state && state.token) ? state.token : (sessionStorage.getItem('api_token') || '');
+        const token = getApiToken();
         const resp = await fetch(API + '/xe-van-hanh/import', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
@@ -7322,7 +7322,14 @@ function _showImportResult(el, type, html, errorDetails) {
     el.style.border = '1px solid ' + c.border;
     el.style.borderRadius = '8px';
 
-    let inner = '<div>' + html + '</div>';
+    let inner = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' + html;
+    // Add download error button if there are errors
+    if (errorDetails && errorDetails.length > 0) {
+        inner += '<button onclick="_downloadXedImportErrors()" style="font-size:0.78rem;padding:4px 10px;border-radius:6px;border:1px solid #ef4444;background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">'
+             + '<i class="fa-solid fa-file-circle-exclamation"></i> Tải báo lỗi (.csv)</button>';
+    }
+    inner += '</div>';
+
     if (errorDetails && errorDetails.length > 0) {
         const MAX_SHOW = 10;
         const shown = errorDetails.slice(0, MAX_SHOW);
@@ -7337,4 +7344,49 @@ function _showImportResult(el, type, html, errorDetails) {
         inner += '</ul></details>';
     }
     el.innerHTML = inner;
+
+    // Store error details for download
+    el._errorDetails = errorDetails || [];
+}
+
+// Download error report CSV
+function _downloadXedImportErrors() {
+    const el = document.getElementById('xed-import-result');
+    const errors = (el && el._errorDetails) ? el._errorDetails : [];
+    if (!errors.length) {
+        showToast('Không có lỗi nào để tải.', 'warning');
+        return;
+    }
+
+    const BOM = '\uFEFF';
+    const escape = v => {
+        const s = String(v ?? '');
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    };
+
+    const header = ['Số dòng trong file', 'Lỗi cần chỉnh sửa'];
+    const rows = errors.map(d => [
+        d.row,
+        d.errors.join(' | ')
+    ]);
+
+    const lines = [header, ...rows].map(r => r.map(escape).join(','));
+    const csvContent = BOM + lines.join('\n');
+
+    const today = _getTodayVN().split('/').join('');
+    const filename = 'bao-loi-import-xe-' + today + '.csv';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Đã tải file báo lỗi: ' + filename, 'success');
 }
