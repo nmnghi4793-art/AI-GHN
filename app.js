@@ -342,7 +342,16 @@ function startSyncTimer() {
         const diff = Math.max(0, nextSyncTime - now);
 
         if (diff <= 0) {
-            fetchAll(); // Auto refresh
+            // Auto refresh current active tab only to optimize load
+            const activeSectionEl = document.querySelector('.section.active');
+            const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
+            if (activeName === 'xe-daily') {
+                if (typeof window.loadXeDailyRecords === 'function') window.loadXeDailyRecords();
+            } else if (activeName === 'login-logs') {
+                if (typeof window.loadLoginLogs === 'function') window.loadLoginLogs();
+            } else {
+                ensureSectionData(activeName, true);
+            }
             return;
         }
 
@@ -1475,7 +1484,9 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
     data.sort((a, b) => getAging(b) - getAging(a));
 
     document.getElementById('backlog-count-label').textContent = data.length + ' đơn';
-    document.getElementById('tbody-backlog').innerHTML = data.map(r => `
+    window.backlogTableLimit = window.backlogTableLimit || 100;
+    const sliced = data.slice(0, window.backlogTableLimit);
+    let html = sliced.map(r => `
         <tr>
             <td>${escapeHtml(r['status'] || '--')}</td>
             <td>${escapeHtml(getRegionByDate(r['kho_giao'] || r['Kho'], r['time_nhap_kho_giao']))}</td>
@@ -1488,6 +1499,11 @@ function renderBacklogSection(khoFilter = '', luongFilter = '') {
             <td>${agingChip(getAging(r))}</td>
         </tr>
     `).join('');
+    
+    if (data.length > window.backlogTableLimit) {
+        html += `<tr><td colspan="9" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.backlogTableLimit += 100; renderBacklogSection('${khoFilter.replace(/'/g, "\\'")}', '${luongFilter.replace(/'/g, "\\'")}');" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${data.length - window.backlogTableLimit} dòng còn lại)</button></td></tr>`;
+    }
+    document.getElementById('tbody-backlog').innerHTML = html;
 }
 
 // ---- BACKLOG BY KHO CHART ----
@@ -1776,7 +1792,9 @@ function renderPersonnelSection(filter = '', posFilter = '') {
     document.getElementById('personnel-count-label').textContent = data.length + ' người';
     
     // Render the main personnel list table
-    document.getElementById('tbody-personnel').innerHTML = data.map((r, i) => {
+    window.personnelTableLimit = window.personnelTableLimit || 100;
+    const sliced = data.slice(0, window.personnelTableLimit);
+    let html = sliced.map((r, i) => {
         const loaiHD = r['Loại hợp đồng'] || r['Loại HĐ'] || '';
         return `
         <tr>
@@ -1790,6 +1808,11 @@ function renderPersonnelSection(filter = '', posFilter = '') {
             <td>${escapeHtml(r['Phòng ban'] || '')}</td>
         </tr>
     `}).join('');
+    
+    if (data.length > window.personnelTableLimit) {
+        html += `<tr><td colspan="8" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.personnelTableLimit += 100; renderPersonnelSection('${filter.replace(/'/g, "\'")}', '${posFilter.replace(/'/g, "\'")}');" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${data.length - window.personnelTableLimit} dòng còn lại)</button></td></tr>`;
+    }
+    document.getElementById('tbody-personnel').innerHTML = html;
 
     // Render "Bảng tổng hợp nhân sự theo kho và vị trí" (Pivot Table)
     const pivotTable = document.getElementById('personnel-pivot-table');
@@ -3615,7 +3638,7 @@ function showSection(name) {
     if (name === 'gtc') switchGtcTab('gtc');
     // Mặc định khi vào khoxe → reset tab về Kho GXT
     if (name === 'khoxe') switchKhoXeTab('khogxt');
-    // Mặc định khi vào gtc-b2b-prio -> reset tab về Vùng
+    
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const sectionEl = document.getElementById('section-' + name);
@@ -3623,35 +3646,18 @@ function showSection(name) {
     if (sectionEl) sectionEl.classList.add('active');
     if (navEl) navEl.classList.add('active');
     
-    // Mặc định khi vào gtc-b2b-prio -> reset tab về Vùng
     if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
     const [title, sub] = SECTION_META[name] || ['--', '--'];
     document.getElementById('page-title').textContent = title;
     document.getElementById('page-subtitle').textContent = sub;
     
-    // B2B Map: initialize + invalidate + re-render data on every tab switch
-    if (name === 'b2b-map') {
-        // Step 1: Init map (if not yet done) immediately
-        if (typeof window.renderB2BMapSection === 'function') {
-            window.renderB2BMapSection();
-        }
-        // Step 2: After DOM settles, invalidate Leaflet size then re-filter/refit markers
-        setTimeout(() => {
-            if (window.b2bLeafletMap) {
-                window.b2bLeafletMap.invalidateSize();
-            }
-            if (typeof filterB2BMapData === 'function') {
-                filterB2BMapData();
-            }
-        }, 300);
-    }
-    // Xe Vận Hành Daily: load meta + records on first visit
+    // Tự động kiểm tra và lazy load data cho section này
     if (name === 'xe-daily') {
         renderXeDailySection();
-    }
-    // Log Đăng Nhập: load data
-    if (name === 'login-logs') {
+    } else if (name === 'login-logs') {
         loadLoginLogs();
+    } else {
+        ensureSectionData(name);
     }
 }
 
@@ -3664,8 +3670,28 @@ document.querySelectorAll('.view-all[data-section]').forEach(link => {
     link.addEventListener('click', e => { e.preventDefault(); showSection(e.currentTarget.dataset.section); });
 });
 
-document.getElementById('refresh-btn').addEventListener('click', () => {
-    fetchAll(true);
+document.getElementById('refresh-btn').addEventListener('click', async () => {
+    const activeSectionEl = document.querySelector('.section.active');
+    const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
+    
+    const btn = document.getElementById('refresh-btn');
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+    
+    try {
+        if (activeName === 'xe-daily') {
+            if (typeof window.loadXeDailyRecords === 'function') await window.loadXeDailyRecords();
+        } else if (activeName === 'login-logs') {
+            if (typeof window.loadLoginLogs === 'function') await window.loadLoginLogs();
+        } else {
+            await ensureSectionData(activeName, true);
+        }
+    } catch (e) {
+        console.error('[REFRESH ERROR]', e);
+    } finally {
+        btn.classList.remove('loading');
+        btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
+    }
 });
 
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
@@ -4772,7 +4798,7 @@ async function initLogin() {
             if (appContainer) appContainer.style.display = 'flex';
             // Khởi chạy dashboard
             showSection('overview');
-            fetchAll();
+            ensureSectionData('overview');
             startSyncTimer();
             checkAdminAccess();
             setupLogout();
@@ -6500,7 +6526,9 @@ function renderB2bDetailedTable() {
         if (rawOrders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Không có đơn lỗi/chưa giao phù hợp bộ lọc.</td></tr>';
         } else {
-            tbody.innerHTML = rawOrders.map(r => `
+            window.b2bDetailedTableLimit = window.b2bDetailedTableLimit || 100;
+            const sliced = rawOrders.slice(0, window.b2bDetailedTableLimit);
+            let html = sliced.map(r => `
                 <tr>
                     <td>${escapeHtml(r['Ngày ưu tiên'])}</td>
                     <td>${escapeHtml(getRegionForWarehouse(r['Kho hiện tại'], r['Ngày ưu tiên']))}</td>
@@ -6511,6 +6539,11 @@ function renderB2bDetailedTable() {
                     <td>${escapeHtml(r['PIC'] || '--')}</td>
                 </tr>
             `).join('');
+            
+            if (rawOrders.length > window.b2bDetailedTableLimit) {
+                html += `<tr><td colspan="7" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.b2bDetailedTableLimit += 100; renderB2bDetailedTable();" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${rawOrders.length - window.b2bDetailedTableLimit} dòng còn lại)</button></td></tr>`;
+            }
+            tbody.innerHTML = html;
         }
     }
 }
@@ -7189,7 +7222,9 @@ function renderXeDailyHistoryTable(records) {
         return;
     }
 
-    tbody.innerHTML = records.map(r => {
+    window.xeDailyHistoryTableLimit = window.xeDailyHistoryTableLimit || 100;
+    const sliced = records.slice(0, window.xeDailyHistoryTableLimit);
+    let html = sliced.map(r => {
         const loaiBadge = r.loai === 'Xe tăng cường'
             ? `<span class="badge-tang-cuong"><i class="fa-solid fa-circle-plus"></i> Xe tăng cường</span>`
             : `<span class="badge-off-xe"><i class="fa-solid fa-circle-xmark"></i> Xe không hoạt động</span>`;
@@ -7213,6 +7248,11 @@ function renderXeDailyHistoryTable(records) {
             </td>
         </tr>`;
     }).join('');
+    
+    if (records.length > window.xeDailyHistoryTableLimit) {
+        html += `<tr><td colspan="10" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.xeDailyHistoryTableLimit += 100; renderXeDailyHistoryTable(state.xeDailyRecords);" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${records.length - window.xeDailyHistoryTableLimit} dòng còn lại)</button></td></tr>`;
+    }
+    tbody.innerHTML = html;
 }
 
 // ---- Filter table ----
@@ -7637,7 +7677,9 @@ function renderLoginLogsTable(records) {
         return;
     }
 
-    tbody.innerHTML = records.map((r, idx) => {
+    window.loginLogsTableLimit = window.loginLogsTableLimit || 100;
+    const sliced = records.slice(0, window.loginLogsTableLimit);
+    let html = sliced.map((r, idx) => {
         const loaiBadge = r.loai_truy_cap === 'Truy cập admin bằng key'
             ? `<span class="badge-tang-cuong" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid #8b5cf6;"><i class="fa-solid fa-user-shield"></i> Admin (Key)</span>`
             : `<span class="badge-off-xe" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid #3b82f6;"><i class="fa-solid fa-user"></i> User</span>`;
@@ -7655,6 +7697,11 @@ function renderLoginLogsTable(records) {
             <td style="font-size:0.75rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.user_agent || '')}">${escapeHtml(r.user_agent || '--')}</td>
         </tr>`;
     }).join('');
+    
+    if (records.length > window.loginLogsTableLimit) {
+        html += `<tr><td colspan="10" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.loginLogsTableLimit += 100; renderLoginLogsTable(allLoginLogsData);" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${records.length - window.loginLogsTableLimit} dòng còn lại)</button></td></tr>`;
+    }
+    tbody.innerHTML = html;
 }
 
 function _renderLoginLogsOverview(records) {
@@ -7813,3 +7860,231 @@ window.addEventListener('error', function(event) {
         }
     }
 });
+
+// =====================================================================
+// LAZY LOADING CORE & SKELETONS
+// =====================================================================
+const sectionLoadingStates = {};
+
+async function ensureSectionData(name, force = false) {
+    const query = force ? '?force=true' : '';
+    if (sectionLoadingStates[name]) return;
+
+    let endpoints = [];
+    let needsLoad = false;
+
+    if (name === 'overview') {
+        endpoints = [
+            { key: 'overview', url: `/api/dashboard/overview${query}` },
+            { key: 'warningsData', url: `/api/warnings${query}` }
+        ];
+        if (force || !state.overview || Object.keys(state.overview).length === 0) needsLoad = true;
+    } else if (name === 'gtc') {
+        endpoints = [
+            { key: 'gtcData', url: `/api/kpi/gtc${query}` },
+            { key: 'nangSuatData', url: `/api/nang-suat${query}` }
+        ];
+        if (force || !state.gtcData || state.gtcData.length === 0) needsLoad = true;
+    } else if (name === 'returns') {
+        endpoints = [
+            { key: 'returnsData', url: `/api/returns${query}` },
+            { key: 'returnsByClientData', url: `/api/returns/by-client${query}` }
+        ];
+        if (force || !state.returnsData || state.returnsData.length === 0) needsLoad = true;
+    } else if (name === 'dontao') {
+        endpoints = [
+            { key: 'donTaoData', url: `/api/don-tao${query}` }
+        ];
+        if (force || !state.donTaoData || state.donTaoData.length === 0) needsLoad = true;
+    } else if (name === 'backlog') {
+        endpoints = [
+            { key: 'backlogData', url: `/api/backlog/critical${query}` },
+            { key: 'b2bData', url: `/api/backlog/b2b${query}` }
+        ];
+        if (force || !state.backlogData || state.backlogData.length === 0) needsLoad = true;
+    } else if (name === 'personnel') {
+        endpoints = [
+            { key: 'personnelData', url: `/api/personnel${query}` }
+        ];
+        if (force || !state.personnelData || state.personnelData.length === 0) needsLoad = true;
+    } else if (name === 'khoxe' || name === 'b2b-map') {
+        endpoints = [
+            { key: 'xeGxtData', url: `/api/xe-gxt${query}` },
+            { key: 'xeSuCoData', url: `/api/xe-su-co${query}` },
+            { key: 'khoGxtData', url: `/api/kho-gxt${query}` }
+        ];
+        if (force || !state.khoGxtData || state.khoGxtData.length === 0) needsLoad = true;
+    } else if (name === 'gtc-b2b-prio') {
+        endpoints = [
+            { key: 'gtcB2bData', url: `/api/kpi/gtc-b2b${query}` },
+            { key: 'donB2bData', url: `/api/kpi/don-b2b${query}` }
+        ];
+        if (force || !state.gtcB2bData || state.gtcB2bData.length === 0) needsLoad = true;
+    }
+
+    if (!needsLoad) {
+        renderSection(name);
+        return;
+    }
+
+    showSectionSkeleton(name);
+
+    try {
+        sectionLoadingStates[name] = true;
+        const startTime = Date.now();
+        
+        // Fetch concurrently
+        const promises = endpoints.map(e => {
+            const isOverview = e.key.includes('overview') || e.key.includes('warnings');
+            return authFetch(`${API}${e.url.replace('/api', '')}`, isOverview ? {} : { data: [] });
+        });
+        const results = await Promise.all(promises);
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[PERFORMANCE LOG] Lazy load for tab '${name}' finished in ${duration}s.`);
+
+        endpoints.forEach((e, idx) => {
+            const res = results[idx];
+            if (e.key === 'overview') {
+                state[e.key] = res || {};
+            } else {
+                if (res && Array.isArray(res.data)) {
+                    state[e.key] = res.data;
+                } else if (Array.isArray(res)) {
+                    state[e.key] = res;
+                } else {
+                    state[e.key] = [];
+                }
+            }
+        });
+
+        renderSection(name);
+    } catch (err) {
+        console.error(`[LAZY LOAD ERROR] Failed to load data for ${name}:`, err);
+        showSectionError(name);
+    } finally {
+        sectionLoadingStates[name] = false;
+        hideSectionSkeleton(name);
+    }
+}
+
+function retryLoadSection(name) {
+    ensureSectionData(name, true);
+}
+window.retryLoadSection = retryLoadSection;
+
+function renderSection(name) {
+    updateMeta();
+    if (name === 'overview') {
+        renderOverviewCards();
+        renderGtcTrendChart();
+        renderReturnsPieChart();
+        renderOverviewB2bChart();
+        renderBacklogOverviewTable();
+        renderB2bOverviewTable();
+        renderCriticalWarningsOverview();
+        renderPersonnelOverview();
+    } else if (name === 'gtc') {
+        renderGtcSection();
+        renderGtcByKhoChart();
+        renderGtcTopBottom();
+        renderNangSuatSection();
+        renderNangSuatVungSection();
+    } else if (name === 'returns') {
+        renderReturnsSection();
+        renderReturnsFDChart();
+    } else if (name === 'dontao') {
+        renderDonTaoSection();
+        renderForecastSection();
+    } else if (name === 'backlog') {
+        renderBacklogSection();
+        renderBacklogByKhoChart();
+    } else if (name === 'personnel') {
+        renderPersonnelSection();
+    } else if (name === 'khoxe') {
+        renderXeGxtSection();
+        renderXeSuCoSection();
+        renderKhoGxtSection();
+    } else if (name === 'b2b-map') {
+        if (typeof window.renderB2BMapSection === 'function') {
+            window.renderB2BMapSection();
+        }
+        setTimeout(() => {
+            if (window.b2bLeafletMap) {
+                window.b2bLeafletMap.invalidateSize();
+            }
+            if (typeof filterB2BMapData === 'function') {
+                filterB2BMapData();
+            }
+        }, 100);
+    } else if (name === 'gtc-b2b-prio') {
+        renderGtcB2bPrioSection();
+    }
+    updateNavBadges();
+}
+
+function showSectionSkeleton(name) {
+    const sectionEl = document.getElementById('section-' + name);
+    if (!sectionEl) return;
+    
+    const existing = sectionEl.querySelector('.section-loading-overlay');
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'section-loading-overlay';
+    overlay.innerHTML = `
+        <div class="spinner-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:350px;gap:16px;color:var(--text2, #94a3b8);background:rgba(15,23,42,0.15);backdrop-filter:blur(4px);border-radius:12px;">
+            <i class="fa-solid fa-spinner fa-spin-pulse" style="font-size:42px;color:var(--blue, #3b82f6);"></i>
+            <span style="font-size:0.95rem;font-weight:500;">Đang tải dữ liệu... Vui lòng chờ</span>
+        </div>
+    `;
+    sectionEl.prepend(overlay);
+    
+    Array.from(sectionEl.children).forEach(child => {
+        if (child !== overlay) {
+            child.style.opacity = '0.05';
+            child.style.pointerEvents = 'none';
+        }
+    });
+}
+
+function hideSectionSkeleton(name) {
+    const sectionEl = document.getElementById('section-' + name);
+    if (!sectionEl) return;
+    const overlay = sectionEl.querySelector('.section-loading-overlay');
+    if (overlay) overlay.remove();
+    
+    Array.from(sectionEl.children).forEach(child => {
+        child.style.opacity = '';
+        child.style.pointerEvents = '';
+    });
+}
+
+function showSectionError(name) {
+    const sectionEl = document.getElementById('section-' + name);
+    if (!sectionEl) return;
+    
+    const overlay = sectionEl.querySelector('.section-loading-overlay');
+    if (overlay) overlay.remove();
+    
+    const errDiv = document.createElement('div');
+    errDiv.className = 'section-loading-overlay';
+    errDiv.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:350px;gap:16px;color:#ef4444;text-align:center;padding:24px;background:rgba(15,23,42,0.25);backdrop-filter:blur(4px);border-radius:12px;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:42px;"></i>
+            <span style="font-size:1rem;font-weight:600;color:var(--text, #f8fafc);">Không tải được dữ liệu</span>
+            <span style="font-size:0.85rem;color:var(--text3, #94a3b8);max-width:380px;">Đã xảy ra sự cố kết nối máy chủ hoặc Google Sheets đang cập nhật.</span>
+            <button onclick="window.retryLoadSection('${name}')" class="btn btn-secondary" style="margin-top:12px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-rotate-right"></i> Thử lại
+            </button>
+        </div>
+    `;
+    sectionEl.prepend(errDiv);
+    
+    Array.from(sectionEl.children).forEach(child => {
+        if (child !== errDiv) {
+            child.style.opacity = '0.05';
+            child.style.pointerEvents = 'none';
+        }
+    });
+}

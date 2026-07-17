@@ -88,7 +88,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         return response
 
+class PerformanceLoggingMiddleware(BaseHTTPMiddleware):
+    """Đo thời gian phản hồi của tất cả API routes."""
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+        path = request.url.path
+        if path.startswith("/api/"):
+            print(f"[PERFORMANCE LOG] API {request.method} {path} responded in {duration:.3f}s.")
+        return response
+
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PerformanceLoggingMiddleware)
 
 # ---- RATE LIMITING (in-memory, không cần thêm dependency) ----
 _LOGIN_ATTEMPTS: dict = defaultdict(list)
@@ -271,15 +283,50 @@ CSV_MAPPING = {
     "??n t?o N-1": "đơn tạo N-1", "??n gtc N-1": "đơn gtc N-1", "GÃ­a": "Giá"
 }
 
+import json
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scratch", "cache_sheets")
+
+def _get_persistent_cache(key: str):
+    """Đọc cache từ đĩa nếu memory cache trống."""
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        cache_file = os.path.join(CACHE_DIR, f"{key}.json")
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+                if cached and "time" in cached and "data" in cached:
+                    return cached["data"], cached["time"]
+    except Exception as e:
+        print(f"[CACHE PERSISTENT] Error reading {key} from disk: {e}")
+    return None, 0
+
+def _save_persistent_cache(key: str, data: list, cache_time: float):
+    """Ghi cache xuống đĩa."""
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        cache_file = os.path.join(CACHE_DIR, f"{key}.json")
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump({"time": cache_time, "data": data}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[CACHE PERSISTENT] Error writing {key} to disk: {e}")
+
 def read_csv(key: str, force: bool = False):
     gid = GIDS.get(key)
     if not gid: return [], 0
     
     now = time.time()
-    # Check cache unless force is requested
+    # 1. Check memory cache first
     if not force and key in CACHE and (now - CACHE[key]['time']) < CACHE_TTL:
         return CACHE[key]['data'], CACHE[key]['time']
         
+    # 2. Check disk cache if memory cache is empty
+    if not force and key not in CACHE:
+        disk_data, disk_time = _get_persistent_cache(key)
+        if disk_data and (now - disk_time) < CACHE_TTL:
+            CACHE[key] = {'time': disk_time, 'data': disk_data}
+            return disk_data, disk_time
+            
     current_sheet_id = ODO_SHEET_ID if key == "odo_sheet" else SHEET_ID
     url = f"https://docs.google.com/spreadsheets/d/{current_sheet_id}/export?format=csv&gid={gid}"
     data = []
@@ -302,6 +349,7 @@ def read_csv(key: str, force: bool = False):
                             cleaned_row[new_k] = v # Bổ sung thêm bản sao với key tiếng Việt chuẩn
                     data.append(cleaned_row)
         CACHE[key] = {'time': now, 'data': data}
+        _save_persistent_cache(key, data, now)
         print(f"[CACHE] Fetched and cached {key} from Google Sheets. (Force: {force})")
         return data, now
     except Exception as e:
@@ -309,6 +357,11 @@ def read_csv(key: str, force: bool = False):
         # Fallback to cache if available, even if expired
         if key in CACHE:
             return CACHE[key]['data'], CACHE[key]['time']
+        # Fallback to disk cache if available
+        disk_data, disk_time = _get_persistent_cache(key)
+        if disk_data:
+            CACHE[key] = {'time': disk_time, 'data': disk_data}
+            return disk_data, disk_time
         return [], 0
 
 def parse_pct_vn(s: str) -> float:
