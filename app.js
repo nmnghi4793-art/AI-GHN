@@ -4757,10 +4757,17 @@ async function initLogin() {
     const profileWrapper = document.getElementById('profile-wrapper');
     const appContainer = document.getElementById('app-container');
 
+    // Kiểm tra tính tương thích của HTML: nếu thiếu các phần tử profile, coi như tự động hoàn thành để tránh trắng trang
+    const hasProfileElements = document.getElementById('profile-id-ghn') && 
+                               document.getElementById('profile-ho-ten') && 
+                               document.getElementById('profile-kho') && 
+                               document.getElementById('profile-submit-btn');
+
     if (isAlreadyLoggedIn) {
         if (loginWrapper) loginWrapper.style.display = 'none';
         
-        if (isProfileCompleted) {
+        // Nếu đã hoàn thành thông tin cá nhân, hoặc file HTML cũ chưa cập nhật các thẻ profile -> cho vào thẳng dashboard
+        if (isProfileCompleted || !hasProfileElements) {
             if (profileWrapper) profileWrapper.style.display = 'none';
             if (appContainer) appContainer.style.display = 'flex';
             // Khởi chạy dashboard
@@ -4851,130 +4858,147 @@ function setupLoginForm() {
 }
 
 async function setupProfileForm() {
-    const idInput = document.getElementById('profile-id-ghn');
-    const nameInput = document.getElementById('profile-ho-ten');
-    const khoInput = document.getElementById('profile-kho');
-    const datalist = document.getElementById('profile-kho-list');
-    const submitBtn = document.getElementById('profile-submit-btn');
-    const errorEl = document.getElementById('profile-error');
-    const errorTextEl = document.getElementById('profile-error-text');
-
-    if (!submitBtn) return;
-
-    // Tự động điền dữ liệu cũ từ localStorage
-    if (idInput && !idInput.value) idInput.value = localStorage.getItem('ghn_id_ghn') || '';
-    if (nameInput && !nameInput.value) nameInput.value = localStorage.getItem('ghn_ho_ten') || '';
-    if (khoInput && !khoInput.value) khoInput.value = localStorage.getItem('ghn_kho_phong') || '';
-
-    // Load danh sách kho để hiển thị autocomplete
     try {
-        const token = getApiToken();
-        const resp = await fetch(`${API}/xe-van-hanh/meta`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data && data.kho_list) {
-                allowedKhosList = data.kho_list;
-                if (datalist) {
-                    datalist.innerHTML = data.kho_list.map(k => `<option value="${k}"></option>`).join('') + '<option value="Phòng ban khác"></option>';
-                }
-            }
-        }
-    } catch (e) {
-        console.error('[PROFILE] Failed to load warehouses:', e);
-    }
+        const idInput = document.getElementById('profile-id-ghn');
+        const nameInput = document.getElementById('profile-ho-ten');
+        const khoInput = document.getElementById('profile-kho');
+        const datalist = document.getElementById('profile-kho-list');
+        const submitBtn = document.getElementById('profile-submit-btn');
+        const errorEl = document.getElementById('profile-error');
+        const errorTextEl = document.getElementById('profile-error-text');
 
-    // Chỉ cho phép nhập số ở ô ID GHN
-    if (idInput) {
-        idInput.oninput = () => {
-            idInput.value = idInput.value.replace(/\D/g, '');
-        };
-    }
+        if (!submitBtn) return;
 
-    submitBtn.onclick = async () => {
-        const idVal = idInput.value.trim();
-        const nameVal = nameInput.value.trim();
-        const khoVal = khoInput.value.trim();
+        // Tự động điền dữ liệu cũ từ localStorage
+        if (idInput && !idInput.value) idInput.value = localStorage.getItem('ghn_id_ghn') || '';
+        if (nameInput && !nameInput.value) nameInput.value = localStorage.getItem('ghn_ho_ten') || '';
+        if (khoInput && !khoInput.value) khoInput.value = localStorage.getItem('ghn_kho_phong') || '';
 
-        if (errorEl) errorEl.style.display = 'none';
-
-        if (!idVal || !/^\d+$/.test(idVal)) {
-            showError('ID GHN bắt buộc nhập và chỉ gồm các chữ số.');
-            idInput.focus();
-            return;
-        }
-
-        if (!nameVal) {
-            showError('Vui lòng nhập Họ và Tên.');
-            nameInput.focus();
-            return;
-        }
-
-        if (!khoVal) {
-            showError('Vui lòng nhập Tên Kho hoặc "Phòng ban khác".');
-            khoInput.focus();
-            return;
-        }
-
-        const isProvinceOther = khoVal === 'Phòng ban khác';
-        const isValidKho = allowedKhosList.includes(khoVal);
-        
-        if (!isProvinceOther && !isValidKho) {
-            showError('Tên Kho không hợp lệ hoặc không có trong danh sách. Vui lòng chọn từ gợi ý hoặc nhập chính xác: Phòng ban khác');
-            khoInput.focus();
-            return;
-        }
-
-        const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
-        const loaiTruyCap = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'Truy cập admin bằng key' : 'Truy cập thường';
-
+        // Load danh sách kho để hiển thị autocomplete
         try {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
-            
             const token = getApiToken();
-            const resp = await fetch(`${API}/auth/log-login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    id_ghn: idVal,
-                    ho_ten: nameVal,
-                    kho_phong_ban: khoVal,
-                    loai_truy_cap: loaiTruyCap
-                })
+            const resp = await fetch(`${API}/xe-van-hanh/meta`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
+            if (resp.status === 401 || resp.status === 403) {
+                // Token hết hạn -> Buộc logout để đăng nhập lại
+                console.warn('[PROFILE] Auth token expired, redirecting to login page');
+                clearApiToken();
+                localStorage.removeItem('ghn_logged_in');
+                window.location.reload();
+                return;
+            }
             if (resp.ok) {
-                // Lưu lại thông tin cho lần đăng nhập sau
-                localStorage.setItem('ghn_id_ghn', idVal);
-                localStorage.setItem('ghn_ho_ten', nameVal);
-                localStorage.setItem('ghn_kho_phong', khoVal);
-                
-                sessionStorage.setItem('ghn_profile_completed', 'true');
-                showToast('✅ Đăng nhập ghi nhận thành công!', 'success');
-                initLogin();
+                const data = await resp.json();
+                if (data && data.kho_list) {
+                    allowedKhosList = data.kho_list;
+                    if (datalist) {
+                        datalist.innerHTML = data.kho_list.map(k => `<option value="${k}"></option>`).join('') + '<option value="Phòng ban khác"></option>';
+                    }
+                }
             } else {
-                const errJson = await resp.json();
-                showError(errJson.detail || 'Không thể lưu nhật ký đăng nhập. Vui lòng thử lại.');
+                console.warn('[PROFILE] Failed to load warehouses, status:', resp.status);
             }
         } catch (e) {
-            console.error('[PROFILE SUBMIT ERROR]', e);
-            showError('Lỗi kết nối đến máy chủ. Vui lòng kiểm tra mạng.');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
+            console.error('[PROFILE] Failed to load warehouses:', e);
         }
-    };
 
-    function showError(msg) {
-        if (errorEl && errorTextEl) {
-            errorTextEl.textContent = msg;
-            errorEl.style.display = 'flex';
+        // Chỉ cho phép nhập số ở ô ID GHN
+        if (idInput) {
+            idInput.oninput = () => {
+                idInput.value = idInput.value.replace(/\D/g, '');
+            };
         }
+
+        submitBtn.onclick = async () => {
+            const idVal = idInput.value.trim();
+            const nameVal = nameInput.value.trim();
+            const khoVal = khoInput.value.trim();
+
+            if (errorEl) errorEl.style.display = 'none';
+
+            if (!idVal || !/^\d+$/.test(idVal)) {
+                showError('ID GHN bắt buộc nhập và chỉ gồm các chữ số.');
+                idInput.focus();
+                return;
+            }
+
+            if (!nameVal) {
+                showError('Vui lòng nhập Họ và Tên.');
+                nameInput.focus();
+                return;
+            }
+
+            if (!khoVal) {
+                showError('Vui lòng nhập Tên Kho hoặc "Phòng ban khác".');
+                khoInput.focus();
+                return;
+            }
+
+            const isProvinceOther = khoVal === 'Phòng ban khác';
+            const isValidKho = allowedKhosList.includes(khoVal);
+            
+            // Nếu danh sách kho trống (do lỗi mạng), bỏ qua validation kho để không chặn người dùng
+            const isKhoListEmpty = allowedKhosList.length === 0;
+
+            if (!isProvinceOther && !isValidKho && !isKhoListEmpty) {
+                showError('Tên Kho không hợp lệ hoặc không có trong danh sách. Vui lòng chọn từ gợi ý hoặc nhập chính xác: Phòng ban khác');
+                khoInput.focus();
+                return;
+            }
+
+            const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
+            const loaiTruyCap = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'Truy cập admin bằng key' : 'Truy cập thường';
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
+                
+                const token = getApiToken();
+                const resp = await fetch(`${API}/auth/log-login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        id_ghn: idVal,
+                        ho_ten: nameVal,
+                        kho_phong_ban: khoVal,
+                        loai_truy_cap: loaiTruyCap
+                    })
+                });
+
+                if (resp.ok) {
+                    // Lưu lại thông tin cho lần đăng nhập sau
+                    localStorage.setItem('ghn_id_ghn', idVal);
+                    localStorage.setItem('ghn_ho_ten', nameVal);
+                    localStorage.setItem('ghn_kho_phong', khoVal);
+                    
+                    sessionStorage.setItem('ghn_profile_completed', 'true');
+                    showToast('✅ Đăng nhập ghi nhận thành công!', 'success');
+                    initLogin();
+                } else {
+                    const errJson = await resp.json();
+                    showError(errJson.detail || 'Không thể lưu nhật ký đăng nhập. Vui lòng thử lại.');
+                }
+            } catch (e) {
+                console.error('[PROFILE SUBMIT ERROR]', e);
+                showError('Lỗi kết nối đến máy chủ. Vui lòng kiểm tra mạng.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
+            }
+        };
+
+        function showError(msg) {
+            if (errorEl && errorTextEl) {
+                errorTextEl.textContent = msg;
+                errorEl.style.display = 'flex';
+            }
+        }
+    } catch (err) {
+        console.error('[PROFILE FORM CRASH]', err);
     }
 }
 
@@ -7744,3 +7768,28 @@ function exportLoginLogsExcel() {
     XLSX.writeFile(wb, filename);
     showToast(`✅ Đã xuất dữ liệu log đăng nhập ra file ${filename}`, 'success');
 }
+
+// =====================================================================
+// GLOBAL ERROR BOUNDARY HANDLER
+// =====================================================================
+window.addEventListener('error', function(event) {
+    console.error('Global Error Boundary caught error:', event.error || event.message);
+    const boundary = document.getElementById('app-error-boundary');
+    const msgEl = document.getElementById('app-error-msg');
+    if (boundary) {
+        boundary.style.display = 'flex';
+        // Hide standard containers to clean viewport
+        const loginWrapper = document.getElementById('login-wrapper');
+        const profileWrapper = document.getElementById('profile-wrapper');
+        const appContainer = document.getElementById('app-container');
+        if (loginWrapper) loginWrapper.style.display = 'none';
+        if (profileWrapper) profileWrapper.style.display = 'none';
+        if (appContainer) appContainer.style.display = 'none';
+
+        if (msgEl) {
+            const detailMsg = (event.error && event.error.message) ? event.error.message : event.message;
+            msgEl.innerHTML = `Không tải được bước nhập thông tin cá nhân hoặc ứng dụng.<br>` +
+                              `<small style="opacity:0.6;font-family:monospace;font-size:0.75rem;">Chi tiết: ${detailMsg}</small>`;
+        }
+    }
+});

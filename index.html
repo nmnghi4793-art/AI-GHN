@@ -14,6 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --orange: #FF5200;
@@ -165,6 +166,67 @@
     </div>
 </div>
 
+<!-- ===== GLOBAL ERROR BOUNDARY UI ===== -->
+<div id="app-error-boundary" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.95);z-index:9999;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);">
+    <div style="background:var(--bg-card, #1e293b);padding:32px;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);max-width:500px;width:100%;text-align:center;border:1px solid var(--border-card, #334155);">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size:48px;color:#ef4444;margin-bottom:16px;"></i>
+        <h3 style="color:var(--text, #f8fafc);margin-bottom:12px;font-size:1.25rem;font-weight:700;">Đã xảy ra lỗi hệ thống</h3>
+        <p id="app-error-msg" style="color:var(--text3, #94a3b8);font-size:0.9rem;line-height:1.6;margin-bottom:24px;">Không tải được bước nhập thông tin cá nhân hoặc ứng dụng. Vui lòng tải lại hoặc liên hệ quản trị.</p>
+        <button onclick="window.location.reload()" class="btn btn-primary" style="margin:0 auto;display:inline-flex;align-items:center;gap:8px;padding:10px 20px;">
+            <i class="fa-solid fa-rotate-right"></i> Tải lại trang
+        </button>
+    </div>
+</div>
+
+<!-- ===== PROFILE INFO SCREEN ===== -->
+<div class="login-wrapper" id="profile-wrapper" style="display: none;">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <i class="fa-solid fa-address-card"></i>
+            </div>
+            <div class="login-brand-text">Thông tin <span>Cá nhân</span></div>
+            <div class="login-title">Vui lòng điền thông tin để tiếp tục</div>
+        </div>
+        <div class="login-form">
+            <div class="login-error" id="profile-error" style="display: none;">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span id="profile-error-text">Vui lòng điền đầy đủ và đúng thông tin</span>
+            </div>
+            <div class="input-group">
+                <label for="profile-id-ghn">ID GHN <span style="color: red;">*</span></label>
+                <div class="input-field-wrap">
+                    <i class="fa-solid fa-id-badge"></i>
+                    <input type="text" id="profile-id-ghn" class="login-input" placeholder="VD: 245445" required>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="profile-ho-ten">Họ và Tên <span style="color: red;">*</span></label>
+                <div class="input-field-wrap">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <input type="text" id="profile-ho-ten" class="login-input" placeholder="VD: Nguyễn Minh Nghị" required>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="profile-kho">Tên Kho hoặc Phòng ban khác <span style="color: red;">*</span></label>
+                <div class="input-field-wrap">
+                    <i class="fa-solid fa-warehouse"></i>
+                    <input type="text" id="profile-kho" class="login-input" placeholder="Chọn Kho hoặc nhập Phòng ban khác" list="profile-kho-list" required autocomplete="off">
+                    <datalist id="profile-kho-list">
+                        <!-- Loaded dynamically -->
+                    </datalist>
+                </div>
+                <div style="font-size: 11px; color: var(--text3); margin-top: 4px;">
+                    Nhập đúng tên kho của bạn hoặc nhập chính xác: <strong>Phòng ban khác</strong>
+                </div>
+            </div>
+            <button type="button" class="login-btn" id="profile-submit-btn">
+                Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="app-container" id="app-container" style="display: none;">
     <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar" id="sidebar">
@@ -211,6 +273,9 @@
             </a>
             <a href="#" class="nav-item" data-section="xe-daily" id="nav-xe-daily">
                 <i class="fa-solid fa-truck-moving" style="color:var(--orange)"></i><span>Xe Vận Hành Daily</span>
+            </a>
+            <a href="#" class="nav-item" data-section="login-logs" id="nav-login-logs" style="display: none;">
+                <i class="fa-solid fa-history" style="color:#22c55e"></i><span>Log Đăng Nhập</span>
             </a>
         </nav>
 
@@ -1894,6 +1959,109 @@
                 </div>
             </div>
 
+        </section>
+
+        <!-- ===== SECTION: LOG ĐĂNG NHẬP ===== -->
+        <section class="section" id="section-login-logs">
+            <!-- Overview Cards -->
+            <div class="xe-daily-overview-cards" id="login-logs-cards">
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-total-today">--</div>
+                        <div class="overview-card-label">Lượt đăng nhập hôm nay</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-unique-today">--</div>
+                        <div class="overview-card-label">Tổng ID hôm nay</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-top-dept" style="font-size: 1rem; line-height: 1.2;">--</div>
+                        <div class="overview-card-label">Kho/phòng ban nhiều nhất</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                        <i class="fa-solid fa-user-clock"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-top-user" style="font-size: 1rem; line-height: 1.2;">--</div>
+                        <div class="overview-card-label">Đăng nhập nhiều lần nhất</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng lịch sử và Bộ lọc -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-history" style="color:var(--green)"></i> Nhật Ký Đăng Nhập Hệ Thống</h3>
+                    <span class="count-badge" id="log-history-count">-- bản ghi</span>
+                </div>
+
+                <!-- Bộ lọc -->
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Ngày:</label>
+                        <select id="log-filter-date" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:130px">
+                            <option value="">Tất cả ngày</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">ID GHN:</label>
+                        <input type="text" id="log-filter-id" oninput="filterLoginLogs()" placeholder="Tìm ID..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:100px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Họ và Tên:</label>
+                        <input type="text" id="log-filter-name" oninput="filterLoginLogs()" placeholder="Tìm tên..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:150px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Kho / Phòng ban:</label>
+                        <select id="log-filter-dept" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:160px">
+                            <option value="">Tất cả Kho / Phòng ban</option>
+                        </select>
+                    </div>
+                    <button onclick="loadLoginLogs()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px">
+                        <i class="fa-solid fa-rotate-right"></i> Tải lại
+                    </button>
+                    <button onclick="exportLoginLogsExcel()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px;color:var(--green);border-color:var(--green)">
+                        <i class="fa-solid fa-file-excel"></i> Tải Excel
+                    </button>
+                </div>
+
+                <div class="table-scroll" style="max-height:480px;overflow-x:auto">
+                    <table class="data-table" id="log-history-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:50px">STT</th>
+                                <th style="min-width:90px">Ngày</th>
+                                <th style="min-width:90px">Thời gian</th>
+                                <th style="min-width:90px">ID GHN</th>
+                                <th style="min-width:150px">Họ và Tên</th>
+                                <th style="min-width:200px">Tên Kho / Phòng ban</th>
+                                <th style="min-width:80px">Lượt trong ngày</th>
+                                <th style="min-width:140px">Loại truy cập</th>
+                                <th style="min-width:120px">IP</th>
+                                <th style="min-width:200px">User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-login-logs">
+                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
     </main>
 </div>
