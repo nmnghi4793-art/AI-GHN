@@ -3575,6 +3575,7 @@ function switchCbrTab(tab) {
 
 // ---- NAVIGATION ----
 const SECTION_META = {
+    'login-logs':   ['Log Đăng Nhập',            'Nhật ký đăng nhập hệ thống của nhân viên vận hành'],
     overview:       ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
     cbr:            ['Cảnh Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
     warnings:       ['Cảnh Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
@@ -3647,6 +3648,10 @@ function showSection(name) {
     // Xe Vận Hành Daily: load meta + records on first visit
     if (name === 'xe-daily') {
         renderXeDailySection();
+    }
+    // Log Đăng Nhập: load data
+    if (name === 'login-logs') {
+        loadLoginLogs();
     }
 }
 
@@ -3827,6 +3832,10 @@ function checkAdminAccess() {
         localStorage.removeItem('ghn_admin_key');
     }
     const telegramBtn = document.getElementById('telegram-btn');
+    const loginLogsBtn = document.getElementById('nav-login-logs');
+
+    const ADMIN_KEY_REQUIRED = 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc';
+    const isAdmin = savedKey === ADMIN_KEY_REQUIRED;
 
     if (telegramBtn) {
         // Hiển thị nút Telegram nếu có admin key hợp lệ (kiểm tra ở backend khi gửi)
@@ -3834,6 +3843,14 @@ function checkAdminAccess() {
             telegramBtn.style.display = 'flex';
         } else {
             telegramBtn.style.display = 'none';
+        }
+    }
+
+    if (loginLogsBtn) {
+        if (isAdmin) {
+            loginLogsBtn.style.display = 'flex';
+        } else {
+            loginLogsBtn.style.display = 'none';
         }
     }
 }
@@ -4730,24 +4747,36 @@ function renderOverloadTable() {
 }
 
 // ---- LOGIN & LOGOUT SYSTEM ----
-function initLogin() {
+let allowedKhosList = []; // Danh sách kho tải từ API để validate thông tin cá nhân
+
+async function initLogin() {
     const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
+    const isProfileCompleted = sessionStorage.getItem('ghn_profile_completed') === 'true';
+    
     const loginWrapper = document.getElementById('login-wrapper');
+    const profileWrapper = document.getElementById('profile-wrapper');
     const appContainer = document.getElementById('app-container');
 
     if (isAlreadyLoggedIn) {
         if (loginWrapper) loginWrapper.style.display = 'none';
-        if (appContainer) appContainer.style.display = 'flex';
-        // Set default section title immediately
-        showSection('overview');
-        // Start dashboard loading
-        fetchAll();
-        startSyncTimer();
-        checkAdminAccess();
-        setupLogout();
-
+        
+        if (isProfileCompleted) {
+            if (profileWrapper) profileWrapper.style.display = 'none';
+            if (appContainer) appContainer.style.display = 'flex';
+            // Khởi chạy dashboard
+            showSection('overview');
+            fetchAll();
+            startSyncTimer();
+            checkAdminAccess();
+            setupLogout();
+        } else {
+            if (appContainer) appContainer.style.display = 'none';
+            if (profileWrapper) profileWrapper.style.display = 'flex';
+            setupProfileForm();
+        }
     } else {
         if (loginWrapper) loginWrapper.style.display = 'flex';
+        if (profileWrapper) profileWrapper.style.display = 'none';
         if (appContainer) appContainer.style.display = 'none';
         setupLoginForm();
     }
@@ -4761,7 +4790,6 @@ function setupLoginForm() {
     const togglePasswordEye = document.getElementById('toggle-password-eye');
 
     if (togglePasswordEye && passwordInput) {
-        // Toggle password visibility
         togglePasswordEye.onclick = () => {
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
@@ -4778,7 +4806,6 @@ function setupLoginForm() {
         const password = passwordInput.value;
 
         try {
-            // Gọi backend để xác thực — không lưu mật khẩu trong JS
             const resp = await fetch(`${API}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -4788,7 +4815,7 @@ function setupLoginForm() {
             if (resp.ok) {
                 const json = await resp.json();
                 if (json.token) {
-                    setApiToken(json.token);       // Lưu token vào sessionStorage
+                    setApiToken(json.token);
                     localStorage.setItem('ghn_logged_in', 'true');
                 }
                 if (loginError) loginError.style.display = 'none';
@@ -4811,7 +4838,6 @@ function setupLoginForm() {
         submitBtn.onclick = handleLoginSubmit;
     }
 
-    // Support enter key submit
     const inputs = [usernameInput, passwordInput];
     inputs.forEach(input => {
         if (input) {
@@ -4824,6 +4850,134 @@ function setupLoginForm() {
     });
 }
 
+async function setupProfileForm() {
+    const idInput = document.getElementById('profile-id-ghn');
+    const nameInput = document.getElementById('profile-ho-ten');
+    const khoInput = document.getElementById('profile-kho');
+    const datalist = document.getElementById('profile-kho-list');
+    const submitBtn = document.getElementById('profile-submit-btn');
+    const errorEl = document.getElementById('profile-error');
+    const errorTextEl = document.getElementById('profile-error-text');
+
+    if (!submitBtn) return;
+
+    // Tự động điền dữ liệu cũ từ localStorage
+    if (idInput && !idInput.value) idInput.value = localStorage.getItem('ghn_id_ghn') || '';
+    if (nameInput && !nameInput.value) nameInput.value = localStorage.getItem('ghn_ho_ten') || '';
+    if (khoInput && !khoInput.value) khoInput.value = localStorage.getItem('ghn_kho_phong') || '';
+
+    // Load danh sách kho để hiển thị autocomplete
+    try {
+        const token = getApiToken();
+        const resp = await fetch(`${API}/xe-van-hanh/meta`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.kho_list) {
+                allowedKhosList = data.kho_list;
+                if (datalist) {
+                    datalist.innerHTML = data.kho_list.map(k => `<option value="${k}"></option>`).join('') + '<option value="Phòng ban khác"></option>';
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[PROFILE] Failed to load warehouses:', e);
+    }
+
+    // Chỉ cho phép nhập số ở ô ID GHN
+    if (idInput) {
+        idInput.oninput = () => {
+            idInput.value = idInput.value.replace(/\D/g, '');
+        };
+    }
+
+    submitBtn.onclick = async () => {
+        const idVal = idInput.value.trim();
+        const nameVal = nameInput.value.trim();
+        const khoVal = khoInput.value.trim();
+
+        if (errorEl) errorEl.style.display = 'none';
+
+        if (!idVal || !/^\d+$/.test(idVal)) {
+            showError('ID GHN bắt buộc nhập và chỉ gồm các chữ số.');
+            idInput.focus();
+            return;
+        }
+
+        if (!nameVal) {
+            showError('Vui lòng nhập Họ và Tên.');
+            nameInput.focus();
+            return;
+        }
+
+        if (!khoVal) {
+            showError('Vui lòng nhập Tên Kho hoặc "Phòng ban khác".');
+            khoInput.focus();
+            return;
+        }
+
+        const isProvinceOther = khoVal === 'Phòng ban khác';
+        const isValidKho = allowedKhosList.includes(khoVal);
+        
+        if (!isProvinceOther && !isValidKho) {
+            showError('Tên Kho không hợp lệ hoặc không có trong danh sách. Vui lòng chọn từ gợi ý hoặc nhập chính xác: Phòng ban khác');
+            khoInput.focus();
+            return;
+        }
+
+        const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
+        const loaiTruyCap = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'Truy cập admin bằng key' : 'Truy cập thường';
+
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
+            
+            const token = getApiToken();
+            const resp = await fetch(`${API}/auth/log-login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_ghn: idVal,
+                    ho_ten: nameVal,
+                    kho_phong_ban: khoVal,
+                    loai_truy_cap: loaiTruyCap
+                })
+            });
+
+            if (resp.ok) {
+                // Lưu lại thông tin cho lần đăng nhập sau
+                localStorage.setItem('ghn_id_ghn', idVal);
+                localStorage.setItem('ghn_ho_ten', nameVal);
+                localStorage.setItem('ghn_kho_phong', khoVal);
+                
+                sessionStorage.setItem('ghn_profile_completed', 'true');
+                showToast('✅ Đăng nhập ghi nhận thành công!', 'success');
+                initLogin();
+            } else {
+                const errJson = await resp.json();
+                showError(errJson.detail || 'Không thể lưu nhật ký đăng nhập. Vui lòng thử lại.');
+            }
+        } catch (e) {
+            console.error('[PROFILE SUBMIT ERROR]', e);
+            showError('Lỗi kết nối đến máy chủ. Vui lòng kiểm tra mạng.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
+        }
+    };
+
+    function showError(msg) {
+        if (errorEl && errorTextEl) {
+            errorTextEl.textContent = msg;
+            errorEl.style.display = 'flex';
+        }
+    }
+}
+
 function setupLogout() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -4831,6 +4985,7 @@ function setupLogout() {
             e.preventDefault();
             clearApiToken();
             localStorage.removeItem('ghn_logged_in');
+            sessionStorage.removeItem('ghn_profile_completed');
             window.location.reload();
         };
     }
@@ -7184,7 +7339,6 @@ function onXedImportFileChange() {
 
 // Download a sample CSV file with correct headers and one example row
 function downloadXeDailySampleFile() {
-    const BOM = '\uFEFF';
     const headers = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải'];
     const exampleRow = [
         '17/07/2026',
@@ -7195,33 +7349,21 @@ function downloadXeDailySampleFile() {
         'Trần Xuân Phúc',
         '1400'
     ];
-    const notes = [
-        '# Ghi chú:',
-        '# - Ngày: định dạng dd/mm/yyyy (từ 01/07/2026 đến hôm nay)',
-        '# - Loại ghi nhận: chỉ nhận Xe tăng cường hoặc Xe không hoạt động',
-        '# - Số lượng xe: số nguyên từ 1 đến 5',
-        '# - Trọng tải: nhập số kg (ví dụ 1400 = 1.4 tấn)',
-        '#'
+    
+    if (typeof XLSX === 'undefined') {
+        showToast('❌ Chưa tải được thư viện xuất Excel (SheetJS). Vui lòng tải lại trang.', 'error');
+        return;
+    }
+    
+    const wb = XLSX.utils.book_new();
+    const ws_data = [
+        headers,
+        exampleRow
     ];
-    const escape = v => {
-        const s = String(v ?? '');
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-            return '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-    };
-    const lines = [...notes, headers.map(escape).join(','), exampleRow.map(escape).join(',')];
-    const csvContent = BOM + lines.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'mau-import-xe-van-hanh-daily.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Đã tải file mẫu import xe vận hành.', 'success');
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Sample");
+    XLSX.writeFile(wb, "mau-import-xe-van-hanh-daily.xlsx");
+    showToast('✅ Đã tải file mẫu import xe vận hành (.xlsx).', 'success');
 }
 
 // Import file: read, send to backend, show result
@@ -7389,4 +7531,216 @@ function _downloadXedImportErrors() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showToast('Đã tải file báo lỗi: ' + filename, 'success');
+}
+
+
+// =====================================================================
+// LOGIN LOGS — FRONTEND MANAGEMENT
+// =====================================================================
+
+let allLoginLogsData = []; // Lưu toàn bộ dữ liệu log đăng nhập để filter ở client
+
+async function loadLoginLogs() {
+    const tbody = document.getElementById('tbody-login-logs');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu...</td></tr>`;
+
+    try {
+        const savedKey = sessionStorage.getItem('ghn_admin_key')
+                      || localStorage.getItem('ghn_admin_key') || '';
+        
+        const resp = await fetch(`${API}/login-logs`, {
+            method: 'GET',
+            headers: {
+                'X-Admin-Key': savedKey
+            }
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--red)">Lỗi: ${err.detail || 'Không có quyền truy cập.'}</td></tr>`;
+            return;
+        }
+
+        const res = await resp.json();
+        allLoginLogsData = res.data || [];
+        
+        // Populate filter options
+        _populateLogFilters(allLoginLogsData);
+        
+        // Render table
+        renderLoginLogsTable(allLoginLogsData);
+        
+        // Render overview cards
+        _renderLoginLogsOverview(allLoginLogsData);
+
+    } catch (err) {
+        console.error('[LOGIN LOG] Load error:', err);
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--red)">Lỗi kết nối. Vui lòng tải lại.</td></tr>`;
+    }
+}
+
+function renderLoginLogsTable(records) {
+    const tbody = document.getElementById('tbody-login-logs');
+    const countEl = document.getElementById('log-history-count');
+    if (!tbody) return;
+
+    if (countEl) countEl.textContent = `${records.length} bản ghi`;
+
+    if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Không tìm thấy log đăng nhập nào phù hợp.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = records.map((r, idx) => {
+        const loaiBadge = r.loai_truy_cap === 'Truy cập admin bằng key'
+            ? `<span class="badge-tang-cuong" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid #8b5cf6;"><i class="fa-solid fa-user-shield"></i> Admin (Key)</span>`
+            : `<span class="badge-off-xe" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid #3b82f6;"><i class="fa-solid fa-user"></i> User</span>`;
+
+        return `<tr>
+            <td style="text-align:center;font-weight:700;color:var(--text3)">${idx + 1}</td>
+            <td style="font-weight:600;color:var(--cyan);white-space:nowrap">${escapeHtml(r.ngay || '--')}</td>
+            <td style="color:var(--text2);white-space:nowrap">${escapeHtml(r.thoi_gian || '--')}</td>
+            <td style="font-family:monospace;font-weight:700">${escapeHtml(r.id_ghn || '--')}</td>
+            <td style="font-weight:600;color:var(--text)">${escapeHtml(r.ho_ten || '--')}</td>
+            <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(r.kho_phong_ban || '--')}</td>
+            <td style="text-align:center;font-weight:700">${r.so_lan_trong_ngay || 1}</td>
+            <td>${loaiBadge}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:var(--text3)">${escapeHtml(r.ip || '--')}</td>
+            <td style="font-size:0.75rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.user_agent || '')}">${escapeHtml(r.user_agent || '--')}</td>
+        </tr>`;
+    }).join('');
+}
+
+function _renderLoginLogsOverview(records) {
+    const today = _getTodayVN();
+    const todayLogs = records.filter(r => r.ngay === today);
+    
+    const totalToday = todayLogs.length;
+    const uniqueIds = new Set(todayLogs.map(r => r.id_ghn)).size;
+    
+    const deptMap = {};
+    todayLogs.forEach(r => {
+        if (r.kho_phong_ban) {
+            deptMap[r.kho_phong_ban] = (deptMap[r.kho_phong_ban] || 0) + 1;
+        }
+    });
+    let topDept = '--';
+    let topDeptVal = 0;
+    for (const [dept, val] of Object.entries(deptMap)) {
+        if (val > topDeptVal) {
+            topDeptVal = val;
+            topDept = dept;
+        }
+    }
+    const cleanTopDept = topDept.replace(/Kho Giao Hàng Nặng[\\s\\-]+/gi, '').trim();
+    
+    const userMap = {};
+    todayLogs.forEach(r => {
+        if (r.id_ghn) {
+            const key = `${r.ho_ten} (${r.id_ghn})`;
+            userMap[key] = (userMap[key] || 0) + 1;
+        }
+    });
+    let topUser = '--';
+    let topUserVal = 0;
+    for (const [user, val] of Object.entries(userMap)) {
+        if (val > topUserVal) {
+            topUserVal = val;
+            topUser = user;
+        }
+    }
+
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+
+    setVal('log-val-total-today', totalToday);
+    setVal('log-val-unique-today', uniqueIds);
+    setVal('log-val-top-dept', topDeptVal > 0 ? `${cleanTopDept} (${topDeptVal} lượt)` : '--');
+    setVal('log-val-top-user', topUserVal > 0 ? `${topUser} (${topUserVal} lần)` : '--');
+}
+
+function _populateLogFilters(records) {
+    const dateSel = document.getElementById('log-filter-date');
+    const deptSel = document.getElementById('log-filter-dept');
+
+    if (dateSel) {
+        const currVal = dateSel.value;
+        const dates = [...new Set(records.map(r => r.ngay).filter(Boolean))].sort((a, b) => {
+            const toNum = s => {
+                const [d, m, y] = (s || '').split('/');
+                return parseInt(y || 0) * 10000 + parseInt(m || 0) * 100 + parseInt(d || 0);
+            };
+            return toNum(b) - toNum(a);
+        });
+        dateSel.innerHTML = '<option value="">Tất cả ngày</option>' + 
+            dates.map(d => `<option value="${d}"${d === currVal ? ' selected' : ''}>${d}</option>`).join('');
+    }
+
+    if (deptSel) {
+        const currVal = deptSel.value;
+        const depts = [...new Set(records.map(r => r.kho_phong_ban).filter(Boolean))].sort();
+        deptSel.innerHTML = '<option value="">Tất cả Kho / Phòng ban</option>' +
+            depts.map(d => `<option value="${d}"${d === currVal ? ' selected' : ''}>${escapeHtml(d)}</option>`).join('');
+    }
+}
+
+function filterLoginLogs() {
+    const dateVal = document.getElementById('log-filter-date')?.value || '';
+    const idVal = document.getElementById('log-filter-id')?.value.trim() || '';
+    const nameVal = document.getElementById('log-filter-name')?.value.trim().toLowerCase() || '';
+    const deptVal = document.getElementById('log-filter-dept')?.value || '';
+
+    let filtered = allLoginLogsData;
+
+    if (dateVal) {
+        filtered = filtered.filter(r => r.ngay === dateVal);
+    }
+    if (idVal) {
+        filtered = filtered.filter(r => String(r.id_ghn).includes(idVal));
+    }
+    if (nameVal) {
+        filtered = filtered.filter(r => String(r.ho_ten).toLowerCase().includes(nameVal));
+    }
+    if (deptVal) {
+        filtered = filtered.filter(r => r.kho_phong_ban === deptVal);
+    }
+
+    renderLoginLogsTable(filtered);
+}
+
+function exportLoginLogsExcel() {
+    if (typeof XLSX === 'undefined') {
+        showToast('❌ Thư viện SheetJS chưa được tải.', 'error');
+        return;
+    }
+
+    const tableRows = document.querySelectorAll('#tbody-login-logs tr');
+    if (!tableRows.length || tableRows[0].textContent.includes('Không tìm thấy') || tableRows[0].textContent.includes('Đang tải')) {
+        showToast('Không có dữ liệu để xuất.', 'warning');
+        return;
+    }
+
+    const headers = ['STT', 'Ngày', 'Thời gian', 'ID GHN', 'Họ và Tên', 'Tên Kho / Phòng ban', 'Số lần đăng nhập trong ngày', 'Loại truy cập', 'IP', 'User Agent'];
+    const data = [headers];
+
+    tableRows.forEach(row => {
+        const cols = row.querySelectorAll('td');
+        if (cols.length >= 10) {
+            data.push(Array.from(cols).map(c => c.textContent.trim()));
+        }
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "Login Logs");
+
+    const today = _getTodayVN().split('/').join('');
+    const filename = `log-dang-nhap-${today}.xlsx`;
+
+    XLSX.writeFile(wb, filename);
+    showToast(`✅ Đã xuất dữ liệu log đăng nhập ra file ${filename}`, 'success');
 }
