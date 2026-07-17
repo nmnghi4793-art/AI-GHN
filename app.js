@@ -6623,6 +6623,39 @@ function _getLast10Days() {
     return days;
 }
 
+// Trả về tất cả ngày từ 01/07/2026 đến hôm nay (giờ VN), format dd/mm/yyyy, sắp xếp mới nhất trước
+function _getDaysFromStart() {
+    const days = [];
+    // Today in Vietnam time (UTC+7)
+    const nowUtc = new Date();
+    const nowVn = new Date(nowUtc.getTime() + 7 * 3600 * 1000);
+    const todayY = nowVn.getUTCFullYear();
+    const todayM = nowVn.getUTCMonth(); // 0-indexed
+    const todayD = nowVn.getUTCDate();
+
+    // Start date: 01/07/2026
+    const start = new Date(Date.UTC(2026, 6, 1)); // month 6 = July
+    const end   = new Date(Date.UTC(todayY, todayM, todayD));
+
+    // Safety: if today is before 01/07/2026, fall back to today only
+    if (end < start) {
+        const dd = String(todayD).padStart(2, '0');
+        const mm = String(todayM + 1).padStart(2, '0');
+        return [`${dd}/${mm}/${todayY}`];
+    }
+
+    // Iterate from end down to start
+    const cur = new Date(end);
+    while (cur >= start) {
+        const dd = String(cur.getUTCDate()).padStart(2, '0');
+        const mm = String(cur.getUTCMonth() + 1).padStart(2, '0');
+        const yy = cur.getUTCFullYear();
+        days.push(`${dd}/${mm}/${yy}`);
+        cur.setUTCDate(cur.getUTCDate() - 1);
+    }
+    return days; // newest first
+}
+
 function _formatTimestamp(iso) {
     if (!iso) return '--';
     try {
@@ -6716,7 +6749,7 @@ function addXeDailyRow() {
     xeDailyRowCount++;
     const rowId = `r${xeDailyRowCount}`;
     const today = _getTodayVN();
-    const days = _getLast10Days();
+    const days = _getDaysFromStart();
 
     const rowEl = document.createElement('div');
     rowEl.className = 'xe-daily-row';
@@ -7023,10 +7056,10 @@ function _populateFilterDropdowns() {
     const dateSel = document.getElementById('xed-filter-date');
     if (dateSel) {
         const currentDate = dateSel.value;
-        const days10 = _getLast10Days();
-        // Add any dates from records not in last 10 days
+        const daysFromStart = _getDaysFromStart();
+        // Merge with any record dates that might be outside the range
         const recordDates = [...new Set(allRecords.map(r => r.ngay).filter(Boolean))];
-        const allDates = [...new Set([...days10, ...recordDates])].sort((a, b) => {
+        const allDates = [...new Set([...daysFromStart, ...recordDates])].sort((a, b) => {
             // Sort dd/mm/yyyy desc
             const toNum = s => {
                 const [d, m, y] = (s || '').split('/');
@@ -7073,5 +7106,57 @@ async function deleteXeDailyRecord(recordId) {
         console.error('[XE DAILY] Delete error:', err);
         showToast('Lỗi kết nối. Vui lòng thử lại.', 'error');
     }
+}
+
+// ---- Export history table to Excel ----
+function exportXeDailyExcel() {
+    const records = state.xeDailyRecords || [];
+    if (!records.length) {
+        showToast('Không có dữ liệu để xuất.', 'warning');
+        return;
+    }
+
+    // Build rows
+    const header = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải', 'Người nhập', 'Thời gian ghi nhận'];
+    const dataRows = records.map(r => [
+        r.ngay || '',
+        r.ten_kho || '',
+        r.loai || '',
+        r.so_luong_xe || 1,
+        r.bien_so_xe || '',
+        r.ten_ncc || '',
+        _trongTaiLabel(r.trong_tai) || (r.trong_tai ? `${r.trong_tai} kg` : ''),
+        r.nguoi_nhap || '',
+        _formatTimestamp(r.thoi_gian_ghi_nhan)
+    ]);
+
+    // Build CSV content with BOM for UTF-8 Vietnamese
+    const BOM = '\uFEFF';
+    const escape = v => {
+        const s = String(v ?? '');
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    };
+    const csvLines = [header, ...dataRows].map(row => row.map(escape).join(','));
+    const csvContent = BOM + csvLines.join('\n');
+
+    // Generate filename with today's date
+    const today = _getTodayVN().split('/').join(''); // ddmmyyyy
+    const filename = `xe-van-hanh-daily-${today}.csv`;
+
+    // Trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`✅ Đã xuất ${records.length} bản ghi ra file ${filename}`, 'success');
 }
 
