@@ -6693,23 +6693,26 @@ function filterB2BMapData() {
         tbody.innerHTML = filtered.map(item => {
             const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
             const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
-            const address = item.diaChi || item.dia_chi || item['\u0110\u1ecba ch\u1ec9 kho'] || 'Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9';
-            const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
+            const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+            const linkVal = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
             const hasCoords = !!(item.coords && item.coords.length === 2);
-            const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
+            
+            const isRealLink = linkVal && linkVal !== '#' && linkVal.toLowerCase() !== 'link';
+            const link = isRealLink ? linkVal : (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${item.coords[0]},${item.coords[1]}` : '');
+            const hasLink = !!link;
             
             const linkHtml = hasLink
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> M\u1edf b\u1ea3n \u0111\u1ed3</a>`
-                : `<span style="color:var(--text3)">Kh\u00f4ng c\u00f3 link</span>`;
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); font-weight:600;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở bản đồ</a>`
+                : `<span style="color:var(--text3)">Không có link</span>`;
                 
             let statusHtml = '';
             const mapStatus = item.mapStatus || item.map_status || '';
-            if (mapStatus === '\u0110\u00e3 hi\u1ec3n th\u1ecb tr\u00ean b\u1ea3n \u0111\u1ed3' || (hasLink && hasCoords)) {
-                statusHtml = `<span class="badge storing">\u0110\u00e3 hi\u1ec3n th\u1ecb tr\u00ean b\u1ea3n \u0111\u1ed3</span>`;
-            } else if (mapStatus === 'C\u00f3 link, ch\u01b0a l\u1ea5y \u0111\u01b0\u1ee3c v\u1ecb tr\u00ed' || (hasLink && !hasCoords)) {
-                statusHtml = `<span class="badge p2">C\u00f3 link, ch\u01b0a l\u1ea5y \u0111\u01b0\u1ee3c v\u1ecb tr\u00ed</span>`;
+            if (mapStatus === 'Đã hiển thị trên bản đồ' || (hasLink && hasCoords)) {
+                statusHtml = `<span class="badge storing">Đã hiển thị trên bản đồ</span>`;
+            } else if (mapStatus === 'Có link, chưa lấy được vị trí' || (hasLink && !hasCoords)) {
+                statusHtml = `<span class="badge p2">Có link, chưa lấy được vị trí</span>`;
             } else {
-                statusHtml = `<span class="badge p1">Ch\u01b0a c\u00f3 link</span>`;
+                statusHtml = `<span class="badge p1">Chưa có link</span>`;
             }
                 
             return `
@@ -6729,9 +6732,13 @@ function filterB2BMapData() {
     filtered.forEach(item => {
         const name = item.tenKho || item.ten_kho || item['Tên Kho GXT'] || '--';
         const id = item.idKho || item.id_kho || item['ID Kho'] || '--';
-        const address = item.diaChi || item.dia_chi || item['\u0110\u1ecba ch\u1ec9 kho'] || 'Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9';
-        const link = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
-        const hasLink = link && link !== '#' && link.toLowerCase() !== 'link';
+        const address = item.diaChi || item.dia_chi || item['Địa chỉ kho'] || 'Chưa có địa chỉ';
+        const linkVal = (item.linkGGM || item.googleMapsLink || item.link_ggm || item['Link GGM'] || '').trim();
+        const hasCoords = !!(item.coords && item.coords.length === 2);
+        
+        const isRealLink = linkVal && linkVal !== '#' && linkVal.toLowerCase() !== 'link';
+        const link = isRealLink ? linkVal : (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${item.coords[0]},${item.coords[1]}` : '');
+        const hasLink = !!link;
         const area = item.dienTich || item.dien_tich || '--';
         
         if (item.coords && item.coords.length === 2) {

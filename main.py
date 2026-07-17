@@ -836,6 +836,12 @@ def get_kho_gxt_xlsx_fallback():
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    output = None
+    read_method = "unknown"
+    headers_detected = []
+    first_5_k_vals = []
+    
+    # 1. Thử dùng Google Sheets API qua Service Account
     if os.path.exists(sa_path):
         try:
             from google.oauth2.service_account import Credentials
@@ -856,6 +862,7 @@ def get_kho_gxt(force: bool = False):
             if sheets:
                 data_rows = sheets[0].get("data", [])[0].get("rowData", [])
                 headers = [col.get("formattedValue", "") for col in data_rows[0].get("values", [])]
+                headers_detected = headers
                 
                 id_kho_idx = headers.index("ID Kho") if "ID Kho" in headers else -1
                 ten_kho_idx = headers.index("Tên Kho GXT") if "Tên Kho GXT" in headers else -1
@@ -869,7 +876,7 @@ def get_kho_gxt(force: bool = False):
                 sdt_idx = headers.index("Số điện thoại") if "Số điện thoại" in headers else -1
                 
                 output = []
-                for row in data_rows[1:]:
+                for row_num, row in enumerate(data_rows[1:]):
                     values = row.get("values", [])
                     if not values or not any(v.get("formattedValue") for v in values):
                         continue
@@ -902,6 +909,9 @@ def get_kho_gxt(force: bool = False):
                         if val and val.lower().strip().startswith("http"):
                             link_ggm = val.strip()
                     
+                    if row_num < 5:
+                        first_5_k_vals.append(link_ggm or link_cell.get("formattedValue", ""))
+                    
                     if link_ggm:
                         link_ggm = link_ggm.strip()
                         if link_ggm and not link_ggm.lower().startswith("http"):
@@ -912,7 +922,6 @@ def get_kho_gxt(force: bool = False):
                     mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
                     
                     output.append({
-                        # Original Vietnamese keys for "Kho GXT" compatibility
                         "ID Kho": id_kho,
                         "Tên": ten_quan_ly or "",
                         "Số điện thoại": so_dien_thoai or "",
@@ -924,7 +933,6 @@ def get_kho_gxt(force: bool = False):
                         "Link GGM": link_ggm or "",
                         "Vùng": vung or "",
                         
-                        # New camelCase / snake_case keys
                         "id_kho": id_kho,
                         "idKho": id_kho,
                         "ten_kho": ten_kho,
@@ -942,100 +950,163 @@ def get_kho_gxt(force: bool = False):
                         "coords": coords,
                         "mapStatus": mapStatus
                     })
-                
-                print(f"[API SUCCESS] Loaded {len(output)} warehouses from Google Sheets API.")
-                if output:
-                    print(f"[API DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
-                return {"data": output, "last_sync": time.time()}
+                read_method = "Google Sheets API"
         except Exception as e:
             print(f"[API ERROR] Error fetching sheet via Sheets API: {e}")
             
-    # Try public XLSX fallback next
-    print("[FALLBACK] Attempting XLSX public parsing fallback...")
-    output = get_kho_gxt_xlsx_fallback()
-    if output is not None:
-        print(f"[FALLBACK SUCCESS] Loaded {len(output)} warehouses from public XLSX parser.")
-        if output:
-            print(f"[FALLBACK DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
-        return {"data": output, "last_sync": time.time()}
-        
-    # Last fallback: CSV
-    print("[FALLBACK] Attempting CSV fallback...")
-    csv_rows, last_sync = read_csv("kho_gxt", force)
-    output = []
-    for r in csv_rows:
-        id_kho = (r.get("ID Kho") or "").strip()
-        if id_kho:
-            if "." in id_kho:
-                id_kho = id_kho.split(".")[0]
-            if "E" in id_kho or "e" in id_kho:
-                try:
-                    id_kho = str(int(float(id_kho)))
-                except ValueError:
-                    pass
+    # 2. Thử dùng public XLSX fallback (chứa hyperlink gốc)
+    if not output:
+        print("[FALLBACK] Attempting XLSX public parsing fallback...")
+        try:
+            output = get_kho_gxt_xlsx_fallback()
+            if output:
+                read_method = "Public XLSX Parser"
+                headers_detected = ["ID Kho", "ID", "Tên", "Số điện thoại", "Tên Kho GXT", "Team Lead", "Vùng", "Tỉnh", "Diện Tích", "Địa chỉ kho", "Link GGM", "Tình trạng"]
+                first_5_k_vals = [w.get("googleMapsLink", "") for w in output[:5]]
+        except Exception as e:
+            print(f"[FALLBACK ERROR] XLSX parsing failed: {e}")
+            
+    # 3. Thử dùng local JSON backup (cố định và có sẵn tọa độ gốc)
+    if not output:
+        backup_path = os.path.join(BASE_DIR, "scratch", "kho_gxt_backup.json")
+        print(f"[FALLBACK] Attempting local JSON backup fallback from {backup_path}...")
+        if os.path.exists(backup_path):
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    output = json.load(f)
+                if output:
+                    read_method = "Local JSON Backup"
+                    headers_detected = ["ID Kho", "Tên Kho GXT", "Địa chỉ kho", "Link GGM", "Diện Tích", "Vùng", "Tỉnh", "Tình trạng"]
+                    first_5_k_vals = [w.get("googleMapsLink", "") for w in output[:5]]
+            except Exception as e:
+                print(f"[BACKUP ERROR] Failed to read backup file: {e}")
+                
+    # 4. Fallback cuối cùng: CSV thô (chỉ có chữ "Link")
+    if not output:
+        print("[FALLBACK] Attempting CSV fallback...")
+        try:
+            csv_rows, last_sync = read_csv("kho_gxt", force)
+            output = []
+            headers_detected = list(csv_rows[0].keys()) if csv_rows else []
+            for row_num, r in enumerate(csv_rows):
+                id_kho = (r.get("ID Kho") or "").strip()
+                if id_kho:
+                    if "." in id_kho:
+                        id_kho = id_kho.split(".")[0]
+                    if "E" in id_kho or "e" in id_kho:
+                        try:
+                            id_kho = str(int(float(id_kho)))
+                        except ValueError:
+                            pass
+                            
+                ten_kho = (r.get("Tên Kho GXT") or "").strip()
+                dia_chi = (r.get("Địa chỉ kho") or "Chưa có địa chỉ").strip()
+                if not dia_chi:
+                    dia_chi = "Chưa có địa chỉ"
                     
-        ten_kho = (r.get("Tên Kho GXT") or "").strip()
-        dia_chi = (r.get("Địa chỉ kho") or "Chưa có địa chỉ").strip()
-        if not dia_chi:
-            dia_chi = "Chưa có địa chỉ"
-            
-        link_ggm = (r.get("Link GGM") or "").strip()
-        if link_ggm.lower() in ["", "#", "link"]:
-            link_ggm = ""
-            
-        vung = (r.get("Vùng") or "").strip()
-        tinh = (r.get("Tỉnh") or "").strip()
-        tinh_trang = (r.get("Tình trạng") or "").strip()
-        
-        dien_tich = (r.get("Diện Tích") or r.get("Diện tích") or "").strip()
-        if dien_tich:
-            if "." in dien_tich:
-                dien_tich = dien_tich.split(".")[0]
-        else:
-            dien_tich = ""
-            
-        ten_quan_ly = (r.get("Tên") or "").strip()
-        so_dien_thoai = (r.get("Số điện thoại") or "").strip()
-            
-        coords = resolve_and_get_coords(link_ggm) if link_ggm else None
-        
-        mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
-        
-        output.append({
-            # Original Vietnamese keys for "Kho GXT" compatibility
-            "ID Kho": id_kho,
-            "Tên": ten_quan_ly or "",
-            "Số điện thoại": so_dien_thoai or "",
-            "Tên Kho GXT": ten_kho or "",
-            "Tỉnh": tinh or "",
-            "Diện Tích": dien_tich,
-            "Tình trạng": tinh_trang or "",
-            "Địa chỉ kho": dia_chi,
-            "Link GGM": link_ggm or "",
-            "Vùng": vung or "",
-            
-            # New camelCase / snake_case keys
-            "id_kho": id_kho,
-            "idKho": id_kho,
-            "ten_kho": ten_kho,
-            "tenKho": ten_kho,
-            "dia_chi": dia_chi,
-            "diaChi": dia_chi,
-            "link_ggm": link_ggm,
-            "linkGGM": link_ggm,
-            "googleMapsLink": link_ggm,
-            "vung": vung,
-            "tinh": tinh,
-            "tinh_trang": tinh_trang,
-            "dien_tich": dien_tich,
-            "dienTich": dien_tich,
-            "coords": coords,
-            "mapStatus": mapStatus
-        })
-    print(f"[CSV SUCCESS] Loaded {len(output)} warehouses from CSV fallback.")
+                link_ggm = (r.get("Link GGM") or "").strip()
+                if row_num < 5:
+                    first_5_k_vals.append(link_ggm)
+                    
+                if link_ggm.lower() in ["", "#", "link"]:
+                    link_ggm = ""
+                    
+                vung = (r.get("Vùng") or "").strip()
+                tinh = (r.get("Tỉnh") or "").strip()
+                tinh_trang = (r.get("Tình trạng") or "").strip()
+                
+                dien_tich = (r.get("Diện Tích") or r.get("Diện tích") or "").strip()
+                if dien_tich:
+                    if "." in dien_tich:
+                        dien_tich = dien_tich.split(".")[0]
+                else:
+                    dien_tich = ""
+                    
+                ten_quan_ly = (r.get("Tên") or "").strip()
+                so_dien_thoai = (r.get("Số điện thoại") or "").strip()
+                    
+                coords = resolve_and_get_coords(link_ggm) if link_ggm else None
+                mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
+                
+                output.append({
+                    "ID Kho": id_kho,
+                    "Tên": ten_quan_ly or "",
+                    "Số điện thoại": so_dien_thoai or "",
+                    "Tên Kho GXT": ten_kho or "",
+                    "Tỉnh": tinh or "",
+                    "Diện Tích": dien_tich,
+                    "Tình trạng": tinh_trang or "",
+                    "Địa chỉ kho": dia_chi,
+                    "Link GGM": link_ggm or "",
+                    "Vùng": vung or "",
+                    
+                    "id_kho": id_kho,
+                    "idKho": id_kho,
+                    "ten_kho": ten_kho,
+                    "tenKho": ten_kho,
+                    "dia_chi": dia_chi,
+                    "diaChi": dia_chi,
+                    "link_ggm": link_ggm,
+                    "linkGGM": link_ggm,
+                    "googleMapsLink": link_ggm,
+                    "vung": vung,
+                    "tinh": tinh,
+                    "tinh_trang": tinh_trang,
+                    "dien_tich": dien_tich,
+                    "dienTich": dien_tich,
+                    "coords": coords,
+                    "mapStatus": mapStatus
+                })
+            read_method = "CSV Fallback"
+        except Exception as e:
+            print(f"[CSV ERROR] CSV fallback failed: {e}")
+            output = []
+
+    # Bổ sung Debug bắt buộc theo Yêu cầu 6
+    total_warehouses = len(output) if output else 0
+    with_link = 0
+    without_link = 0
+    unparsed_coords = 0
+    has_coords_count = 0
+    
     if output:
-        print(f"[CSV DEBUG] First row: ID={output[0]['idKho']}, Name={output[0]['tenKho']}, Address={output[0]['diaChi']}, Area={output[0]['dienTich']}")
-    return {"data": output, "last_sync": last_sync}
+        for w in output:
+            link = w.get("googleMapsLink") or w.get("linkGGM") or w.get("link_ggm") or ""
+            coords = w.get("coords")
+            if link:
+                with_link += 1
+            else:
+                without_link += 1
+                
+            if coords and len(coords) == 2:
+                has_coords_count += 1
+            else:
+                unparsed_coords += 1
+                
+        print(f"\n===== [DEBUG KHO GXT] =====")
+        print(f"Nguồn đọc: {read_method}")
+        print(f"Sheet đang đọc: Kho Giao Hàng Nặng")
+        print(f"Số dòng đọc được: {total_warehouses}")
+        print(f"Header dòng đầu: {headers_detected}")
+        print(f"Giá trị cột K của 5 dòng đầu: {first_5_k_vals}")
+        print(f"Object sau khi parse của 5 kho đầu:")
+        for idx, w in enumerate(output[:5]):
+            print(f"  Kho {idx+1}:")
+            print(f"    idKho: {w.get('idKho')}")
+            print(f"    tenKho: {w.get('tenKho')}")
+            print(f"    diaChi: {w.get('diaChi')}")
+            print(f"    dienTich: {w.get('dienTich')}")
+            print(f"    linkGGM: {w.get('linkGGM')}")
+            print(f"    googleMapsLink: {w.get('googleMapsLink')}")
+            print(f"    lat/lng: {w.get('coords')}")
+            print(f"    mapStatus: {w.get('mapStatus')}")
+        print(f"Số marker tạo được: {has_coords_count}")
+        print(f"Số kho có link: {with_link}")
+        print(f"Số kho không có link: {without_link}")
+        print(f"Số kho không parse được tọa độ: {unparsed_coords}")
+        print(f"===========================\n")
+        
+    return {"data": output or [], "last_sync": time.time()}
 
 # ---- DATA ĐƠN TẠO N-1 ----
 @app.get("/api/don-tao", dependencies=[Depends(require_api_token)])
@@ -2099,9 +2170,9 @@ async def sync_dashboard_cache(force=False):
         
         start_time = time.time()
         
-        keys = [
+        other_keys = [
             "gtc", "b2b", "backlog", "returns", "nang_suat", 
-            "warnings", "xe_gxt", "xe_su_co", "kho_gxt", 
+            "warnings", "xe_gxt", "xe_su_co", 
             "personnel", "don_tao", "gtc_b2b", "don_b2b", 
             "returns_by_client"
         ]
@@ -2115,7 +2186,6 @@ async def sync_dashboard_cache(force=False):
             "warnings": "warningsData",
             "xe_gxt": "xeGxtData",
             "xe_su_co": "xeSuCoData",
-            "kho_gxt": "khoGxtData",
             "personnel": "personnelData",
             "don_tao": "donTaoData",
             "gtc_b2b": "gtcB2bData",
@@ -2123,8 +2193,11 @@ async def sync_dashboard_cache(force=False):
             "returns_by_client": "returnsByClientData"
         }
         
-        tasks = [asyncio.to_thread(read_csv, key, force) for key in keys]
-        print(f"[SYNC] Bắt đầu đồng bộ song song {len(keys)} sheets...")
+        # Tạo tasks cho other sheets và get_kho_gxt
+        tasks = [asyncio.to_thread(read_csv, key, force) for key in other_keys]
+        tasks.append(asyncio.to_thread(get_kho_gxt, force))
+        
+        print(f"[SYNC] Bắt đầu đồng bộ song song {len(other_keys) + 1} sheets...")
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         sheet_status = {}
@@ -2132,13 +2205,12 @@ async def sync_dashboard_cache(force=False):
             "ontimeData": []
         }
         
-        for idx, key in enumerate(keys):
+        for idx, key in enumerate(other_keys):
             res = results[idx]
             elapsed = time.time() - start_time
             if isinstance(res, Exception):
                 print(f"[SYNC ERROR] Sheet {key} lỗi: {res}")
                 sheet_status[key] = {"success": False, "error": str(res), "time": round(elapsed, 2)}
-                # Phục hồi từ CACHE in-memory nếu có
                 if key in CACHE:
                     cached_data[key_map[key]] = CACHE[key]['data']
                 else:
@@ -2147,6 +2219,20 @@ async def sync_dashboard_cache(force=False):
                 data, cache_time = res
                 sheet_status[key] = {"success": True, "time": round(elapsed, 2)}
                 cached_data[key_map[key]] = data
+                
+        # Xử lý kết quả get_kho_gxt ở cuối
+        kho_res = results[-1]
+        elapsed = time.time() - start_time
+        if isinstance(kho_res, Exception):
+            print(f"[SYNC ERROR] get_kho_gxt lỗi: {kho_res}")
+            sheet_status["kho_gxt"] = {"success": False, "error": str(kho_res), "time": round(elapsed, 2)}
+            if old_cache and "data" in old_cache and "khoGxtData" in old_cache["data"]:
+                cached_data["khoGxtData"] = old_cache["data"]["khoGxtData"]
+            else:
+                cached_data["khoGxtData"] = []
+        else:
+            cached_data["khoGxtData"] = kho_res.get("data", [])
+            sheet_status["kho_gxt"] = {"success": True, "time": round(elapsed, 2)}
                 
         # Tính toán overview
         try:
@@ -2178,7 +2264,7 @@ async def sync_dashboard_cache(force=False):
         
         # Nếu có sheet nào lỗi, giữ lại data cache cũ của sheet đó
         if old_cache and "data" in old_cache:
-            for key in keys:
+            for key in key_map.keys():
                 mapped_key = key_map[key]
                 if not sheet_status[key]["success"] and mapped_key in old_cache["data"]:
                     final_cache["data"][mapped_key] = old_cache["data"][mapped_key]
