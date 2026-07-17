@@ -3586,6 +3586,13 @@ function switchCbrTab(tab) {
     });
     document.getElementById('cbr-panel-' + tab).style.display = 'block';
     document.getElementById('cbr-tab-btn-' + tab).classList.add('active');
+    
+    // Kích hoạt render lại tab con tương ứng để cập nhật dữ liệu mới nhất (Yêu cầu 7)
+    if (tab === 'warnings') {
+        renderWarningsSection();
+    } else {
+        renderForecastSection();
+    }
 }
 
 // ---- NAVIGATION ----
@@ -7901,9 +7908,19 @@ async function ensureSectionData(name, force = false) {
         if (force || !state.gtcB2bData || state.gtcB2bData.length === 0) needsLoad = true;
     } else if (name === 'cbr') {
         endpoints = [
-            { key: 'warningsData', url: `/api/warnings${query}` }
+            { key: 'warningsData', url: `/api/warnings${query}` },
+            { key: 'gtcData', url: `/api/kpi/gtc${query}` },
+            { key: 'backlogData', url: `/api/backlog/critical${query}` },
+            { key: 'donTaoData', url: `/api/don-tao${query}` },
+            { key: 'khoGxtData', url: `/api/kho-gxt${query}` },
+            { key: 'nangSuatData', url: `/api/nang-suat${query}` }
         ];
-        if (force || !state.warningsData || state.warningsData.length === 0) needsLoad = true;
+        if (force || 
+            !state.warningsData || state.warningsData.length === 0 || 
+            !state.gtcData || state.gtcData.length === 0 || 
+            !state.donTaoData || state.donTaoData.length === 0 ||
+            !state.backlogData || state.backlogData.length === 0
+        ) needsLoad = true;
     }
 
     if (!needsLoad) {
@@ -8005,6 +8022,7 @@ function renderSection(name) {
         renderGtcB2bPrioSection();
     } else if (name === 'cbr') {
         renderWarningsSection();
+        renderForecastSection(); // Render tab Dự báo rủi ro, Dự báo quá tải và N-1 vs GTC Max (Yêu cầu 1, 2, 3)
     }
     updateNavBadges();
 }

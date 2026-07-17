@@ -1109,6 +1109,296 @@ def get_kho_gxt(force: bool = False):
     return {"data": output or [], "last_sync": time.time()}
 
 # ---- DATA ĐƠN TẠO N-1 ----
+
+def compute_risk_alert_data(warnings_data, gtc_data, backlog_data, don_tao_data):
+    # 1. Helper to clean warehouse name
+    def short_kho(name):
+        if not name: return ""
+        name = str(name).strip()
+        for prefix in ["Kho Giao Hàng Nặng - ", "Kho Giao Hàng Nặng ", "Kho ", "Bưu cục Giao Hàng Nặng - "]:
+            if name.startswith(prefix):
+                name = name[len(prefix):]
+        return name.strip()
+
+    # Helpers to parse float/int safely
+    def parse_float(v, default=0.0):
+        try:
+            return float(str(v).replace(',', '.').replace('%', '').strip())
+        except:
+            return default
+
+    def parse_int(v, default=0):
+        try:
+            return int(float(str(v).replace('.', '').replace(',', '').strip()))
+        except:
+            return default
+
+    # 2. Group GTC by Warehouse
+    gtc_by_kho = {}
+    for r in gtc_data:
+        kho = short_kho(r.get("Kho", ""))
+        if not kho or kho == "--": continue
+        if kho not in gtc_by_kho:
+            gtc_by_kho[kho] = []
+        gtc_by_kho[kho].append(r)
+
+    # Calculate GTC metrics
+    gtc_metrics = {}
+    for kho, rows in gtc_by_kho.items():
+        sorted_rows = sorted(rows, key=lambda x: x.get("Ngày", ""), reverse=True)
+        latest_row = sorted_rows[0] if sorted_rows else {}
+        latest_gtc = parse_float(latest_row.get("Tỉ lệ GTC", "0"))
+        
+        rows_7d = sorted_rows[:7]
+        volumes = [parse_int(r.get("Số đơn GTC", r.get("success_volume", "0"))) for r in rows_7d]
+        avg_gtc_7d = sum(volumes) / len(volumes) if volumes else 0.0
+        max_gtc_7d = max(volumes) if volumes else 0
+        
+        if len(sorted_rows) >= 2:
+            prev_rows = sorted_rows[1:8]
+            prev_avg = sum(parse_float(r.get("Tỉ lệ GTC", "0")) for r in prev_rows) / len(prev_rows) if prev_rows else 0.0
+            trend = latest_gtc - prev_avg
+        else:
+            trend = 0.0
+            
+        gtc_metrics[kho] = {
+            "latest": latest_gtc,
+            "avg7d": avg_gtc_7d,
+            "max7d": max_gtc_7d,
+            "maxGtcDon": max_gtc_7d,
+            "trend": trend,
+            "donTaoN1": 0
+        }
+
+    # 3. Process Don Tao N-1
+    don_tao_by_kho = {}
+    if don_tao_data:
+        all_dates = sorted(list(set(str(r.get("Thời gian", r.get("time_view", ""))).split(" - ")[0] for r in don_tao_data if r.get("Thời gian") or r.get("time_view"))), reverse=True)
+        latest_don_date = all_dates[0] if all_dates else ""
+        for r in don_tao_data:
+            d_str = str(r.get("Thời gian", r.get("time_view", ""))).split(" - ")[0]
+            if d_str != latest_don_date: continue
+            kho = short_kho(r.get("Kho giao", r.get("kho_giao", "")))
+            if not kho or kho == "--": continue
+            don = parse_int(r.get("Tổng đơn tạo", "0"))
+            don_tao_by_kho[kho] = don_tao_by_kho.get(kho, 0) + don
+
+    for kho, don in don_tao_by_kho.items():
+        if kho in gtc_metrics:
+            gtc_metrics[kho]["donTaoN1"] = don
+        else:
+            gtc_metrics[kho] = {
+                "latest": 0.0, "avg7d": 0.0, "max7d": 0, "maxGtcDon": 0, "trend": 0.0,
+                "donTaoN1": don
+            }
+
+    # 4. Group Backlog by Warehouse
+    backlog_by_kho = {}
+    if backlog_data:
+        for r in backlog_data:
+            kho = short_kho(r.get("Kho", ""))
+            if not kho or kho == "--": continue
+            lm = parse_int(r.get("Tồn giao (LM)", r.get("Backlog Last Mile", "0")))
+            ktc = parse_int(r.get("Tồn KTC", "0"))
+            backlog_by_kho[kho] = {"lm": lm, "ktc": ktc}
+
+    # 5. Build riskForecast and overloadForecast
+    risk_forecast = []
+    overload_forecast = []
+    
+    for r in warnings_data:
+        kho = short_kho(r.get("kho gxt", r.get("Kho", "")))
+        if not kho or kho == "--": continue
+        
+        so_ngay = parse_float(r.get("Số ngày trở về ngày thường", r.get("Total ngày", "0")))
+        status = r.get("Tình hình hiện tại", "Bình thường")
+        next_status = r.get("Tình hình sắp tới", "Bình thường")
+        
+        gtc = gtc_metrics.get(kho, {"latest": 0.0, "avg7d": 0.0, "max7d": 0, "maxGtcDon": 0, "trend": 0.0, "donTaoN1": 0})
+        bl = backlog_by_kho.get(kho, {"lm": 0, "ktc": 0})
+        
+        score = 0
+        alerts = []
+        recommendations = []
+        
+        if gtc["latest"] < 82 and gtc["latest"] > 0:
+            score += 40
+            alerts.append(f"GTC N-1 thấp ({gtc['latest']:.1f}%)")
+            recommendations.append("Tăng cường giám sát tuyến giao, kiểm tra lý do thất bại")
+        elif gtc["latest"] < 87 and gtc["latest"] > 0:
+            score += 20
+            alerts.append(f"GTC N-1 chưa đạt ({gtc['latest']:.1f}%)")
+            recommendations.append("Rà soát NV có GTC thấp, hỗ trợ kỹ thuật giao nhận")
+            
+        if gtc["trend"] < -3:
+            score += 25
+            alerts.append(f"GTC đang giảm {abs(gtc['trend']):.1f}% so với TB tuần")
+            recommendations.append("Điều tra nguyên nhân sụt giảm GTC trong 2-3 ngày gần đây")
+        elif gtc["trend"] < -1:
+            score += 10
+            alerts.append("GTC có xu hướng giảm nhẹ")
+            
+        if bl["lm"] > 1000:
+            score += 30
+            alerts.append(f"Backlog LM nghiêm trọng ({bl['lm']:,})")
+            recommendations.append("Tăng ca giao, bổ sung NV hỗ trợ kho, liên hệ điều phối khu vực")
+        elif bl["lm"] > 500:
+            score += 20
+            alerts.append(f"Backlog LM cao ({bl['lm']:,})")
+            recommendations.append("Ưu tiên xử lý đơn tồn lâu, phân phối lại tuyến giao")
+        elif bl["lm"] > 200:
+            score += 8
+            alerts.append("Backlog LM ở mức trung bình")
+            
+        if bl["ktc"] > 500:
+            score += 25
+            alerts.append(f"Backlog KTC rất cao ({bl['ktc']:,})")
+            recommendations.append("Kết hợp kho phụ, đẩy nhanh xử lý KTC tồn đọng")
+        elif bl["ktc"] > 200:
+            score += 15
+            alerts.append(f"Backlog KTC cao ({bl['ktc']:,})")
+            recommendations.append("Kiểm tra năng lực xử lý KTC, điều chỉnh lịch giao nhận")
+            
+        if status == "Nghiêm trọng" or so_ngay > 6:
+            score += 30
+            alerts.append(f"Đang ở trạng thái: {status} ({so_ngay}n)")
+            recommendations.append("Báo cáo quản lý khu vực, lập kế hoạch phục hồi gấp")
+        elif status in ["Bất ổn", "Cảnh báo"]:
+            score += 15
+            alerts.append(f"Trạng thái hiện tại: {status}")
+            recommendations.append("Theo dõi chặt chẽ hàng ngày, chuẩn bị phương án dự phòng")
+            
+        if gtc["avg7d"] > 0 and gtc["avg7d"] < 85:
+            score += 10
+            alerts.append(f"GTC TB 7N thấp ({gtc['avg7d']:.1f}%)")
+            
+        max_gtc_don = gtc["maxGtcDon"]
+        don_tao_n1 = gtc["donTaoN1"]
+        if max_gtc_don > 0 and don_tao_n1 > 0 and don_tao_n1 > max_gtc_don * 1.5:
+            ratio = don_tao_n1 / max_gtc_don
+            score += 35
+            alerts.append(f"⚠️ Hàng tạo cao gấp {ratio:.1f}x đơn GTC. Nguy cơ tồn hàng cao")
+            recommendations.insert(0, f"🚛 Hàng tạo ({don_tao_n1:,}) cao gấp {ratio:.1f}x GTC max ngày ({max_gtc_don:,}). Kế hoạch chuẩn bị thêm xe tăng cường!")
+        elif max_gtc_don > 0 and don_tao_n1 > 0 and don_tao_n1 > max_gtc_don * 1.2:
+            ratio = don_tao_n1 / max_gtc_don
+            score += 15
+            alerts.append(f"⚠️ Hàng tạo cao gấp {ratio:.1f}x đơn GTC. Theo dõi sát nguy cơ tồn")
+            recommendations.insert(0, f"📦 Hàng tạo ({don_tao_n1:,}) cao gấp {ratio:.1f}x GTC max ngày ({max_gtc_don:,}). Cần theo dõi sát.")
+            
+        if not recommendations:
+            recommendations.append("Duy trì vận hành, tiếp tục giám sát định kỳ")
+            
+        risk_level = "good"
+        risk_label = "🟢 Ổn định"
+        if score >= 55:
+            risk_level = "critical"
+            risk_label = "🔴 Nghiêm trọng"
+        elif score >= 30:
+            risk_level = "warning"
+            risk_label = "🟠 Cảnh báo"
+        elif score >= 15:
+            risk_level = "watch"
+            risk_label = "🟡 Theo dõi"
+            
+        risk_forecast.append({
+            "kho": kho,
+            "score": score,
+            "riskLevel": risk_level,
+            "riskLabel": risk_label,
+            "gtcN1": gtc["latest"],
+            "gtcAvg7d": gtc["avg7d"],
+            "gtcMax7d": gtc["max7d"],
+            "gtcTrend": gtc["trend"],
+            "blLm": bl["lm"],
+            "blKtc": bl["ktc"],
+            "alertsText": " | ".join(alerts) or "—",
+            "recText": recommendations[0] if recommendations else "—"
+        })
+        
+        # Overload forecast
+        total_pressure = bl["lm"] + bl["ktc"] + don_tao_n1
+        don_need_clear = total_pressure - gtc["latest"]
+        overload_status = "stable"
+        overload_label = "🟢 Bình thường"
+        
+        if total_pressure > max_gtc_don * 1.5:
+            overload_status = "overloaded"
+            overload_label = "🔴 Quá tải nặng"
+        elif total_pressure > max_gtc_don * 1.2:
+            overload_status = "risk"
+            overload_label = "🟠 Nguy cơ"
+        elif total_pressure > max_gtc_don * 0.9:
+            overload_status = "watch"
+            overload_label = "🟡 Theo dõi"
+            
+        action_recs = []
+        if overload_status == "overloaded":
+            action_recs.append("Yêu cầu bổ sung xe trung chuyển ngay trong ca tối.")
+        elif overload_status == "risk":
+            action_recs.append("Đề xuất xem xét tăng cường thêm tài xế/xe chạy tuyến.")
+        else:
+            action_recs.append("Tình trạng ổn định. Tiếp tục vận hành bình thường.")
+            
+        overload_forecast.append({
+            "kho": kho,
+            "overloadStatus": overload_status,
+            "statusLabel": overload_label,
+            "donTaoN1": don_tao_n1,
+            "blLm": bl["lm"],
+            "blKtc": bl["ktc"],
+            "gtcN1Don": gtc["latest"],
+            "donCanClear": max(0, int(don_need_clear)),
+            "action": " ".join(action_recs)
+        })
+
+    risk_forecast = sorted(risk_forecast, key=lambda x: x["score"], reverse=True)
+
+    # 6. Build n1VsGtcMax
+    n1_vs_gtc_max = []
+    all_khos = set(list(don_tao_by_kho.keys()) + list(gtc_metrics.keys()))
+    for kho in all_khos:
+        don_tao = don_tao_by_kho.get(kho, 0)
+        gtc_max = gtc_metrics.get(kho, {}).get("max7d", 0)
+        if not don_tao and not gtc_max: continue
+        ratio = don_tao / gtc_max if gtc_max > 0 else 0.0
+        
+        level = "An toàn"
+        if ratio > 1.5:
+            level = "Tăng xe ngay"
+        elif ratio > 1.2:
+            level = "Theo dõi sát"
+            
+        n1_vs_gtc_max.append({
+            "kho": kho,
+            "donTao": don_tao,
+            "gtcMax": gtc_max,
+            "ratio": ratio,
+            "level": level
+        })
+        
+    n1_vs_gtc_max = sorted(n1_vs_gtc_max, key=lambda x: x["ratio"], reverse=True)
+
+    # 7. Card metrics
+    critical_count = sum(1 for r in risk_forecast if r["riskLevel"] == "critical")
+    warning_count = sum(1 for r in risk_forecast if r["riskLevel"] == "warning")
+    watch_count = sum(1 for r in risk_forecast if r["riskLevel"] == "watch")
+    avg_days = sum(parse_float(r.get("Total ngày", "0")) for r in warnings_data) / len(warnings_data) if warnings_data else 0.0
+    
+    cards = {
+        "critical": critical_count,
+        "warning": warning_count,
+        "watch": watch_count,
+        "avgDays": round(avg_days, 1)
+    }
+    
+    return {
+        "currentStatus": warnings_data,
+        "riskForecast": risk_forecast,
+        "overloadForecast": overload_forecast,
+        "n1VsGtcMax": n1_vs_gtc_max,
+        "cards": cards
+    }
+
 @app.get("/api/don-tao", dependencies=[Depends(require_api_token)])
 def get_don_tao(date: str = Query(None), force: bool = False):
     data, last_sync = read_csv("don_tao", force)
@@ -1124,59 +1414,61 @@ def get_warnings(force: bool = False):
 
 @app.get("/api/risk-alert", dependencies=[Depends(require_api_token)])
 def get_risk_alert(force: bool = False):
-    print("[API DEBUG] /api/risk-alert (warnings) được gọi.")
+    print("[API DEBUG] /api/risk-alert được gọi.")
     
-    # 1. Số dòng backlog đọc được
-    backlog_data = []
-    try:
-        backlog_data, _ = read_csv("backlog", force)
-    except: pass
-    print(f"[API DEBUG] Số dòng backlog đọc được: {len(backlog_data)}")
+    # 1. Đọc thô các nguồn
+    backlog_data, _ = read_csv("backlog", force)
+    gtc_data, _ = read_csv("gtc", force)
+    don_tao_data, _ = read_csv("don_tao", force)
+    warnings_data, last_sync = read_csv("warnings", force)
     
-    # 2. Số dòng GTC đọc được
-    gtc_data = []
-    try:
-        gtc_data, _ = read_csv("gtc", force)
-    except: pass
+    # 2. Pre-compute 3 tab rủi ro
+    result = compute_risk_alert_data(warnings_data, gtc_data, backlog_data, don_tao_data)
+    
+    # 3. Log debug bắt buộc theo Yêu cầu 6
+    print(f"[API DEBUG] riskForecast count: {len(result['riskForecast'])}")
+    print(f"[API DEBUG] overloadForecast count: {len(result['overloadForecast'])}")
+    print(f"[API DEBUG] n1VsGtcMax count: {len(result['n1VsGtcMax'])}")
     print(f"[API DEBUG] Số dòng GTC đọc được: {len(gtc_data)}")
+    print(f"[API DEBUG] Số dòng backlog đọc được: {len(backlog_data)}")
+    print(f"[API DEBUG] Số dòng đơn tạo N-1 đọc được: {len(don_tao_data)}")
     
-    # 3. Số dòng đơn N-1 đọc được
-    don_tao_data = []
-    try:
-        don_tao_data, _ = read_csv("don_tao", force)
-    except: pass
-    print(f"[API DEBUG] Số dòng đơn N-1 đọc được: {len(don_tao_data)}")
+    total_kho = len(result["currentStatus"])
+    print(f"[API DEBUG] Số kho sau khi merge: {total_kho}")
     
-    # Kéo warnings data
-    data = []
-    last_sync = 0
-    try:
-        data, last_sync = read_csv("warnings", force)
-    except: pass
-    
-    # 4. Số kho sau khi merge data
-    total_kho = len(data)
-    print(f"[API DEBUG] Số kho sau khi merge data: {total_kho}")
-    print(f"[API DEBUG] Số kho render ra bảng: {total_kho}")
-    
-    # 5. Dữ liệu mẫu của 3 kho đầu tiên sau khi parse
-    if data:
-        print(f"[API DEBUG] Dữ liệu mẫu của 3 kho đầu tiên:")
-        for idx, w in enumerate(data[:3]):
-            print(f"  Kho {idx+1}:")
-            print(f"    Kho: {w.get('kho gxt') or w.get('Kho') or '--'}")
-            print(f"    Trạng thái: {w.get('Tình hình hiện tại') or w.get('trạng thái hiện tại') or '--'}")
-            print(f"    Số ngày: {w.get('Số ngày trở về ngày thường') or w.get('Total ngày') or '--'}")
-    
-    # Cache key đang dùng & thời gian cập nhật cache
+    # In 3 dòng dữ liệu mẫu cho mỗi tab
+    print("[API DEBUG] 3 dòng dữ liệu mẫu của tab 'currentStatus':")
+    for idx, w in enumerate(result["currentStatus"][:3]):
+        print(f"  Dòng {idx+1}: Kho={w.get('kho gxt') or w.get('Kho')}, Status={w.get('Tình hình hiện tại')}, Days={w.get('Số ngày trở về ngày thường')}")
+        
+    print("[API DEBUG] 3 dòng dữ liệu mẫu của tab 'riskForecast':")
+    for idx, w in enumerate(result["riskForecast"][:3]):
+        print(f"  Dòng {idx+1}: Kho={w['kho']}, Score={w['score']}, Level={w['riskLabel']}, Coords GTC N-1={w['gtcN1']}%")
+        
+    print("[API DEBUG] 3 dòng dữ liệu mẫu của tab 'overloadForecast':")
+    for idx, w in enumerate(result["overloadForecast"][:3]):
+        print(f"  Dòng {idx+1}: Kho={w['kho']}, Status={w['statusLabel']}, N-1 Don={w['donTaoN1']}, Coords Need Clear={w['donCanClear']}")
+        
+    print("[API DEBUG] 3 dòng dữ liệu mẫu của tab 'n1VsGtcMax':")
+    for idx, w in enumerate(result["n1VsGtcMax"][:3]):
+        print(f"  Dòng {idx+1}: Kho={w['kho']}, N-1 Don={w['donTao']}, Max GTC 7D={w['gtcMax']}, Ratio={w['ratio']:.2f}")
+        
     print(f"[API DEBUG] Cache key đang dùng: warnings")
     print(f"[API DEBUG] Thời gian cập nhật cache gần nhất: {last_sync}")
     
-    # Nếu số kho sau merge = 0
     if total_kho == 0:
-        print(f"[API DEBUG WARNING] Số kho sau merge = 0! Lý do: Không có data warnings hoặc cache rỗng.")
+        print("[API DEBUG WARNING] Tổng số kho sau khi merge = 0! Lý do: Data warnings rỗng.")
         
-    return {"data": data, "last_sync": last_sync}
+    # Trả về cấu trúc JSON chuẩn của risk-alert, đồng thời tương thích ngược bằng data
+    return {
+        "currentStatus": result["currentStatus"],
+        "riskForecast": result["riskForecast"],
+        "overloadForecast": result["overloadForecast"],
+        "n1VsGtcMax": result["n1VsGtcMax"],
+        "cards": result["cards"],
+        "data": result["currentStatus"], # Compatibility link
+        "last_sync": last_sync
+    }
 
 # ---- DASHBOARD OVERVIEW ----
 @app.get("/api/dashboard/overview", dependencies=[Depends(require_api_token)])
@@ -2337,6 +2629,25 @@ async def sync_dashboard_cache(force=False):
             print(f"[SYNC ERROR] Lỗi pre-compute overview: {ov_err}")
             cached_data["overview"] = {}
             
+        # Tính toán và lưu trữ computed risk-alert data vào cache (Yêu cầu 4 & 5)
+        try:
+            warnings_data = cached_data.get("warningsData", [])
+            gtc_data = cached_data.get("gtcData", [])
+            backlog_data = cached_data.get("backlogData", [])
+            don_tao_data = cached_data.get("donTaoData", [])
+            
+            # Không ghi đè cache tốt bằng cache rỗng
+            if warnings_data and len(warnings_data) > 0:
+                risk_computed = compute_risk_alert_data(warnings_data, gtc_data, backlog_data, don_tao_data)
+                cached_data["risk_alert_computed"] = risk_computed
+                print("[SYNC] Đã tính toán và lưu pre-compute risk-alert data thành công.")
+            else:
+                if old_cache and "data" in old_cache and "risk_alert_computed" in old_cache["data"]:
+                    cached_data["risk_alert_computed"] = old_cache["data"]["risk_alert_computed"]
+                    print("[SYNC WARNING] WarningsData bị rỗng khi sync, đã khôi phục computed risk cũ từ old_cache.")
+        except Exception as risk_err:
+            print(f"[SYNC ERROR] Lỗi tính toán risk-alert data: {risk_err}")
+            
         total_time = time.time() - start_time
         print(f"[SYNC COMPLETED] Hoàn thành đồng bộ toàn bộ dữ liệu dashboard trong {total_time:.2f}s.")
         
@@ -2377,7 +2688,19 @@ async def get_dashboard_cache():
         
     try:
         with open(DASHBOARD_CACHE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            cache = json.load(f)
+            
+        # Nếu có risk_alert_computed trong cache, giải nén các trường của nó ra ngoài data object
+        # để client nhận được qua state (Yêu cầu 4)
+        if cache and "data" in cache and "risk_alert_computed" in cache["data"]:
+            r_comp = cache["data"]["risk_alert_computed"]
+            cache["data"]["currentStatus"] = r_comp.get("currentStatus", [])
+            cache["data"]["riskForecast"] = r_comp.get("riskForecast", [])
+            cache["data"]["overloadForecast"] = r_comp.get("overloadForecast", [])
+            cache["data"]["n1VsGtcMax"] = r_comp.get("n1VsGtcMax", [])
+            cache["data"]["cards"] = r_comp.get("cards", {})
+            
+        return cache
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Không thể đọc file cache: {str(e)}")
 
