@@ -1738,7 +1738,226 @@ async def import_xe_van_hanh_records(
         "duplicates": duplicate_count,
         "error_details": error_details,
     }
+# =====================================================================
+# LOGIN LOGS — CRUD APIs & GOOGLE SHEETS INTEGRATION
+# =====================================================================
 
+LOGIN_LOG_FILE = os.path.join(BASE_DIR, "scratch", "login_logs.json")
+
+def _load_login_logs():
+    """Load danh sách log đăng nhập từ file local JSON."""
+    try:
+        os.makedirs(os.path.dirname(LOGIN_LOG_FILE), exist_ok=True)
+        if os.path.exists(LOGIN_LOG_FILE) and os.path.getsize(LOGIN_LOG_FILE) > 0:
+            with open(LOGIN_LOG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[LOGIN LOG] Error loading logs: {e}")
+    return []
+
+def _save_login_logs(logs: list):
+    """Ghi danh sách log đăng nhập vào file local JSON."""
+    try:
+        os.makedirs(os.path.dirname(LOGIN_LOG_FILE), exist_ok=True)
+        with open(LOGIN_LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump(logs, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"[LOGIN LOG] Error saving logs: {e}")
+        return False
+
+def _append_login_log_to_sheets(log_data: dict):
+    """Đẩy log đăng nhập lên Google Sheet, tab Login Logs."""
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    if not os.path.exists(sa_path):
+        print("[LOGIN LOG] Google Sheets key not found. Log local only.")
+        return False
+    try:
+        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build
+
+        creds = Credentials.from_service_account_file(
+            sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"]
+        )
+        service = build("sheets", "v4", credentials=creds)
+
+        body = {
+            'values': [
+                [
+                    log_data.get('ngay', ''),
+                    log_data.get('thoi_gian', ''),
+                    log_data.get('id_ghn', ''),
+                    log_data.get('ho_ten', ''),
+                    log_data.get('kho_phong_ban', ''),
+                    log_data.get('so_lan_trong_ngay', 1),
+                    log_data.get('loai_truy_cap', ''),
+                    log_data.get('ip', ''),
+                    log_data.get('user_agent', '')
+                ]
+            ]
+        }
+
+        try:
+            service.spreadsheets().values().append(
+                spreadsheetId=SHEET_ID,
+                range="Login Logs!A:I",
+                valueInputOption="USER_ENTERED",
+                body=body
+            ).execute()
+            print("[LOGIN LOG] Successfully written to Google Sheets.")
+            return True
+        except Exception as sheet_err:
+            print(f"[LOGIN LOG] Append directly failed, trying to create tab 'Login Logs': {sheet_err}")
+            try:
+                batch_update_request = {
+                    'requests': [
+                        {
+                            'addSheet': {
+                                'properties': {
+                                    'title': 'Login Logs'
+                                }
+                            }
+                        }
+                    ]
+                }
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=SHEET_ID,
+                    body=batch_update_request
+                ).execute()
+
+                # Ghi headers
+                header_body = {
+                    'values': [
+                        ['Ngày', 'Thời gian', 'ID GHN', 'Họ và Tên', 'Tên Kho / Phòng ban', 'Số lần đăng nhập trong ngày', 'Loại truy cập', 'IP', 'User Agent']
+                    ]
+                }
+                service.spreadsheets().values().update(
+                    spreadsheetId=SHEET_ID,
+                    range="Login Logs!A1:I1",
+                    valueInputOption="USER_ENTERED",
+                    body=header_body
+                ).execute()
+
+                # Ghi dữ liệu dòng đầu
+                service.spreadsheets().values().append(
+                    spreadsheetId=SHEET_ID,
+                    range="Login Logs!A:I",
+                    valueInputOption="USER_ENTERED",
+                    body=body
+                ).execute()
+                print("[LOGIN LOG] Created tab and written to Google Sheets.")
+                return True
+            except Exception as create_err:
+                print(f"[LOGIN LOG] Failed to auto-create and write to sheet: {create_err}")
+                return False
+    except Exception as e:
+        print(f"[LOGIN LOG] Sheets API error: {e}")
+        return False
+
+@app.post("/api/login-logs", dependencies=[Depends(require_api_token)])
+async def log_login(request: Request, payload: dict):
+    """
+    Ghi nhận log đăng nhập của user sau khi điền thông tin cá nhân.
+    Hỗ trợ cả payload camelCase theo yêu cầu.
+    """
+    id_ghn = str(payload.get("idGHN") or payload.get("id_ghn") or "").strip()
+    ho_ten = str(payload.get("fullName") or payload.get("ho_ten") or "").strip()
+    kho_phong_ban = str(payload.get("warehouseOrDepartment") or payload.get("kho_phong_ban") or "").strip()
+    
+    access_type = str(payload.get("accessType") or payload.get("loai_truy_cap") or "normal").strip()
+    loai_truy_cap = "Truy cập admin bằng key" if access_type in ["admin", "Truy cập admin bằng key"] else "Truy cập thường"
+
+    if not id_ghn or not ho_ten or not kho_phong_ban:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập đầy đủ thông tin cá nhân.")
+
+    # Timezone Vietnam (UTC+7)
+    from datetime import datetime, timezone, timedelta
+    vn_now = datetime.now(timezone(timedelta(hours=7)))
+    
+    ngay_str = payload.get("loginDate") or vn_now.strftime("%d/%m/%Y")
+    gio_str = payload.get("loginTime") or vn_now.strftime("%H:%M:%S")
+
+    ip = request.client.host if request.client else "unknown"
+    user_agent = payload.get("userAgent") or request.headers.get("User-Agent", "")
+
+    logs = _load_login_logs()
+
+    # Tính số lần đăng nhập
+    same_day_logs = [l for l in logs if l.get("ngay") == ngay_str and str(l.get("id_ghn")) == id_ghn]
+    so_lan = len(same_day_logs) + 1
+
+    # Cập nhật số lần đăng nhập cho các dòng cũ của cùng ID trong ngày (để hiển thị thống kê chính xác)
+    for l in logs:
+        if l.get("ngay") == ngay_str and str(l.get("id_ghn")) == id_ghn:
+            l["so_lan_trong_ngay"] = so_lan
+
+    new_log = {
+        "ngay": ngay_str,
+        "thoi_gian": gio_str,
+        "id_ghn": id_ghn,
+        "ho_ten": ho_ten,
+        "kho_phong_ban": kho_phong_ban,
+        "so_lan_trong_ngay": so_lan,
+        "loai_truy_cap": loai_truy_cap,
+        "ip": ip,
+        "user_agent": user_agent
+    }
+
+    logs.append(new_log)
+    _save_login_logs(logs)
+
+    # Đẩy lên Google Sheets
+    _append_login_log_to_sheets(new_log)
+
+    return {"status": "ok", "so_lan_trong_ngay": so_lan}
+
+@app.get("/api/login-logs")
+def get_login_logs(
+    x_admin_key: str = Header(None),
+    date: str = Query(None),
+    id_ghn: str = Query(None),
+    ho_ten: str = Query(None),
+    kho_phong_ban: str = Query(None)
+):
+    """
+    Trả về toàn bộ danh sách log đăng nhập phục vụ admin xem dashboard.
+    Chỉ cho phép truy cập nếu X-Admin-Key khớp với key được yêu cầu.
+    """
+    is_admin = False
+    # Validate key admin
+    ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
+    if x_admin_key:
+        if x_admin_key == ADMIN_KEY_REQUIRED or (_ADMIN_KEY and secrets.compare_digest(x_admin_key, _ADMIN_KEY)):
+            is_admin = True
+
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập dữ liệu này.")
+
+    logs = _load_login_logs()
+
+    # Áp dụng bộ lọc
+    if date:
+        logs = [l for l in logs if l.get("ngay") == date]
+    if id_ghn:
+        logs = [l for l in logs if id_ghn in str(l.get("id_ghn"))]
+    if ho_ten:
+        logs = [l for l in logs if ho_ten.lower() in str(l.get("ho_ten", "")).lower()]
+    if kho_phong_ban:
+        logs = [l for l in logs if kho_phong_ban.lower() in str(l.get("kho_phong_ban", "")).lower()]
+
+    # Sắp xếp mới nhất trước (Ngày dạng dd/mm/yyyy, Giờ dạng hh:mm:ss)
+    def _parse_log_datetime(item):
+        try:
+            d, m, y = item.get("ngay", "").split("/")
+            h, mi, s = item.get("thoi_gian", "").split(":")
+            from datetime import datetime
+            return datetime(int(y), int(m), int(d), int(h), int(mi), int(s))
+        except Exception:
+            from datetime import datetime
+            return datetime.min
+
+    logs = sorted(logs, key=_parse_log_datetime, reverse=True)
+    return {"data": logs, "total": len(logs)}
 
 
 # ---- SERVE FRONTEND ----

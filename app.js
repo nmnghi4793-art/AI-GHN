@@ -4948,43 +4948,63 @@ async function setupProfileForm() {
             }
 
             const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
-            const loaiTruyCap = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'Truy cập admin bằng key' : 'Truy cập thường';
+            const accessType = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'admin' : 'normal';
+
+            // Lấy thời gian hiện tại ở Việt Nam
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const vnNow = new Date(utc + (3600000 * 7));
+            const pad = n => String(n).padStart(2, '0');
+            const loginTime = `${pad(vnNow.getHours())}:${pad(vnNow.getMinutes())}:${pad(vnNow.getSeconds())}`;
+            const loginDate = _getTodayVN();
+
+            // Dữ liệu tạm thời lưu trước để dự phòng
+            const saveToLocalAndProceed = () => {
+                localStorage.setItem('ghn_id_ghn', idVal);
+                localStorage.setItem('ghn_ho_ten', nameVal);
+                localStorage.setItem('ghn_kho_phong', khoVal);
+                sessionStorage.setItem('ghn_profile_completed', 'true');
+            };
 
             try {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
                 
                 const token = getApiToken();
-                const resp = await fetch(`${API}/auth/log-login`, {
+                const resp = await fetch(`${API}/login-logs`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        id_ghn: idVal,
-                        ho_ten: nameVal,
-                        kho_phong_ban: khoVal,
-                        loai_truy_cap: loaiTruyCap
+                        idGHN: idVal,
+                        fullName: nameVal,
+                        warehouseOrDepartment: khoVal,
+                        loginDate: loginDate,
+                        loginTime: loginTime,
+                        accessType: accessType,
+                        userAgent: navigator.userAgent
                     })
                 });
 
                 if (resp.ok) {
-                    // Lưu lại thông tin cho lần đăng nhập sau
-                    localStorage.setItem('ghn_id_ghn', idVal);
-                    localStorage.setItem('ghn_ho_ten', nameVal);
-                    localStorage.setItem('ghn_kho_phong', khoVal);
-                    
-                    sessionStorage.setItem('ghn_profile_completed', 'true');
+                    saveToLocalAndProceed();
                     showToast('✅ Đăng nhập ghi nhận thành công!', 'success');
                     initLogin();
                 } else {
-                    const errJson = await resp.json();
-                    showError(errJson.detail || 'Không thể lưu nhật ký đăng nhập. Vui lòng thử lại.');
+                    console.error('[PROFILE SUBMIT API ERROR] Status:', resp.status);
+                    // Lỗi 404 hoặc lỗi API khác -> Không chặn người dùng
+                    saveToLocalAndProceed();
+                    showToast('⚠️ Không ghi nhận được log đăng nhập, hệ thống vẫn tiếp tục vào dashboard.', 'warning');
+                    initLogin();
                 }
             } catch (e) {
-                console.error('[PROFILE SUBMIT ERROR]', e);
-                showError('Lỗi kết nối đến máy chủ. Vui lòng kiểm tra mạng.');
+                console.error('[PROFILE SUBMIT NETWORK ERROR]', e);
+                // Lỗi kết nối mạng -> Không chặn người dùng
+                saveToLocalAndProceed();
+                showToast('⚠️ Không ghi nhận được log đăng nhập (lỗi mạng), hệ thống vẫn tiếp tục vào dashboard.', 'warning');
+                initLogin();
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
