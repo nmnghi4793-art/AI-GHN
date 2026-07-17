@@ -342,16 +342,8 @@ function startSyncTimer() {
         const diff = Math.max(0, nextSyncTime - now);
 
         if (diff <= 0) {
-            // Auto refresh current active tab only to optimize load
-            const activeSectionEl = document.querySelector('.section.active');
-            const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
-            if (activeName === 'xe-daily') {
-                if (typeof window.loadXeDailyRecords === 'function') window.loadXeDailyRecords();
-            } else if (activeName === 'login-logs') {
-                if (typeof window.loadLoginLogs === 'function') window.loadLoginLogs();
-            } else {
-                ensureSectionData(activeName, true);
-            }
+            // Auto refresh from dashboard-cache periodically
+            loadDashboardFromCache(false);
             return;
         }
 
@@ -3670,28 +3662,8 @@ document.querySelectorAll('.view-all[data-section]').forEach(link => {
     link.addEventListener('click', e => { e.preventDefault(); showSection(e.currentTarget.dataset.section); });
 });
 
-document.getElementById('refresh-btn').addEventListener('click', async () => {
-    const activeSectionEl = document.querySelector('.section.active');
-    const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
-    
-    const btn = document.getElementById('refresh-btn');
-    btn.classList.add('loading');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
-    
-    try {
-        if (activeName === 'xe-daily') {
-            if (typeof window.loadXeDailyRecords === 'function') await window.loadXeDailyRecords();
-        } else if (activeName === 'login-logs') {
-            if (typeof window.loadLoginLogs === 'function') await window.loadLoginLogs();
-        } else {
-            await ensureSectionData(activeName, true);
-        }
-    } catch (e) {
-        console.error('[REFRESH ERROR]', e);
-    } finally {
-        btn.classList.remove('loading');
-        btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
-    }
+document.getElementById('refresh-btn').addEventListener('click', () => {
+    loadDashboardFromCache(true);
 });
 
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
@@ -4798,7 +4770,7 @@ async function initLogin() {
             if (appContainer) appContainer.style.display = 'flex';
             // Khởi chạy dashboard
             showSection('overview');
-            ensureSectionData('overview');
+            loadDashboardFromCache(false);
             startSyncTimer();
             checkAdminAccess();
             setupLogout();
@@ -8088,3 +8060,79 @@ function showSectionError(name) {
         }
     });
 }
+
+// =====================================================================
+// DASHBOARD-CACHE LOADING FUNCTION
+// =====================================================================
+async function loadDashboardFromCache(force = false) {
+    const btn = document.getElementById('refresh-btn');
+    const updateTimeEl = document.getElementById('last-update-time');
+    
+    if (force) {
+        btn.classList.add('loading');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật...';
+        showToast('🔄 Đang đồng bộ dữ liệu mới từ Google Sheet...', 'info');
+    }
+    
+    try {
+        if (force) {
+            const syncToken = getApiToken();
+            const syncResp = await fetch(`${API}/dashboard-cache/sync`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${syncToken}`
+                }
+            });
+            if (!syncResp.ok) {
+                console.warn('[SYNC WARNING] Force sync was rejected or busy.');
+            }
+        }
+        
+        const token = getApiToken();
+        const resp = await fetch(`${API}/dashboard-cache`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (resp.status === 401 || resp.status === 403) {
+            clearApiToken();
+            localStorage.removeItem('ghn_logged_in');
+            window.location.reload();
+            return;
+        }
+        
+        if (resp.ok) {
+            const res = await resp.json();
+            
+            // Update state
+            state = { ...state, ...(res.data || {}) };
+            
+            // Update sync timestamp
+            if (updateTimeEl && res.sync_info && res.sync_info.last_sync) {
+                updateTimeEl.textContent = `Dữ liệu cập nhật lúc: ${res.sync_info.last_sync}`;
+            }
+            
+            // Re-render current active tab
+            const activeSectionEl = document.querySelector('.section.active');
+            const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
+            renderSection(activeName);
+            
+            if (force) {
+                showToast('✅ Dữ liệu đã được làm mới thành công!', 'success');
+            }
+            // Populate next sync countdown
+            nextSyncTime = Date.now() + 5 * 60 * 1000;
+        } else {
+            console.error('[CACHE ERROR] Failed to fetch dashboard-cache');
+            if (force) showToast('⚠️ Không thể làm mới dữ liệu từ máy chủ.', 'error');
+        }
+    } catch (e) {
+        console.error('[CACHE ERROR]', e);
+        if (force) showToast('⚠️ Lỗi kết nối làm mới dữ liệu.', 'error');
+    } finally {
+        if (force) {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
+        }
+    }
+}
+window.loadDashboardFromCache = loadDashboardFromCache;

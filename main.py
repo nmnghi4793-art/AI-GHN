@@ -170,6 +170,13 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký Van Hanh Scheduler: {e}")
 
+    # --- Dashboard Sync Scheduler ---
+    try:
+        asyncio.create_task(run_dashboard_sync_scheduler())
+        print("[STARTUP] Đã kích hoạt Dashboard Sync Scheduler (Đồng bộ nền & cache).")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký Dashboard Sync Scheduler: {e}")
+
 
 # ---- ADMIN: Test Giao Hang Report ----
 @app.get("/api/giao-hang/test", dependencies=[Depends(require_admin_key)])
@@ -2057,3 +2064,155 @@ def read_index():
     # Không trả về thông tin nhạy cảm về server
     return HTMLResponse(content="<h1>Service Unavailable</h1>", status_code=503)
 
+
+# =====================================================================
+# DASHBOARD BACKGROUND SYNC SCHEDULER & CACHE ENDPOINTS
+# =====================================================================
+DASHBOARD_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scratch", "dashboard_cache.json")
+_IS_SYNCING = False
+
+async def run_dashboard_sync_scheduler():
+    """Background task chạy định kỳ mỗi 3 phút để tự động sync dữ liệu."""
+    import asyncio
+    print("[SCHEDULER] Kích hoạt Dashboard Background Sync Loop.")
+    await asyncio.sleep(2)  # Đợi server khởi động ổn định
+    while True:
+        try:
+            print("[SCHEDULER] Bắt đầu tự động đồng bộ dữ liệu dashboard...")
+            await sync_dashboard_cache(force=False)
+        except Exception as e:
+            print(f"[SCHEDULER ERROR] Lỗi đồng bộ dashboard nền: {e}")
+        await asyncio.sleep(180)  # Chạy mỗi 3 phút
+
+async def sync_dashboard_cache(force=False):
+    import asyncio
+    global _IS_SYNCING
+    if _IS_SYNCING:
+        print("[SYNC] Một tiến trình đồng bộ khác đang chạy. Bỏ qua.")
+        return False
+        
+    _IS_SYNCING = True
+    try:
+        from datetime import datetime, timezone, timedelta
+        vn_now = datetime.now(timezone(timedelta(hours=7)))
+        last_sync_str = vn_now.strftime("%H:%M:%S")
+        
+        start_time = time.time()
+        
+        keys = [
+            "gtc", "b2b", "backlog", "returns", "nang_suat", 
+            "warnings", "xe_gxt", "xe_su_co", "kho_gxt", 
+            "personnel", "don_tao", "gtc_b2b", "don_b2b", 
+            "returns_by_client"
+        ]
+        
+        key_map = {
+            "gtc": "gtcData",
+            "b2b": "b2bData",
+            "backlog": "backlogData",
+            "returns": "returnsData",
+            "nang_suat": "nangSuatData",
+            "warnings": "warningsData",
+            "xe_gxt": "xeGxtData",
+            "xe_su_co": "xeSuCoData",
+            "kho_gxt": "khoGxtData",
+            "personnel": "personnelData",
+            "don_tao": "donTaoData",
+            "gtc_b2b": "gtcB2bData",
+            "don_b2b": "donB2bData",
+            "returns_by_client": "returnsByClientData"
+        }
+        
+        tasks = [asyncio.to_thread(read_csv, key, force) for key in keys]
+        print(f"[SYNC] Bắt đầu đồng bộ song song {len(keys)} sheets...")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        sheet_status = {}
+        cached_data = {
+            "ontimeData": []
+        }
+        
+        for idx, key in enumerate(keys):
+            res = results[idx]
+            elapsed = time.time() - start_time
+            if isinstance(res, Exception):
+                print(f"[SYNC ERROR] Sheet {key} lỗi: {res}")
+                sheet_status[key] = {"success": False, "error": str(res), "time": round(elapsed, 2)}
+                # Phục hồi từ CACHE in-memory nếu có
+                if key in CACHE:
+                    cached_data[key_map[key]] = CACHE[key]['data']
+                else:
+                    cached_data[key_map[key]] = []
+            else:
+                data, cache_time = res
+                sheet_status[key] = {"success": True, "time": round(elapsed, 2)}
+                cached_data[key_map[key]] = data
+                
+        # Tính toán overview
+        try:
+            # Gọi trực tiếp get_overview để tận dụng cache vừa fetch
+            ov = get_overview(force=False)
+            cached_data["overview"] = ov
+        except Exception as ov_err:
+            print(f"[SYNC ERROR] Lỗi pre-compute overview: {ov_err}")
+            cached_data["overview"] = {}
+            
+        total_time = time.time() - start_time
+        print(f"[SYNC COMPLETED] Hoàn thành đồng bộ toàn bộ dữ liệu dashboard trong {total_time:.2f}s.")
+        
+        old_cache = {}
+        if os.path.exists(DASHBOARD_CACHE_PATH):
+            try:
+                with open(DASHBOARD_CACHE_PATH, "r", encoding="utf-8") as f:
+                    old_cache = json.load(f)
+            except: pass
+            
+        final_cache = {
+            "sync_info": {
+                "last_sync": last_sync_str,
+                "sheet_status": sheet_status,
+                "total_sync_time": round(total_time, 2)
+            },
+            "data": cached_data
+        }
+        
+        # Nếu có sheet nào lỗi, giữ lại data cache cũ của sheet đó
+        if old_cache and "data" in old_cache:
+            for key in keys:
+                mapped_key = key_map[key]
+                if not sheet_status[key]["success"] and mapped_key in old_cache["data"]:
+                    final_cache["data"][mapped_key] = old_cache["data"][mapped_key]
+                    print(f"[SYNC FALLBACK] Giữ lại cache cũ của sheet lỗi: {key}")
+                    
+        os.makedirs(os.path.dirname(DASHBOARD_CACHE_PATH), exist_ok=True)
+        with open(DASHBOARD_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(final_cache, f, ensure_ascii=False, indent=2)
+            
+        return True
+    except Exception as e:
+        print(f"[SYNC FATAL ERROR] Lỗi nghiêm trọng khi đồng bộ cache: {e}")
+        return False
+    finally:
+        _IS_SYNCING = False
+
+@app.get("/api/dashboard-cache", dependencies=[Depends(require_api_token)])
+async def get_dashboard_cache():
+    """API trả về toàn bộ dữ liệu dashboard đã cache sẵn từ đĩa."""
+    if not os.path.exists(DASHBOARD_CACHE_PATH):
+        print("[CACHE] Chưa có file cache đĩa, đang khởi động đồng bộ tức thì...")
+        await sync_dashboard_cache(force=False)
+        
+    try:
+        with open(DASHBOARD_CACHE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Không thể đọc file cache: {str(e)}")
+
+@app.post("/api/dashboard-cache/sync", dependencies=[Depends(require_api_token)])
+async def force_dashboard_sync():
+    """Yêu cầu force đồng bộ nền mới nhất ngay lập tức."""
+    success = await sync_dashboard_cache(force=True)
+    if success:
+        return {"status": "ok", "message": "Đồng bộ hoàn tất thành công."}
+    else:
+        return {"status": "busy", "message": "Hệ thống đang bận đồng bộ dữ liệu nền. Vui lòng chờ."}
