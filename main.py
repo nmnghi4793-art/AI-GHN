@@ -1845,8 +1845,8 @@ def _load_xe_daily_from_google_sheets():
         print(f"[XE DAILY] Sheets read skipped: {e}")
         return []
 
-def _is_july_2026_or_newer(date_str: str) -> bool:
-    """Kiểm tra ngày có thuộc từ 01/07/2026 trở về sau hay không."""
+def _is_from_1707_2026(date_str: str) -> bool:
+    """Kiểm tra ngày có thuộc từ 17/07/2026 trở về sau hay không."""
     if not date_str: return False
     s = date_str.strip()
     parts = s.split("/") if "/" in s else s.split("-")
@@ -1856,25 +1856,27 @@ def _is_july_2026_or_newer(date_str: str) -> bool:
                 d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
             else:
                 y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
-            if y > 2026 or (y == 2026 and m >= 7):
-                return True
+            if y > 2026: return True
+            if y == 2026:
+                if m > 7: return True
+                if m == 7 and d >= 17: return True
         except (ValueError, TypeError):
             pass
     return False
 
 def _generate_initial_xe_daily_records():
-    """Tự động tổng hợp dữ liệu lịch sử xe vận hành từ Google Sheets (xe_su_co) khi chưa có dữ liệu."""
+    """Tự động tổng hợp dữ liệu lịch sử xe vận hành thực tế từ 17/07/2026 khi chưa có dữ liệu."""
     records = []
     
     # 1. Thử load dữ liệu đã sync từ tab 'Xe Daily Logs' trên Google Sheet
     gs_records = _load_xe_daily_from_google_sheets()
     if gs_records:
-        records.extend(gs_records)
+        records.extend([r for r in gs_records if _is_from_1707_2026(r.get("ngay"))])
 
     try:
         su_co, _ = read_csv("xe_su_co")
 
-        # 2. Chuyển đổi toàn bộ dữ liệu xe không hoạt động từ sheet xe_su_co
+        # 2. Chuyển đổi dữ liệu xe không hoạt động thực tế từ 17/07/2026 từ sheet xe_su_co
         existing_keys = set((r["ngay"], r["ten_kho"].lower(), r["loai"], r["bien_so_xe"].lower()) for r in records)
         for item in su_co:
             ngay = _flex_get(item, ["ngày", "ngay", "date"])
@@ -1885,7 +1887,7 @@ def _generate_initial_xe_daily_records():
             ct = _flex_get(item, ["nội dung", "noi dung", "chi tiết"])
             note = f"{loi}: {ct}" if loi and ct else (loi or ct)
 
-            if ngay and kho:
+            if ngay and kho and _is_from_1707_2026(ngay):
                 key = (ngay, kho.lower(), "Xe không hoạt động", bien.lower())
                 if key not in existing_keys:
                     existing_keys.add(key)
@@ -1900,10 +1902,10 @@ def _generate_initial_xe_daily_records():
                         "trong_tai": 1900,
                         "ghi_chu": note,
                         "nguoi_nhap": "Hệ thống (Sheet)",
-                        "thoi_gian_ghi_nhan": "2026-07-01T15:00:00Z",
+                        "thoi_gian_ghi_nhan": "2026-07-17T08:00:00Z",
                     })
 
-        print(f"[XE DAILY INITIAL] Generated {len(records)} historical records.")
+        print(f"[XE DAILY INITIAL] Generated {len(records)} records from 17/07/2026.")
     except Exception as e:
         print(f"[XE DAILY INITIAL ERROR] {e}")
 
