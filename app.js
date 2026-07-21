@@ -7342,7 +7342,7 @@ async function deleteXeDailyRecord(recordId) {
     }
 }
 
-// ---- Export history table to Excel ----
+// ---- Export history table to Excel (.xlsx) ----
 function exportXeDailyExcel() {
     const records = state.xeDailyRecords || [];
     if (!records.length) {
@@ -7350,8 +7350,12 @@ function exportXeDailyExcel() {
         return;
     }
 
-    // Build rows
-    const header = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải', 'Người nhập', 'Thời gian ghi nhận'];
+    if (typeof XLSX === 'undefined') {
+        showToast('❌ Chưa tải được thư viện xuất Excel (SheetJS). Vui lòng tải lại trang.', 'error');
+        return;
+    }
+
+    const header = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải', 'Ghi chú', 'Người nhập', 'Thời gian ghi nhận'];
     const dataRows = records.map(r => [
         r.ngay || '',
         r.ten_kho || '',
@@ -7360,42 +7364,38 @@ function exportXeDailyExcel() {
         r.bien_so_xe || '',
         r.ten_ncc || '',
         _trongTaiLabel(r.trong_tai) || (r.trong_tai ? `${r.trong_tai} kg` : ''),
+        r.ghi_chu || '',
         r.nguoi_nhap || '',
         _formatTimestamp(r.thoi_gian_ghi_nhan)
     ]);
 
-    // Build CSV content with BOM for UTF-8 Vietnamese
-    const BOM = '\uFEFF';
-    const escape = v => {
-        const s = String(v ?? '');
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-            return '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-    };
-    const csvLines = [header, ...dataRows].map(row => row.map(escape).join(','));
-    const csvContent = BOM + csvLines.join('\n');
+    const wb = XLSX.utils.book_new();
+    const ws_data = [header, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-    // Generate filename with today's date
-    const today = _getTodayVN().split('/').join(''); // ddmmyyyy
-    const filename = `xe-van-hanh-daily-${today}.csv`;
+    ws['!cols'] = [
+        { wch: 14 }, // Ngày
+        { wch: 45 }, // Tên kho
+        { wch: 22 }, // Loại ghi nhận
+        { wch: 14 }, // Số lượng xe
+        { wch: 16 }, // Biển số xe
+        { wch: 20 }, // Tên NCC
+        { wch: 14 }, // Trọng tải
+        { wch: 35 }, // Ghi chú
+        { wch: 22 }, // Người nhập
+        { wch: 20 }  // Thời gian ghi nhận
+    ];
 
-    // Trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    XLSX.utils.book_append_sheet(wb, ws, "Xe Vận Hành Daily");
+    const today = _getTodayVN().split('/').join('');
+    const filename = `Bao_Cao_Xe_Van_Hanh_Daily_${today}.xlsx`;
+    XLSX.writeFile(wb, filename);
 
     showToast(`✅ Đã xuất ${records.length} bản ghi ra file ${filename}`, 'success');
 }
 
 // =====================================================================
-// XE DAILY — IMPORT FILE FUNCTIONS
+// XE DAILY — IMPORT FILE FUNCTIONS (.xlsx)
 // =====================================================================
 
 // Called when user selects a file in the import input
@@ -7416,32 +7416,27 @@ function onXedImportFileChange() {
     if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
 }
 
-// Download a sample CSV file with correct headers and one example row
+// Download a sample Excel file (.xlsx) with correct headers and example rows
 function downloadXeDailySampleFile() {
-    const headers = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải'];
-    const exampleRow = [
-        '17/07/2026',
-        'Kho Giao Hàng Nặng - Hòa Xuân - Đà Nẵng',
-        'Xe không hoạt động',
-        '1',
-        '43C-251.12',
-        'Trần Xuân Phúc',
-        '1400'
-    ];
-    
     if (typeof XLSX === 'undefined') {
         showToast('❌ Chưa tải được thư viện xuất Excel (SheetJS). Vui lòng tải lại trang.', 'error');
         return;
     }
+    const headers = ['Ngày', 'Tên kho', 'Loại ghi nhận', 'Số lượng xe', 'Biển số xe', 'Tên NCC', 'Trọng tải', 'Ghi chú'];
+    const exampleRows = [
+        ['17/07/2026', 'Kho Giao Hàng Nặng - Đà Nẵng', 'Xe tăng cường', 1, '43C-188.92', 'Tín Thành', 1900, 'Xe tăng cường ca sáng'],
+        ['17/07/2026', 'Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa', 'Xe không hoạt động', 1, '79H-021.45', 'Mạnh Cường', 1900, 'Xe bảo dưỡng định kỳ'],
+        ['18/07/2026', 'Kho Giao Hàng Nặng - Vinh - Nghệ An', 'Xe tăng cường', 1, '37H-091.33', 'Ngọc Đỉnh', 2500, 'Tăng cường tải đỉnh điểm']
+    ];
     
     const wb = XLSX.utils.book_new();
-    const ws_data = [
-        headers,
-        exampleRow
-    ];
+    const ws_data = [headers, ...exampleRows];
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    XLSX.utils.book_append_sheet(wb, ws, "Sample");
-    XLSX.writeFile(wb, "mau-import-xe-van-hanh-daily.xlsx");
+    ws['!cols'] = [
+        { wch: 14 }, { wch: 45 }, { wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 30 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Mau_Import_Xe_Daily");
+    XLSX.writeFile(wb, "Mau_Ghi_Nhan_Xe_Daily.xlsx");
     showToast('✅ Đã tải file mẫu import xe vận hành (.xlsx).', 'success');
 }
 
@@ -7460,7 +7455,7 @@ async function importXeDailyFile() {
     const allowedExts = ['.csv', '.xlsx', '.xls'];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     if (!allowedExts.includes(ext)) {
-        showToast('Chỉ hỗ trợ file .csv, .xlsx, .xls', 'error');
+        showToast('Chỉ hỗ trợ file .xlsx, .xls, .csv', 'error');
         return;
     }
 
@@ -7544,10 +7539,9 @@ function _showImportResult(el, type, html, errorDetails) {
     el.style.borderRadius = '8px';
 
     let inner = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' + html;
-    // Add download error button if there are errors
     if (errorDetails && errorDetails.length > 0) {
         inner += '<button onclick="_downloadXedImportErrors()" style="font-size:0.78rem;padding:4px 10px;border-radius:6px;border:1px solid #ef4444;background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">'
-             + '<i class="fa-solid fa-file-circle-exclamation"></i> Tải báo lỗi (.csv)</button>';
+             + '<i class="fa-solid fa-file-circle-exclamation"></i> Tải báo lỗi (.xlsx)</button>';
     }
     inner += '</div>';
 
@@ -7566,11 +7560,10 @@ function _showImportResult(el, type, html, errorDetails) {
     }
     el.innerHTML = inner;
 
-    // Store error details for download
     el._errorDetails = errorDetails || [];
 }
 
-// Download error report CSV
+// Download error report Excel (.xlsx)
 function _downloadXedImportErrors() {
     const el = document.getElementById('xed-import-result');
     const errors = (el && el._errorDetails) ? el._errorDetails : [];
@@ -7579,14 +7572,10 @@ function _downloadXedImportErrors() {
         return;
     }
 
-    const BOM = '\uFEFF';
-    const escape = v => {
-        const s = String(v ?? '');
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-            return '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-    };
+    if (typeof XLSX === 'undefined') {
+        showToast('❌ Chưa tải được thư viện xuất Excel (SheetJS). Vui lòng tải lại trang.', 'error');
+        return;
+    }
 
     const header = ['Số dòng trong file', 'Lỗi cần chỉnh sửa'];
     const rows = errors.map(d => [
@@ -7594,22 +7583,17 @@ function _downloadXedImportErrors() {
         d.errors.join(' | ')
     ]);
 
-    const lines = [header, ...rows].map(r => r.map(escape).join(','));
-    const csvContent = BOM + lines.join('\n');
+    const wb = XLSX.utils.book_new();
+    const ws_data = [header, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [{ wch: 20 }, { wch: 60 }];
 
     const today = _getTodayVN().split('/').join('');
-    const filename = 'bao-loi-import-xe-' + today + '.csv';
+    const filename = `Bao_Loi_Import_Xe_${today}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, ws, "Bao_Loi_Import");
+    XLSX.writeFile(wb, filename);
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Đã tải file báo lỗi: ' + filename, 'success');
+    showToast(`✅ Đã tải file báo lỗi ${filename}`, 'success');
 }
 
 

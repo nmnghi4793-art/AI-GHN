@@ -136,7 +136,7 @@
             <div class="login-left-content">
                 <!-- 1. Logo GHN -->
                 <div class="login-left-logo">
-                    <img src="/static/ghn_logo.png" alt="GHN - Your Loads. Our Roads." class="login-ghn-logo-img">
+                    <img src="/static/ghn_logo.png" alt="GHN - Your Loads. Our Roads." class="login-ghn-logo-img" onerror="if(this.src.indexOf('/ghn_logo.png')===-1)this.src='/ghn_logo.png';">
                 </div>
                 <!-- 2. Dòng nhỏ: ỨNG DỤNG NỘI BỘ -->
                 <div class="login-left-badge">ỨNG DỤNG NỘI BỘ</div>
@@ -1885,19 +1885,19 @@
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                             <i class="fa-solid fa-file-arrow-up" style="color:var(--orange);font-size:1.1rem;"></i>
                             <span style="font-weight:600;font-size:0.95rem;">Import file ghi nhận xe</span>
-                            <span style="font-size:0.78rem;color:var(--text3);margin-left:4px;">(.csv / .xlsx)</span>
+                            <span style="font-size:0.78rem;color:var(--text3);margin-left:4px;">(Định dạng .xlsx)</span>
                         </div>
                         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
                             <label for="xed-import-file" class="btn btn-outline" style="cursor:pointer;font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;">
-                                <i class="fa-solid fa-folder-open"></i> Chọn file
+                                <i class="fa-solid fa-folder-open"></i> Chọn file Excel (.xlsx)
                             </label>
-                            <input type="file" id="xed-import-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="onXedImportFileChange()">
+                            <input type="file" id="xed-import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="onXedImportFileChange()">
                             <span id="xed-import-filename" style="font-size:0.82rem;color:var(--text3);font-style:italic;">Chưa chọn file</span>
                             <button onclick="importXeDailyFile()" class="btn btn-primary" id="btn-xed-import" style="font-size:0.82rem;padding:7px 16px;display:flex;align-items:center;gap:6px;" disabled>
-                                <i class="fa-solid fa-file-import"></i> Import Excel
+                                <i class="fa-solid fa-file-import"></i> Import Excel (.xlsx)
                             </button>
                             <button onclick="downloadXeDailySampleFile()" class="btn btn-outline" style="font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;color:var(--cyan);border-color:var(--cyan);">
-                                <i class="fa-solid fa-download"></i> Tải file mẫu
+                                <i class="fa-solid fa-download"></i> Tải file mẫu (.xlsx)
                             </button>
                         </div>
                         <!-- Result report -->
