@@ -3576,7 +3576,7 @@ function switchKhoXeTab(tab) {
 }
 
 /**
- * Chuyển tab bên trong section Cảnh Báo Rủi Ro
+ * Chuyển tab bên trong section Dự Báo Rủi Ro
  * @param {'warnings'|'forecast'|'overload'|'dontao'} tab
  */
 function switchCbrTab(tab) {
@@ -3586,6 +3586,17 @@ function switchCbrTab(tab) {
     });
     document.getElementById('cbr-panel-' + tab).style.display = 'block';
     document.getElementById('cbr-tab-btn-' + tab).classList.add('active');
+    
+    // Cập nhật tiêu đề và mô tả trang tương ứng với tab được chọn
+    const tabMeta = {
+        warnings: ['Dự Báo Rủi Ro', 'Tình trạng cảnh báo hiện tại của các kho'],
+        forecast: ['Dự Báo Rủi Ro', 'Dự báo rủi ro vận hành từng kho trong vài ngày tới'],
+        overload: ['Dự Báo Quá Tải', 'Dự báo nguy cơ quá tải và số ngày dự kiến trở lại bình thường'],
+        dontao: ['N-1 vs GTC Max', 'So sánh đơn tạo N-1 và năng lực GTC tối đa của từng kho']
+    };
+    const [title, sub] = tabMeta[tab] || ['Dự Báo Rủi Ro', 'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'];
+    document.getElementById('page-title').textContent = title;
+    document.getElementById('page-subtitle').textContent = sub;
     
     // Kích hoạt render lại tab con tương ứng để cập nhật dữ liệu mới nhất (Yêu cầu 7)
     if (tab === 'warnings') {
@@ -3599,9 +3610,9 @@ function switchCbrTab(tab) {
 const SECTION_META = {
     'login-logs':   ['Log Đăng Nhập',            'Nhật ký đăng nhập hệ thống của nhân viên vận hành'],
     overview:       ['Báo Cáo Tổng Quan',      'Giám sát GTC, Ontime, Backlog và B2B toàn mạng Miền Trung'],
-    cbr:            ['Cảnh Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
-    warnings:       ['Cảnh Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
-    forecast:       ['Cảnh Báo Rủi Ro',         'Tab Dự Báo Rủi Ro'],
+    cbr:            ['Dự Báo Rủi Ro',         'Tình trạng cảnh báo hiện tại và dự báo rủi ro vận hành'],
+    warnings:       ['Dự Báo Rủi Ro',         'Tab Tình Trạng Hiện Tại'],
+    forecast:       ['Dự Báo Rủi Ro',         'Tab Dự Báo Rủi Ro'],
     gtc:            ['GTC và Năng Suất',       'Theo dõi tỷ lệ giao thành công và năng suất nhân viên'],
     backlog:        ['Backlog > 7 Ngày',         'Đơn hàng tồn lâu trên 7 ngày cần ưu tiên xử lý'],
     b2b:            ['B2B & SLA',               'Theo dõi đơn B2B ưu tiên và cam kết SLA với đối tác'],
@@ -7249,19 +7260,17 @@ function filterXeDailyTable() {
 // ---- Update overview cards ----
 function updateXeDailyCards() {
     const dateFilter = document.getElementById('xed-filter-date')?.value || '';
-    // Filter records for the selected date (or today if no filter)
-    const targetDate = dateFilter || _getTodayVN();
-    const dayRecords = state.xeDailyRecords;
+    const dayRecords = state.xeDailyRecords || [];
 
-    // If filter is active, use all loaded records; otherwise recalculate for today
-    const forToday = dateFilter
-        ? dayRecords
-        : dayRecords.filter(r => r.ngay === targetDate);
+    // Nếu chọn 1 ngày cụ thể thì lọc theo ngày đó; nếu chọn "Tất cả ngày" (rỗng) thì lấy tất cả bản ghi
+    const targetRecords = dateFilter
+        ? dayRecords.filter(r => r.ngay === dateFilter)
+        : dayRecords;
 
-    const tangCuong  = forToday.filter(r => r.loai === 'Xe tăng cường').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
-    const offXe      = forToday.filter(r => r.loai === 'Xe không hoạt động').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
-    const khoSet     = new Set(forToday.map(r => r.ten_kho).filter(Boolean));
-    const nccSet     = new Set(forToday.map(r => r.ten_ncc).filter(Boolean));
+    const tangCuong  = targetRecords.filter(r => r.loai === 'Xe tăng cường').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
+    const offXe      = targetRecords.filter(r => r.loai === 'Xe không hoạt động').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
+    const khoSet     = new Set(targetRecords.map(r => r.ten_kho).filter(Boolean));
+    const nccSet     = new Set(targetRecords.map(r => r.ten_ncc).filter(Boolean));
 
     const setVal = (id, val) => {
         const el = document.getElementById(id);

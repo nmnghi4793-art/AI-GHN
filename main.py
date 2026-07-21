@@ -4,7 +4,12 @@ import io
 import secrets
 import time
 import json
+import asyncio
 from collections import defaultdict
+
+# Fix Playwright NotImplementedError on Windows
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Setup encoding for windows stdout / log output (Windows-only to avoid issues)
 if os.name == "nt":
@@ -1763,24 +1768,44 @@ async def send_telegram_report(payload: dict):
 # =====================================================================
 
 XE_DAILY_DATA_FILE = os.path.join(BASE_DIR, "scratch", "xe_van_hanh_daily.json")
+XE_DAILY_BACKUP_FILE = os.path.join(BASE_DIR, "scratch", "xe_van_hanh_daily_backup.json")
 
 def _load_xe_daily_records():
-    """Load xe vận hành daily records từ JSON file."""
+    """Load xe vận hành daily records từ JSON file chính hoặc file backup tự động khôi phục."""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
-        if os.path.exists(XE_DAILY_DATA_FILE) and os.path.getsize(XE_DAILY_DATA_FILE) > 0:
+        # 1. Thử load từ file chính
+        if os.path.exists(XE_DAILY_DATA_FILE) and os.path.getsize(XE_DAILY_DATA_FILE) > 2:
             with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+        
+        # 2. Thử khôi phục từ file backup nếu file chính bị trống/reset
+        if os.path.exists(XE_DAILY_BACKUP_FILE) and os.path.getsize(XE_DAILY_BACKUP_FILE) > 2:
+            with open(XE_DAILY_BACKUP_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list) and len(data) > 0:
+                    print(f"[XE DAILY RECOVERY] Auto-restored {len(data)} records from backup file.")
+                    # Ghi ngược lại file chính
+                    with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f_main:
+                        json.dump(data, f_main, ensure_ascii=False, indent=2)
+                    return data
     except Exception as e:
         print(f"[XE DAILY] Error loading records: {e}")
     return []
 
 def _save_xe_daily_records(records: list):
-    """Ghi xe vận hành daily records vào JSON file."""
+    """Ghi xe vận hành daily records vào cả JSON file chính và backup file."""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
+        # Ghi file chính
         with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(records, f, ensure_ascii=False, indent=2)
+        # Ghi file backup nếu records không rỗng
+        if records:
+            with open(XE_DAILY_BACKUP_FILE, "w", encoding="utf-8") as f_bk:
+                json.dump(records, f_bk, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
         print(f"[XE DAILY] Error saving records: {e}")
@@ -2468,6 +2493,13 @@ def read_css():
     css_path = os.path.join(FRONTEND_DIR, "styles.css")
     target = css_path if os.path.exists(css_path) else os.path.join(BASE_DIR, "styles.css")
     return serve_utf8(target, "text/css")
+
+@app.get("/ghn_logo.png")
+@app.get("/static/ghn_logo.png")
+def read_logo():
+    logo_path = os.path.join(FRONTEND_DIR, "ghn_logo.png")
+    target = logo_path if os.path.exists(logo_path) else os.path.join(BASE_DIR, "ghn_logo.png")
+    return FileResponse(target, media_type="image/png")
 
 @app.get("/")
 def read_index():
