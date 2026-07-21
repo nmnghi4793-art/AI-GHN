@@ -840,6 +840,7 @@ nav {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: flex-start;
     overflow: hidden;
 }
 
@@ -860,29 +861,21 @@ nav {
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
+    max-width: 520px;
+    width: 100%;
 }
 
-/* Logo row */
+/* Logo container: just the SVG, no flex row */
 .login-left-logo {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: block;
     margin-bottom: 8px;
 }
 
 .login-left-logo svg {
-    flex-shrink: 0;
-    border-radius: 6px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-}
-
-.login-left-logo-sub {
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.45);
-    text-transform: uppercase;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 /* Badge */
