@@ -134,20 +134,23 @@
         <div class="login-left-panel">
             <div class="login-left-glow"></div>
             <div class="login-left-content">
-                <!-- Logo: white box, GHN black, YOUR LOADS cyan bên dưới - y như hình tham chiếu -->
+                <!-- Logo GHN đúng theo brand: nền tối teal, chữ GHN trắng, tagline trắng dưới -->
                 <div class="login-left-logo">
-                    <svg width="176" height="80" viewBox="0 0 176 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Nền trắng -->
-                        <rect width="176" height="80" rx="8" fill="white"/>
-                        <!-- Chữ GHN đen đậm -->
-                        <text x="14" y="52" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="44" fill="#111111">GHN</text>
-                        <!-- Dải nền cyan phía dưới -->
-                        <rect x="0" y="58" width="176" height="22" rx="0" fill="#00BCA8"/>
-                        <rect x="0" y="58" width="176" height="22" fill="#00BCA8"/>
-                        <!-- Bo góc dưới cùng khớp với rect ngoài -->
-                        <path d="M0 58 H176 V72 Q176 80 168 80 H8 Q0 80 0 72 Z" fill="#00BCA8"/>
-                        <!-- Chữ YOUR LOADS. OUR ROADS. màu trắng -->
-                        <text x="14" y="74" font-family="Arial,sans-serif" font-weight="700" font-size="10" fill="white" letter-spacing="0.5">YOUR LOADS. OUR ROADS.</text>
+                    <svg width="220" height="90" viewBox="0 0 220 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Nền tối teal/navy -->
+                        <rect width="220" height="90" rx="6" fill="#0D2137"/>
+                        <!-- Texture gradient nhẹ -->
+                        <rect width="220" height="90" rx="6" fill="url(#logo-grad)" opacity="0.4"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="0" y1="0" x2="220" y2="90" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#00DCC8" stop-opacity="0.15"/>
+                                <stop offset="100%" stop-color="#003344" stop-opacity="0.1"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Chữ GHN trắng đậm -->
+                        <text x="18" y="58" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="50" fill="white" letter-spacing="-1">GHN</text>
+                        <!-- Tagline YOUR LOADS. OUR ROADS. màu trắng nhạt -->
+                        <text x="18" y="78" font-family="Arial,sans-serif" font-weight="500" font-size="11" fill="rgba(255,255,255,0.75)" letter-spacing="0.8">YOUR LOADS. OUR ROADS.</text>
                     </svg>
                 </div>
                 <!-- Badge -->
