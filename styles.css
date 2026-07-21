@@ -873,16 +873,16 @@ nav {
 /* Logo container & Image sizing */
 .login-left-logo {
     display: block;
-    margin-bottom: 32px; /* 28–36px gap to text */
+    margin-bottom: 28px;
 }
 
 .login-ghn-logo-img {
-    width: 210px; /* Desktop: 180–230px */
+    width: 175px;
     height: auto;
     max-width: 100%;
     display: block;
-    mix-blend-mode: screen;
-    filter: brightness(1.05);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Badge */
