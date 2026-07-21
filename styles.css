@@ -797,12 +797,11 @@ nav {
 /* ===== LOGIN SCREEN — 2-COLUMN SPLIT CARD ===== */
 .login-wrapper {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     min-height: 100vh;
     font-family: var(--font);
-    padding: 24px 16px;
-    /* Dark navy background (both modes) */
+    padding: 0;
     background: #06101e;
     background-image:
         radial-gradient(ellipse 60% 50% at 20% 60%, rgba(0, 220, 200, 0.06) 0%, transparent 70%),
@@ -819,13 +818,11 @@ nav {
 .login-split-card {
     display: flex;
     width: 100%;
-    max-width: 1060px;
-    min-height: 560px;
-    border-radius: 22px;
+    max-width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
     overflow: hidden;
-    box-shadow:
-        0 25px 60px rgba(0, 0, 0, 0.55),
-        0 0 0 1px rgba(0, 220, 200, 0.08);
+    box-shadow: none;
     animation: login-card-slidein 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -839,7 +836,7 @@ nav {
     position: relative;
     flex: 0 0 50%;
     background: linear-gradient(145deg, #0a1628 0%, #0d1f3c 50%, #091524 100%);
-    padding: 52px 44px;
+    padding: 64px 60px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -962,7 +959,7 @@ nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 52px 48px;
+    padding: 64px 72px;
 }
 
 /* Dark mode: right panel */
@@ -1184,30 +1181,27 @@ body:not(.light-mode) .login-right-terms {
 /* ===== RESPONSIVE ===== */
 
 /* Tablet: compress columns slightly */
-@media (max-width: 860px) {
-    .login-left-panel { padding: 40px 32px; }
-    .login-right-panel { padding: 40px 36px; }
-    .login-split-card { max-width: 720px; }
+@media (max-width: 1024px) {
+    .login-left-panel { padding: 48px 40px; }
+    .login-right-panel { padding: 48px 48px; }
 }
 
 /* Mobile: stack vertically */
 @media (max-width: 640px) {
-    .login-wrapper { padding: 16px; align-items: flex-start; }
+    .login-wrapper { padding: 0; align-items: flex-start; }
     .login-split-card {
         flex-direction: column;
-        border-radius: 18px;
-        max-width: 100%;
-        min-height: auto;
+        min-height: 100vh;
     }
     .login-left-panel {
         flex: none;
-        padding: 32px 24px 28px;
+        padding: 40px 28px 32px;
     }
     .login-left-title { font-size: 28px; }
     .login-left-desc { max-width: 100%; }
     .login-right-panel {
         flex: none;
-        padding: 32px 24px 36px;
+        padding: 36px 28px 48px;
     }
     .login-right-inner { max-width: 100%; }
 }
@@ -1224,7 +1218,7 @@ body.light-mode .login-right-panel {
     background: #ffffff;
 }
 
-/* Light mode: left panel stays dark for contrast — no override needed */
+/* Left panel always dark */
 
 /* Fallback for OLD .login-card selectors (profile screen still uses it) */
 .login-card {
