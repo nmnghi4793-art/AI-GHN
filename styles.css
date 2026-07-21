@@ -819,9 +819,9 @@ nav {
     display: flex;
     width: 100%;
     max-width: 1040px;
-    min-height: 580px;
+    min-height: 560px;
     border-radius: 20px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow:
         0 30px 70px rgba(0, 0, 0, 0.6),
         0 0 0 1px rgba(0, 220, 200, 0.1);
@@ -836,13 +836,13 @@ nav {
 /* ===== LEFT PANEL ===== */
 .login-left-panel {
     position: relative;
-    flex: 0 0 50%;
-    background: linear-gradient(145deg, #0a1628 0%, #0d1f3c 50%, #091524 100%);
-    padding: 56px 52px;
+    flex: 0 0 52%;
+    background: linear-gradient(145deg, #0a1628 0%, #0d1f3c 55%, #091524 100%);
+    padding: 60px 52px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     overflow: hidden;
 }
 
@@ -863,10 +863,10 @@ nav {
     z-index: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    text-align: left;
     gap: 18px;
-    max-width: 420px;
+    max-width: 460px;
     width: 100%;
 }
 
@@ -949,7 +949,7 @@ nav {
 .login-left-features li {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 10px;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.7);
@@ -964,17 +964,23 @@ nav {
 
 /* ===== RIGHT PANEL ===== */
 .login-right-panel {
-    flex: 0 0 50%;
+    flex: 0 0 48%;
     background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 56px 60px;
+    padding: 52px 52px;
+    /* Bo góc riêng — tạo hiệu ứng card nổi */
+    margin: 16px 16px 16px 0;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* Dark mode: right panel */
 body:not(.light-mode) .login-right-panel {
     background: #0f2236;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(0, 220, 200, 0.08);
 }
 
 .login-right-inner {
