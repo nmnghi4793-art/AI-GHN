@@ -129,39 +129,68 @@
 </head>
 <!-- ===== LOGIN SCREEN ===== -->
 <div class="login-wrapper" id="login-wrapper">
-    <div class="login-card">
-        <div class="login-header">
-            <div class="login-logo">
-                <i class="fa-solid fa-truck-fast"></i>
+    <div class="login-split-card">
+        <!-- LEFT PANEL: Brand -->
+        <div class="login-left-panel">
+            <div class="login-left-glow"></div>
+            <div class="login-left-content">
+                <!-- Logo -->
+                <div class="login-left-logo">
+                    <svg width="72" height="40" viewBox="0 0 120 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="120" height="56" rx="6" fill="white"/>
+                        <text x="8" y="40" font-family="Arial Black,sans-serif" font-weight="900" font-size="34" fill="#D42100">GHN</text>
+                    </svg>
+                    <span class="login-left-logo-sub">YOUR LOADS. OUR ROADS.</span>
+                </div>
+                <!-- Badge -->
+                <div class="login-left-badge">ỨNG DỤNG NỘI BỘ</div>
+                <!-- Title -->
+                <h1 class="login-left-title">GHN Ops<br><span class="login-left-title-cyan">Miền Trung</span></h1>
+                <p class="login-left-tagline">Giám sát vận hành thông minh</p>
+                <p class="login-left-desc">Theo dõi GTC, Backlog, B2B, xe, kho, nhân sự và cảnh báo rủi ro vận hành Miền Trung.</p>
+                <!-- Features -->
+                <ul class="login-left-features">
+                    <li><i class="fa-solid fa-circle-check"></i> Dành cho nhân sự vận hành GHN</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Theo dõi dữ liệu tập trung</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Cảnh báo nhanh các rủi ro vận hành</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Hỗ trợ ra quyết định hằng ngày</li>
+                </ul>
             </div>
-            <div class="login-brand-text">GHN Ops <span>Miền Trung</span></div>
-            <div class="login-title">Đăng nhập vận hành GXT Miền Trung</div>
         </div>
-        <div class="login-form">
-            <div class="login-error" id="login-error">
-                <i class="fa-solid fa-circle-exclamation"></i>
-                <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
-            </div>
-            <div class="input-group">
-                <label for="login-username">Tài khoản</label>
-                <div class="input-field-wrap">
-                    <i class="fa-solid fa-user"></i>
-                    <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập">
+        <!-- RIGHT PANEL: Form -->
+        <div class="login-right-panel">
+            <div class="login-right-inner">
+                <div class="login-right-eyebrow">CHÀO MỪNG TRỞ LẠI</div>
+                <h2 class="login-right-title">Đăng nhập hệ thống</h2>
+                <p class="login-right-sub">Sử dụng tài khoản được cấp để tiếp tục.</p>
+
+                <div class="login-form">
+                    <div class="login-error" id="login-error">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-username">Tài khoản</label>
+                        <div class="input-field-wrap">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập" autocomplete="username">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Mật khẩu</label>
+                        <div class="input-field-wrap">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="login-password" class="login-input" placeholder="••••••••" style="padding-right: 40px;" autocomplete="current-password">
+                            <i class="fa-solid fa-eye" id="toggle-password-eye" style="left: auto; right: 14px; cursor: pointer;"></i>
+                        </div>
+                    </div>
+                    <button type="button" class="login-btn" id="login-submit-btn">
+                        <span class="login-btn-text">Đăng nhập</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <p class="login-right-terms">Bằng việc đăng nhập, bạn đồng ý tuân thủ quy định sử dụng hệ thống nội bộ GHN.</p>
                 </div>
             </div>
-            <div class="input-group">
-                <label for="login-password">Mật khẩu</label>
-                <div class="input-field-wrap">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="login-password" class="login-input" placeholder="••••••••"
-                        style="padding-right: 40px;">
-                    <i class="fa-solid fa-eye" id="toggle-password-eye"
-                        style="left: auto; right: 14px; cursor: pointer;"></i>
-                </div>
-            </div>
-            <button type="button" class="login-btn" id="login-submit-btn">
-                Đăng nhập <i class="fa-solid fa-arrow-right"></i>
-            </button>
         </div>
     </div>
 </div>
@@ -243,7 +272,7 @@
                 <i class="fa-solid fa-chart-pie"></i><span>Tổng Quan</span>
             </a>
             <a href="#" class="nav-item" data-section="cbr" id="nav-cbr">
-                <i class="fa-solid fa-fire" style="color:#ff4d4f"></i><span>Cảnh Báo Rủi Ro</span>
+                <i class="fa-solid fa-magnifying-glass-chart" style="color:#ff4d4f"></i><span>Dự Báo Rủi Ro</span>
                 <span class="nav-badge danger" id="nav-warnings-count">--</span>
             </a>
             <a href="#" class="nav-item" data-section="gtc-b2b-prio" id="nav-gtc-b2b-prio">
