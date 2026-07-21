@@ -872,10 +872,22 @@ nav {
     margin-bottom: 8px;
 }
 
-.login-left-logo svg {
+.login-left-logo svg,
+.login-ghn-logo-img {
     display: block;
     border-radius: 8px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.login-ghn-logo-img {
+    width: 300px;
+    height: auto;
+    max-width: 100%;
+    display: block;
+    border-radius: 12px;
+    /* Blend nền tối của logo vào nền panel, không thấy viền đen */
+    mix-blend-mode: screen;
+    filter: brightness(1.05);
 }
 
 /* Badge */
