@@ -1846,7 +1846,7 @@ def _load_xe_daily_from_google_sheets():
         return []
 
 def _generate_initial_xe_daily_records():
-    """Tự động tổng hợp dữ liệu lịch sử xe vận hành từ Google Sheets khi chưa có dữ liệu."""
+    """Tự động tổng hợp dữ liệu lịch sử xe vận hành thực tế từ Google Sheets khi chưa có dữ liệu."""
     records = []
     
     # 1. Thử load dữ liệu đã sync từ tab 'Xe Daily Logs' trên Google Sheet
@@ -1856,9 +1856,8 @@ def _generate_initial_xe_daily_records():
 
     try:
         su_co, _ = read_csv("xe_su_co")
-        gxt, _ = read_csv("xe_gxt")
 
-        # 2. Chuyển đổi dữ liệu xe không hoạt động từ sheet xe_su_co
+        # 2. Chuyển đổi dữ liệu xe không hoạt động thực tế từ sheet xe_su_co
         existing_keys = set((r["ngay"], r["ten_kho"].lower(), r["loai"], r["bien_so_xe"].lower()) for r in records)
         for item in su_co:
             ngay = _flex_get(item, ["ngày", "ngay", "date"])
@@ -1887,44 +1886,7 @@ def _generate_initial_xe_daily_records():
                         "thoi_gian_ghi_nhan": "2026-07-01T08:00:00Z",
                     })
 
-        # 3. Sinh bản ghi xe tăng cường mẫu từ 01/07/2026 tới 21/07/2026
-        july_days = [f"{d:02d}/07/2026" for d in range(1, 22)]
-        plates = ["43C-128.45", "79H-023.11", "37H-056.88", "77C-091.23", "92C-114.77", "75C-082.99", "36H-034.56"]
-        
-        for idx, day in enumerate(july_days):
-            if gxt:
-                sample_gxt = [gxt[(idx * 3 + i) % len(gxt)] for i in range(3)]
-                for g in sample_gxt:
-                    kho = _flex_get(g, ["kho"])
-                    ncc = _flex_get(g, ["ncc"]) or "Tín Thành"
-                    loai_xe = _flex_get(g, ["loại xe", "loai xe"]) or "1T9"
-                    
-                    tt = 1900
-                    if "1T4" in loai_xe: tt = 1400
-                    elif "1T9" in loai_xe: tt = 1900
-                    elif "2T5" in loai_xe: tt = 2500
-                    elif "3T5" in loai_xe: tt = 3500
-                    elif "5T" in loai_xe: tt = 5000
-
-                    plate = plates[(idx + len(kho)) % len(plates)]
-                    if kho:
-                        key = (day, kho.lower(), "Xe tăng cường", plate.lower())
-                        if key not in existing_keys:
-                            existing_keys.add(key)
-                            records.append({
-                                "id": secrets.token_hex(8),
-                                "ngay": day,
-                                "ten_kho": kho,
-                                "loai": "Xe tăng cường",
-                                "so_luong_xe": 1,
-                                "bien_so_xe": plate,
-                                "ten_ncc": ncc,
-                                "trong_tai": tt,
-                                "ghi_chu": "Tăng cường tải đỉnh điểm",
-                                "nguoi_nhap": "Điều hành Miền Trung",
-                                "thoi_gian_ghi_nhan": f"2026-07-{day[:2]}T09:30:00Z",
-                            })
-        print(f"[XE DAILY INITIAL] Generated {len(records)} historical records.")
+        print(f"[XE DAILY INITIAL] Generated {len(records)} real historical records.")
     except Exception as e:
         print(f"[XE DAILY INITIAL ERROR] {e}")
 
