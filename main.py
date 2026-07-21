@@ -1987,33 +1987,29 @@ def _generate_initial_xe_daily_records():
     return records
 
 def _load_xe_daily_records():
-    """Load xe vận hành daily records từ JSON file chính hoặc file backup tự động khôi phục."""
+    """Load xe vận hành daily records từ JSON file chính hoặc file backup."""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
         # 1. Thử load từ file chính
         if os.path.exists(XE_DAILY_DATA_FILE):
             with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
+                if isinstance(data, list):
                     return data
 
-        # 2. Thử khôi phục từ file backup nếu file chính bị trống/reset
+        # 2. Thử khôi phục từ file backup nếu file chính chưa tồn tại
         if os.path.exists(XE_DAILY_BACKUP_FILE):
             with open(XE_DAILY_BACKUP_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
-                    print(f"[XE DAILY RECOVERY] Auto-restored {len(data)} records from backup file.")
+                if isinstance(data, list):
+                    print(f"[XE DAILY RECOVERY] Restored {len(data)} records from backup file.")
                     with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f_main:
                         json.dump(data, f_main, ensure_ascii=False, indent=2)
                     return data
     except Exception as e:
         print(f"[XE DAILY] Error loading records: {e}")
 
-    # 3. Nếu chưa có dữ liệu nào hoặc dữ liệu rỗng, tự động khởi tạo dữ liệu lịch sử
-    initial = _generate_initial_xe_daily_records()
-    if initial:
-        _save_xe_daily_records(initial)
-    return initial
+    return []
 
 def _sync_xe_daily_to_google_sheets(new_records: list):
     """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs'."""
