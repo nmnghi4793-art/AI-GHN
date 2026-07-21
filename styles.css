@@ -877,12 +877,12 @@ nav {
 }
 
 .login-ghn-logo-img {
-    width: 175px;
+    width: 220px;
     height: auto;
     max-width: 100%;
     display: block;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 /* Badge */
