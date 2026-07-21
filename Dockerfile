@@ -20,6 +20,7 @@ COPY vanhanh_scheduler.py .
 COPY app.js .
 COPY index.html .
 COPY styles.css .
+COPY ghn_logo.png .
 COPY Procfile .
 
 
