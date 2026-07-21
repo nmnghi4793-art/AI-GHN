@@ -2431,6 +2431,7 @@ async def import_xe_van_hanh_records(
     if saved_records:
         if not _save_xe_daily_records(existing):
             raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi import.")
+        _sync_xe_daily_to_google_sheets(saved_records)
 
     total_read = len(rows)
     print(f"[XE DAILY IMPORT] Read={total_read}, Saved={len(saved_records)}, Errors={len(error_details)}, Dups={duplicate_count}")
