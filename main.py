@@ -2023,25 +2023,32 @@ def _generate_initial_xe_daily_records():
     return records
 
 def _load_xe_daily_records():
-    """Load xe vận hành daily records từ JSON file chính hoặc file backup."""
+    """Load xe vận hành daily records từ 3 tầng: 1. File JSON chính  2. File Backup  3. Google Sheets 'Xe Daily Logs'"""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
-        # 1. Thử load từ file chính
+        # 1. Thử load từ file chính (nếu có dữ liệu)
         if os.path.exists(XE_DAILY_DATA_FILE):
             with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
+                if isinstance(data, list) and len(data) > 0:
                     return data
 
-        # 2. Thử khôi phục từ file backup nếu file chính chưa tồn tại
+        # 2. Thử khôi phục từ file backup nếu file chính chưa có hoặc đang rỗng
         if os.path.exists(XE_DAILY_BACKUP_FILE):
             with open(XE_DAILY_BACKUP_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
+                if isinstance(data, list) and len(data) > 0:
                     print(f"[XE DAILY RECOVERY] Restored {len(data)} records from backup file.")
-                    with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f_main:
-                        json.dump(data, f_main, ensure_ascii=False, indent=2)
+                    _save_xe_daily_records(data)
                     return data
+
+        # 3. Tầng bảo vệ 3: Khôi phục tự động từ Google Sheets tab 'Xe Daily Logs'
+        print("[XE DAILY RECOVERY] Attempting auto-restore from Google Sheets tab 'Xe Daily Logs'...")
+        gs_records = _load_xe_daily_from_google_sheets()
+        if gs_records and len(gs_records) > 0:
+            print(f"[XE DAILY RECOVERY] Restored {len(gs_records)} records from Google Sheets!")
+            _save_xe_daily_records(gs_records)
+            return gs_records
     except Exception as e:
         print(f"[XE DAILY] Error loading records: {e}")
 
