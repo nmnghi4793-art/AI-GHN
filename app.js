@@ -3650,37 +3650,26 @@ function showSection(name) {
     // Mặc định khi vào khoxe → reset tab về Kho GXT
     if (name === 'khoxe') switchKhoXeTab('khogxt');
     
-    document.querySelectorAll('.section').forEach(s => {
-        s.classList.remove('active');
-        s.style.display = 'none';
-    });
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const sectionEl = document.getElementById('section-' + name);
-    const navEl = document.getElementById('nav-' + name);
-    if (sectionEl) {
-        sectionEl.classList.add('active');
-        sectionEl.style.display = 'block';
-    }
-    if (navEl) navEl.classList.add('active');
-    
-    if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
-    const [title, sub] = SECTION_META[name] || ['--', '--'];
-    document.getElementById('page-title').textContent = title;
-    document.getElementById('page-subtitle').textContent = sub;
-    
-    // Tự động kiểm tra và lazy load data cho section này
-    if (name === 'xe-daily') {
-        renderXeDailySection();
-    } else if (name === 'login-logs') {
-        loadLoginLogs();
-    } else if (name === 'odo-monitor') {
-        console.log('[ODO RUNTIME] showSection(odo-monitor) called');
-        console.log('[ODO RUNTIME] ODO section found:', sectionEl);
-        console.log('[ODO RUNTIME] ODO section activated');
-        renderFallbackOdoState('23/07/2026', 'Đang tải dữ liệu ODO 25 Kho...');
-        loadOdoMonitorData();
-    } else {
-        ensureSectionData(name);
+    if (name === 'xe-daily' || name === 'odo-monitor') {
+        document.querySelectorAll('.section').forEach(s => {
+            s.classList.remove('active');
+            s.style.display = 'none';
+        });
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const sectionEl = document.getElementById('section-xe-daily');
+        const navEl = document.getElementById('nav-xe-daily');
+        if (sectionEl) {
+            sectionEl.classList.add('active');
+            sectionEl.style.display = 'block';
+        }
+        if (navEl) navEl.classList.add('active');
+
+        const [title, sub] = SECTION_META['xe-daily'] || ['Xe Vận Hành Daily', 'Đối soát ODO 25 Kho GXT và Quản lý Xe OFF / Tăng Cường hằng ngày'];
+        document.getElementById('page-title').textContent = title;
+        document.getElementById('page-subtitle').textContent = sub;
+
+        switchXeDailySubTab('odo');
+        return;
     }
 }
 
@@ -8249,14 +8238,36 @@ let currentOdoFilter = 'ALL';
 let odoTimerInterval = null;
 let odoCountdownSeconds = 60;
 
+function switchXeDailySubTab(tabName) {
+    const tabOdoBtn = document.getElementById('tab-btn-odo');
+    const tabOfftcBtn = document.getElementById('tab-btn-offtc');
+    const contentOdo = document.getElementById('subtab-xe-daily-odo');
+    const contentOfftc = document.getElementById('subtab-xe-daily-offtc');
+
+    if (tabName === 'odo') {
+        if (tabOdoBtn) tabOdoBtn.classList.add('active');
+        if (tabOfftcBtn) tabOfftcBtn.classList.remove('active');
+        if (contentOdo) contentOdo.style.display = 'block';
+        if (contentOfftc) contentOfftc.style.display = 'none';
+        loadOdoMonitorData();
+    } else {
+        if (tabOfftcBtn) tabOfftcBtn.classList.add('active');
+        if (tabOdoBtn) tabOdoBtn.classList.remove('active');
+        if (contentOfftc) contentOfftc.style.display = 'block';
+        if (contentOdo) contentOdo.style.display = 'none';
+        renderXeDailySection();
+    }
+}
+window.switchXeDailySubTab = switchXeDailySubTab;
+
 function initOdoAutoRefresh() {
     if (odoTimerInterval) clearInterval(odoTimerInterval);
     odoCountdownSeconds = 60;
     
     odoTimerInterval = setInterval(() => {
         const timerEl = document.getElementById('odo-countdown-timer');
-        const section = document.getElementById('section-odo-monitor');
-        if (!section || section.style.display === 'none') {
+        const subtabOdo = document.getElementById('subtab-xe-daily-odo');
+        if (!subtabOdo || subtabOdo.style.display === 'none') {
             return;
         }
 

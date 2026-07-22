@@ -114,7 +114,41 @@
         .filter-group label {
             font-weight: 600;
             font-size: 0.8rem;
-            color: var(--text3);
+        /* Xe Daily Subtab styling */
+        .xe-daily-tab-btn {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text2, #94a3b8);
+            border: 1px solid var(--border-card, rgba(255, 255, 255, 0.08));
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        .xe-daily-tab-btn:hover {
+            color: var(--text, #f8fafc);
+            background: rgba(15, 23, 42, 0.9);
+            border-color: #06b6d4;
+        }
+        .xe-daily-tab-btn.active {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.3));
+            color: #06b6d4;
+            border-color: #06b6d4;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.25);
+        }
+        .light-mode .xe-daily-tab-btn {
+            background: #f1f5f9;
+            color: #64748b;
+            border-color: #cbd5e1;
+        }
+        .light-mode .xe-daily-tab-btn.active {
+            background: rgba(6, 182, 212, 0.12);
+            color: #0891b2;
+            border-color: #06b6d4;
         }
     </style>
     <link rel="stylesheet" href="styles.css?v=1.2">
@@ -301,7 +335,7 @@
             <a href="#" class="nav-item" data-section="xe-daily" id="nav-xe-daily">
                 <i class="fa-solid fa-truck-moving" style="color:var(--orange)"></i><span>Xe Vận Hành Daily</span>
             </a>
-            <a href="#" class="nav-item" data-section="odo-monitor" id="nav-odo-monitor">
+            <a href="#" class="nav-item" data-section="odo-monitor" id="nav-odo-monitor" style="display: none;">
                 <i class="fa-solid fa-gauge-high" style="color:#06b6d4"></i><span>Theo Dõi ODO Xe</span>
             </a>
             <a href="#" class="nav-item" data-section="login-logs" id="nav-login-logs" style="display: none;">
@@ -1833,274 +1867,19 @@
 
         <!-- ===== SECTION: XE VẬN HÀNH DAILY ===== -->
         <section class="section" id="section-xe-daily">
-
-            <!-- Overview Cards -->
-            <div class="xe-daily-overview-cards" id="xe-daily-cards">
-                <div class="overview-card" id="xed-card-tang-cuong">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
-                        <i class="fa-solid fa-circle-plus"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="xed-val-tang-cuong">--</div>
-                        <div class="overview-card-label">Xe tăng cường</div>
-                    </div>
-                </div>
-                <div class="overview-card" id="xed-card-off">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="xed-val-off">--</div>
-                        <div class="overview-card-label">Xe không hoạt động</div>
-                    </div>
-                </div>
-                <div class="overview-card" id="xed-card-kho">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
-                        <i class="fa-solid fa-warehouse"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="xed-val-kho">--</div>
-                        <div class="overview-card-label">Kho có phát sinh</div>
-                    </div>
-                </div>
-                <div class="overview-card" id="xed-card-ncc">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
-                        <i class="fa-solid fa-handshake"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="xed-val-ncc">--</div>
-                        <div class="overview-card-label">NCC có phát sinh</div>
-                    </div>
-                </div>
+            <!-- THANH TAB NGANG CHUYỂN ĐỔI 2 SUB-TAB -->
+            <div class="xe-daily-tabs-container" style="display:flex;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border-card);padding-bottom:12px">
+                <button class="xe-daily-tab-btn active" id="tab-btn-odo" onclick="switchXeDailySubTab('odo')">
+                    <i class="fa-solid fa-gauge-high"></i> Theo Dõi ODO Xe
+                </button>
+                <button class="xe-daily-tab-btn" id="tab-btn-offtc" onclick="switchXeDailySubTab('offtc')">
+                    <i class="fa-solid fa-truck-moving"></i> Theo Dõi Xe Off / Tăng Cường
+                </button>
             </div>
 
-            <!-- Form ghi nhận xe -->
-            <div class="table-card" style="margin-bottom:20px">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-pen-to-square" style="color:var(--orange)"></i> Ghi Nhận Xe Vận Hành Daily</h3>
-                    <button class="btn btn-outline" id="btn-add-xe-row" onclick="addXeDailyRow()" style="display:flex;align-items:center;gap:6px;">
-                        <i class="fa-solid fa-plus"></i> Thêm dòng xe
-                    </button>
-                </div>
-                <div style="padding:16px">
-                    <!-- ===== IMPORT EXCEL BLOCK ===== -->
-                    <div id="xed-import-block" style="background:var(--bg-card2,rgba(255,255,255,0.04));border:1.5px dashed var(--border-card);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                            <i class="fa-solid fa-file-arrow-up" style="color:var(--orange);font-size:1.1rem;"></i>
-                            <span style="font-weight:600;font-size:0.95rem;">Import file ghi nhận xe</span>
-                            <span style="font-size:0.78rem;color:var(--text3);margin-left:4px;">(Định dạng .xlsx)</span>
-                        </div>
-                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
-                            <label for="xed-import-file" class="btn btn-outline" style="cursor:pointer;font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;">
-                                <i class="fa-solid fa-folder-open"></i> Chọn file Excel (.xlsx)
-                            </label>
-                            <input type="file" id="xed-import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="onXedImportFileChange()">
-                            <span id="xed-import-filename" style="font-size:0.82rem;color:var(--text3);font-style:italic;">Chưa chọn file</span>
-                            <button onclick="importXeDailyFile()" class="btn btn-primary" id="btn-xed-import" style="font-size:0.82rem;padding:7px 16px;display:flex;align-items:center;gap:6px;" disabled>
-                                <i class="fa-solid fa-file-import"></i> Import Excel (.xlsx)
-                            </button>
-                            <button onclick="downloadXeDailySampleFile()" class="btn btn-outline" style="font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;color:var(--cyan);border-color:var(--cyan);">
-                                <i class="fa-solid fa-download"></i> Tải file mẫu (.xlsx)
-                            </button>
-                        </div>
-                        <!-- Result report -->
-                        <div id="xed-import-result" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.84rem;line-height:1.6;"></div>
-                    </div>
-                    <!-- ===== END IMPORT BLOCK ===== -->
-
-                    <div id="xe-daily-rows-container">
-                        <!-- Rows injected by JS -->
-                    </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border-card);flex-wrap:wrap;gap:10px">
-                        <p style="margin:0;font-size:0.8rem;color:var(--text3)">
-                            <i class="fa-solid fa-circle-info"></i>
-                            Mỗi dòng là 1 xe. Nhập nhiều dòng nếu báo nhiều xe cùng lúc.
-                        </p>
-                        <button class="btn btn-primary" id="btn-save-xe-daily" onclick="saveXeDaily()" style="display:flex;align-items:center;gap:8px;padding:10px 24px;">
-                            <i class="fa-solid fa-floppy-disk"></i> Lưu ghi nhận
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bảng lịch sử -->
-            <div class="table-card">
-                <div class="table-header" style="justify-content:space-between;align-items:center;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i> Lịch Sử Ghi Nhận Xe</h3>
-                        <span class="count-badge" id="xed-history-count">-- bản ghi</span>
-                    </div>
-                    <button id="btn-xed-clear-all" onclick="clearAllXeDailyRecords()" class="btn btn-outline" style="display:none;font-size:0.82rem;padding:6px 14px;color:#ef4444;border-color:#ef4444;align-items:center;gap:6px;background:rgba(239,68,68,0.05);">
-                        <i class="fa-solid fa-trash-can"></i> Xóa Tất Cả Dữ Liệu
-                    </button>
-                </div>
-
-                <!-- Bộ lọc -->
-                <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Ngày:</label>
-                        <select id="xed-filter-date" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:130px">
-                            <option value="">Tất cả ngày</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Kho:</label>
-                        <select id="xed-filter-kho" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:160px">
-                            <option value="">Tất cả kho</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">NCC:</label>
-                        <select id="xed-filter-ncc" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:140px">
-                            <option value="">Tất cả NCC</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Loại:</label>
-                        <select id="xed-filter-loai" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px">
-                            <option value="">Tất cả loại</option>
-                            <option value="Xe tăng cường">Xe tăng cường</option>
-                            <option value="Xe không hoạt động">Xe không hoạt động</option>
-                        </select>
-                    </div>
-                    <button onclick="filterXeDailyTable()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px">
-                        <i class="fa-solid fa-rotate-right"></i> Tải lại
-                    </button>
-                    <button onclick="exportXeDailyExcel()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px;color:var(--green);border-color:var(--green)">
-                        <i class="fa-solid fa-file-excel"></i> Tải Excel
-                    </button>
-                </div>
-
-                <div class="table-scroll" style="max-height:480px;overflow-x:auto">
-                    <table class="data-table" id="xed-history-table">
-                        <thead>
-                            <tr>
-                                <th style="min-width:90px">Ngày</th>
-                                <th style="min-width:180px">Tên Kho</th>
-                                <th style="min-width:140px">Loại ghi nhận</th>
-                                <th style="min-width:80px">SL xe</th>
-                                <th style="min-width:120px">Biển số xe</th>
-                                <th style="min-width:140px">Tên NCC</th>
-                                <th style="min-width:90px">Trọng tải</th>
-                                <th style="min-width:100px">Người nhập</th>
-                                <th style="min-width:130px">Thời gian ghi nhận</th>
-                                <th style="min-width:90px" id="th-xed-action">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-xed-history">
-                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- ===== SECTION: LOG ĐĂNG NHẬP ===== -->
-        <section class="section" id="section-login-logs">
-            <!-- Overview Cards -->
-            <div class="xe-daily-overview-cards" id="login-logs-cards">
-                <div class="overview-card">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
-                        <i class="fa-solid fa-right-to-bracket"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="log-val-total-today">--</div>
-                        <div class="overview-card-label">Lượt đăng nhập hôm nay</div>
-                    </div>
-                </div>
-                <div class="overview-card">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
-                        <i class="fa-solid fa-users"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="log-val-unique-today">--</div>
-                        <div class="overview-card-label">Tổng ID hôm nay</div>
-                    </div>
-                </div>
-                <div class="overview-card">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
-                        <i class="fa-solid fa-warehouse"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="log-val-top-dept" style="font-size: 1rem; line-height: 1.2;">--</div>
-                        <div class="overview-card-label">Kho/phòng ban nhiều nhất</div>
-                    </div>
-                </div>
-                <div class="overview-card">
-                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
-                        <i class="fa-solid fa-user-clock"></i>
-                    </div>
-                    <div class="overview-card-body">
-                        <div class="overview-card-value" id="log-val-top-user" style="font-size: 1rem; line-height: 1.2;">--</div>
-                        <div class="overview-card-label">Đăng nhập nhiều lần nhất</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bảng lịch sử và Bộ lọc -->
-            <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-history" style="color:var(--green)"></i> Nhật Ký Đăng Nhập Hệ Thống</h3>
-                    <span class="count-badge" id="log-history-count">-- bản ghi</span>
-                </div>
-
-                <!-- Bộ lọc -->
-                <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Ngày:</label>
-                        <select id="log-filter-date" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:130px">
-                            <option value="">Tất cả ngày</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">ID GHN:</label>
-                        <input type="text" id="log-filter-id" oninput="filterLoginLogs()" placeholder="Tìm ID..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:100px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Họ và Tên:</label>
-                        <input type="text" id="log-filter-name" oninput="filterLoginLogs()" placeholder="Tìm tên..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:150px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Kho / Phòng ban:</label>
-                        <select id="log-filter-dept" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:160px">
-                            <option value="">Tất cả Kho / Phòng ban</option>
-                        </select>
-                    </div>
-                    <button onclick="loadLoginLogs()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px">
-                        <i class="fa-solid fa-rotate-right"></i> Tải lại
-                    </button>
-                    <button onclick="exportLoginLogsExcel()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px;color:var(--green);border-color:var(--green)">
-                        <i class="fa-solid fa-file-excel"></i> Tải Excel
-                    </button>
-                </div>
-
-                <div class="table-scroll" style="max-height:480px;overflow-x:auto">
-                    <table class="data-table" id="log-history-table">
-                        <thead>
-                            <tr>
-                                <th style="min-width:50px">STT</th>
-                                <th style="min-width:90px">Ngày</th>
-                                <th style="min-width:90px">Thời gian</th>
-                                <th style="min-width:90px">ID GHN</th>
-                                <th style="min-width:150px">Họ và Tên</th>
-                                <th style="min-width:200px">Tên Kho / Phòng ban</th>
-                                <th style="min-width:80px">Lượt trong ngày</th>
-                                <th style="min-width:140px">Loại truy cập</th>
-                                <th style="min-width:120px">IP</th>
-                                <th style="min-width:200px">User Agent</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-login-logs">
-                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        <!-- ===== SECTION: THEO DÕI ODO XE ===== -->
-        <section class="section" id="section-odo-monitor" style="display:none">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+            <!-- SUB-TAB 1: THEO DÕI ODO XE (MẶC ĐỊNH) -->
+            <div id="subtab-xe-daily-odo" class="xe-daily-subtab-content">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
                 <div>
                     <h2 style="font-size:1.4rem;font-weight:700;margin:0;display:flex;align-items:center;gap:10px">
                         <i class="fa-solid fa-gauge-high" style="color:#06b6d4"></i> Theo Dõi ODO Xe
@@ -2289,7 +2068,277 @@
                     </table>
                 </div>
             </div>
+            </div>
+
+            <!-- SUB-TAB 2: THEO DÕI XE OFF / TĂNG CƯỜNG -->
+            <div id="subtab-xe-daily-offtc" class="xe-daily-subtab-content" style="display:none">
+                <!-- Overview Cards -->
+            <div class="xe-daily-overview-cards" id="xe-daily-cards">
+                <div class="overview-card" id="xed-card-tang-cuong">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                        <i class="fa-solid fa-circle-plus"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="xed-val-tang-cuong">--</div>
+                        <div class="overview-card-label">Xe tăng cường</div>
+                    </div>
+                </div>
+                <div class="overview-card" id="xed-card-off">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="xed-val-off">--</div>
+                        <div class="overview-card-label">Xe không hoạt động</div>
+                    </div>
+                </div>
+                <div class="overview-card" id="xed-card-kho">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="xed-val-kho">--</div>
+                        <div class="overview-card-label">Kho có phát sinh</div>
+                    </div>
+                </div>
+                <div class="overview-card" id="xed-card-ncc">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+                        <i class="fa-solid fa-handshake"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="xed-val-ncc">--</div>
+                        <div class="overview-card-label">NCC có phát sinh</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form ghi nhận xe -->
+            <div class="table-card" style="margin-bottom:20px">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-pen-to-square" style="color:var(--orange)"></i> Ghi Nhận Xe Vận Hành Daily</h3>
+                    <button class="btn btn-outline" id="btn-add-xe-row" onclick="addXeDailyRow()" style="display:flex;align-items:center;gap:6px;">
+                        <i class="fa-solid fa-plus"></i> Thêm dòng xe
+                    </button>
+                </div>
+                <div style="padding:16px">
+                    <!-- ===== IMPORT EXCEL BLOCK ===== -->
+                    <div id="xed-import-block" style="background:var(--bg-card2,rgba(255,255,255,0.04));border:1.5px dashed var(--border-card);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <i class="fa-solid fa-file-arrow-up" style="color:var(--orange);font-size:1.1rem;"></i>
+                            <span style="font-weight:600;font-size:0.95rem;">Import file ghi nhận xe</span>
+                            <span style="font-size:0.78rem;color:var(--text3);margin-left:4px;">(Định dạng .xlsx)</span>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                            <label for="xed-import-file" class="btn btn-outline" style="cursor:pointer;font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;">
+                                <i class="fa-solid fa-folder-open"></i> Chọn file Excel (.xlsx)
+                            </label>
+                            <input type="file" id="xed-import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="onXedImportFileChange()">
+                            <span id="xed-import-filename" style="font-size:0.82rem;color:var(--text3);font-style:italic;">Chưa chọn file</span>
+                            <button onclick="importXeDailyFile()" class="btn btn-primary" id="btn-xed-import" style="font-size:0.82rem;padding:7px 16px;display:flex;align-items:center;gap:6px;" disabled>
+                                <i class="fa-solid fa-file-import"></i> Import Excel (.xlsx)
+                            </button>
+                            <button onclick="downloadXeDailySampleFile()" class="btn btn-outline" style="font-size:0.82rem;padding:7px 14px;display:flex;align-items:center;gap:6px;color:var(--cyan);border-color:var(--cyan);">
+                                <i class="fa-solid fa-download"></i> Tải file mẫu (.xlsx)
+                            </button>
+                        </div>
+                        <!-- Result report -->
+                        <div id="xed-import-result" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.84rem;line-height:1.6;"></div>
+                    </div>
+                    <!-- ===== END IMPORT BLOCK ===== -->
+
+                    <div id="xe-daily-rows-container">
+                        <!-- Rows injected by JS -->
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border-card);flex-wrap:wrap;gap:10px">
+                        <p style="margin:0;font-size:0.8rem;color:var(--text3)">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Mỗi dòng là 1 xe. Nhập nhiều dòng nếu báo nhiều xe cùng lúc.
+                        </p>
+                        <button class="btn btn-primary" id="btn-save-xe-daily" onclick="saveXeDaily()" style="display:flex;align-items:center;gap:8px;padding:10px 24px;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu ghi nhận
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng lịch sử -->
+            <div class="table-card">
+                <div class="table-header" style="justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i> Lịch Sử Ghi Nhận Xe</h3>
+                        <span class="count-badge" id="xed-history-count">-- bản ghi</span>
+                    </div>
+                    <button id="btn-xed-clear-all" onclick="clearAllXeDailyRecords()" class="btn btn-outline" style="display:none;font-size:0.82rem;padding:6px 14px;color:#ef4444;border-color:#ef4444;align-items:center;gap:6px;background:rgba(239,68,68,0.05);">
+                        <i class="fa-solid fa-trash-can"></i> Xóa Tất Cả Dữ Liệu
+                    </button>
+                </div>
+
+                <!-- Bộ lọc -->
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Ngày:</label>
+                        <select id="xed-filter-date" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:130px">
+                            <option value="">Tất cả ngày</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Kho:</label>
+                        <select id="xed-filter-kho" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:160px">
+                            <option value="">Tất cả kho</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">NCC:</label>
+                        <select id="xed-filter-ncc" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:140px">
+                            <option value="">Tất cả NCC</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Loại:</label>
+                        <select id="xed-filter-loai" onchange="filterXeDailyTable()" class="filter-select" style="font-size:0.82rem;padding:6px 10px">
+                            <option value="">Tất cả loại</option>
+                            <option value="Xe tăng cường">Xe tăng cường</option>
+                            <option value="Xe không hoạt động">Xe không hoạt động</option>
+                        </select>
+                    </div>
+                    <button onclick="filterXeDailyTable()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px">
+                        <i class="fa-solid fa-rotate-right"></i> Tải lại
+                    </button>
+                    <button onclick="exportXeDailyExcel()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px;color:var(--green);border-color:var(--green)">
+                        <i class="fa-solid fa-file-excel"></i> Tải Excel
+                    </button>
+                </div>
+
+                <div class="table-scroll" style="max-height:480px;overflow-x:auto">
+                    <table class="data-table" id="xed-history-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:90px">Ngày</th>
+                                <th style="min-width:180px">Tên Kho</th>
+                                <th style="min-width:140px">Loại ghi nhận</th>
+                                <th style="min-width:80px">SL xe</th>
+                                <th style="min-width:120px">Biển số xe</th>
+                                <th style="min-width:140px">Tên NCC</th>
+                                <th style="min-width:90px">Trọng tải</th>
+                                <th style="min-width:100px">Người nhập</th>
+                                <th style="min-width:130px">Thời gian ghi nhận</th>
+                                <th style="min-width:90px" id="th-xed-action">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-xed-history">
+                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+    
+
         </section>
+
+        <!-- ===== SECTION: LOG ĐĂNG NHẬP ===== -->
+        <section class="section" id="section-login-logs">
+            <!-- Overview Cards -->
+            <div class="xe-daily-overview-cards" id="login-logs-cards">
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-total-today">--</div>
+                        <div class="overview-card-label">Lượt đăng nhập hôm nay</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-unique-today">--</div>
+                        <div class="overview-card-label">Tổng ID hôm nay</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-top-dept" style="font-size: 1rem; line-height: 1.2;">--</div>
+                        <div class="overview-card-label">Kho/phòng ban nhiều nhất</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                        <i class="fa-solid fa-user-clock"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="log-val-top-user" style="font-size: 1rem; line-height: 1.2;">--</div>
+                        <div class="overview-card-label">Đăng nhập nhiều lần nhất</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng lịch sử và Bộ lọc -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-history" style="color:var(--green)"></i> Nhật Ký Đăng Nhập Hệ Thống</h3>
+                    <span class="count-badge" id="log-history-count">-- bản ghi</span>
+                </div>
+
+                <!-- Bộ lọc -->
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border-card);display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Ngày:</label>
+                        <select id="log-filter-date" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:130px">
+                            <option value="">Tất cả ngày</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">ID GHN:</label>
+                        <input type="text" id="log-filter-id" oninput="filterLoginLogs()" placeholder="Tìm ID..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:100px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Họ và Tên:</label>
+                        <input type="text" id="log-filter-name" oninput="filterLoginLogs()" placeholder="Tìm tên..." class="filter-select" style="font-size:0.82rem;padding:6px 10px;width:150px;background:var(--bg-white);border:1px solid var(--border-card);border-radius:4px;color:var(--text)">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.78rem;color:var(--text3);white-space:nowrap;">Kho / Phòng ban:</label>
+                        <select id="log-filter-dept" onchange="filterLoginLogs()" class="filter-select" style="font-size:0.82rem;padding:6px 10px;min-width:160px">
+                            <option value="">Tất cả Kho / Phòng ban</option>
+                        </select>
+                    </div>
+                    <button onclick="loadLoginLogs()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px">
+                        <i class="fa-solid fa-rotate-right"></i> Tải lại
+                    </button>
+                    <button onclick="exportLoginLogsExcel()" class="btn btn-outline" style="font-size:0.82rem;padding:6px 12px;display:flex;align-items:center;gap:5px;color:var(--green);border-color:var(--green)">
+                        <i class="fa-solid fa-file-excel"></i> Tải Excel
+                    </button>
+                </div>
+
+                <div class="table-scroll" style="max-height:480px;overflow-x:auto">
+                    <table class="data-table" id="log-history-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:50px">STT</th>
+                                <th style="min-width:90px">Ngày</th>
+                                <th style="min-width:90px">Thời gian</th>
+                                <th style="min-width:90px">ID GHN</th>
+                                <th style="min-width:150px">Họ và Tên</th>
+                                <th style="min-width:200px">Tên Kho / Phòng ban</th>
+                                <th style="min-width:80px">Lượt trong ngày</th>
+                                <th style="min-width:140px">Loại truy cập</th>
+                                <th style="min-width:120px">IP</th>
+                                <th style="min-width:200px">User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-login-logs">
+                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        
 
         <!-- 3. POPUP MODAL: CHI TIẾT KHO ODO -->
         <div class="modal-overlay" id="odo-kho-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2100;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
