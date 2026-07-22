@@ -1925,9 +1925,14 @@
 
             <!-- Bảng lịch sử -->
             <div class="table-card">
-                <div class="table-header">
-                    <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i> Lịch Sử Ghi Nhận Xe</h3>
-                    <span class="count-badge" id="xed-history-count">-- bản ghi</span>
+                <div class="table-header" style="justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i> Lịch Sử Ghi Nhận Xe</h3>
+                        <span class="count-badge" id="xed-history-count">-- bản ghi</span>
+                    </div>
+                    <button id="btn-xed-clear-all" onclick="clearAllXeDailyRecords()" class="btn btn-outline" style="display:none;font-size:0.82rem;padding:6px 14px;color:#ef4444;border-color:#ef4444;align-items:center;gap:6px;background:rgba(239,68,68,0.05);">
+                        <i class="fa-solid fa-trash-can"></i> Xóa Tất Cả Dữ Liệu
+                    </button>
                 </div>
 
                 <!-- Bộ lọc -->
@@ -1979,7 +1984,7 @@
                                 <th style="min-width:90px">Trọng tải</th>
                                 <th style="min-width:100px">Người nhập</th>
                                 <th style="min-width:130px">Thời gian ghi nhận</th>
-                                <th style="min-width:90px">Thao tác</th>
+                                <th style="min-width:90px" id="th-xed-action">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody id="tbody-xed-history">

@@ -1991,39 +1991,41 @@ def _generate_initial_xe_daily_records():
 
     return records
 
+XE_DAILY_META_FILE = os.path.join(BASE_DIR, "scratch", "xe_daily_meta.json")
+
 def _load_xe_daily_records():
-    """Load xe vận hành daily records từ JSON file chính, backup, Google Sheets hoặc tự động tổng hợp từ 17/07 trở đi."""
+    """Load xe vận hành daily records từ JSON file chính hoặc backup."""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
-        # 1. Thử load từ file chính (nếu có và không rỗng)
+
+        # 0. Nếu người dùng (Admin) đã từng bấm Xóa Toàn Bộ -> Giữ nguyên danh sách hiện tại (kể cả rỗng)
+        if os.path.exists(XE_DAILY_META_FILE):
+            try:
+                with open(XE_DAILY_META_FILE, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                    if meta.get("user_cleared") is True:
+                        if os.path.exists(XE_DAILY_DATA_FILE):
+                            with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                if isinstance(data, list):
+                                    return data
+                        return []
+            except Exception:
+                pass
+
+        # 1. Thử load từ file chính
         if os.path.exists(XE_DAILY_DATA_FILE):
             with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
+                if isinstance(data, list):
                     return data
 
-        # 2. Thử khôi phục từ file backup nếu file chính chưa tồn tại hoặc rỗng
+        # 2. Thử khôi phục từ file backup nếu file chính chưa tồn tại
         if os.path.exists(XE_DAILY_BACKUP_FILE):
             with open(XE_DAILY_BACKUP_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
-                    print(f"[XE DAILY RECOVERY] Restored {len(data)} records from backup file.")
-                    _save_xe_daily_records(data)
+                if isinstance(data, list):
                     return data
-
-        # 3. Thử khôi phục dữ liệu từ Google Sheets
-        gs_records = _load_xe_daily_from_google_sheets()
-        if gs_records and len(gs_records) > 0:
-            print(f"[XE DAILY RECOVERY] Restored {len(gs_records)} records from Google Sheets.")
-            _save_xe_daily_records(gs_records)
-            return gs_records
-
-        # 4. Tự động sinh dữ liệu thực tế từ 17/07/2026 trở đi nếu chưa từng có dữ liệu
-        init_records = _generate_initial_xe_daily_records()
-        if init_records and len(init_records) > 0:
-            print(f"[XE DAILY INITIAL] Auto-initialized {len(init_records)} records from 17/07/2026 onwards.")
-            _save_xe_daily_records(init_records)
-            return init_records
 
     except Exception as e:
         print(f"[XE DAILY] Error loading records: {e}")
@@ -2251,15 +2253,53 @@ async def save_xe_van_hanh_records(request: Request):
         raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu. Vui lòng thử lại.")
 
 
-@app.post("/api/xe-van-hanh/records/{record_id}/delete", dependencies=[Depends(require_api_token)])
-async def delete_xe_van_hanh_record(record_id: str):
-    """Xóa một bản ghi xe vận hành daily theo ID."""
+ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
+
+@app.post("/api/xe-van-hanh/records/clear-all")
+async def clear_all_xe_van_hanh_records(
+    request: Request,
+    x_admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Xóa tất cả bản ghi xe vận hành daily (Chỉ Admin có link key)."""
+    saved_key = x_admin_key or request.headers.get("X-Admin-Key") or ""
+    if not secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED):
+        raise HTTPException(status_code=403, detail="Chỉ người dùng truy cập qua Link Admin Key mới có quyền Xóa tất cả dữ liệu.")
+
+    _save_xe_daily_records([])
+    try:
+        os.makedirs(os.path.dirname(XE_DAILY_META_FILE), exist_ok=True)
+        with open(XE_DAILY_META_FILE, "w", encoding="utf-8") as f:
+            json.dump({"user_cleared": True, "cleared_at": datetime.utcnow().isoformat()}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[XE DAILY CLEAR ALL] Error writing meta: {e}")
+
+    return {"status": "ok", "message": "Đã xóa toàn bộ dữ liệu Xe Vận Hành Daily thành công."}
+
+
+@app.post("/api/xe-van-hanh/records/{record_id}/delete")
+async def delete_xe_van_hanh_record(
+    record_id: str,
+    request: Request,
+    x_admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Xóa một bản ghi xe vận hành daily theo ID (Chỉ Admin có link key)."""
+    saved_key = x_admin_key or request.headers.get("X-Admin-Key") or ""
+    if not secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED):
+        raise HTTPException(status_code=403, detail="Chỉ người dùng truy cập qua Link Admin Key mới có quyền Xóa bản ghi này.")
+
     records = _load_xe_daily_records()
     original_len = len(records)
     records = [r for r in records if r.get("id") != record_id]
 
     if len(records) == original_len:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy bản ghi ID={record_id}")
+
+    if len(records) == 0:
+        try:
+            with open(XE_DAILY_META_FILE, "w", encoding="utf-8") as f:
+                json.dump({"user_cleared": True, "cleared_at": datetime.utcnow().isoformat()}, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
     if _save_xe_daily_records(records):
         return {"status": "ok", "message": "Đã xóa bản ghi thành công."}

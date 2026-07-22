@@ -3869,6 +3869,11 @@ function checkAdminAccess() {
             loginLogsBtn.style.display = 'none';
         }
     }
+
+    const clearAllXeDailyBtn = document.getElementById('btn-xed-clear-all');
+    if (clearAllXeDailyBtn) {
+        clearAllXeDailyBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
 }
 
 
@@ -7244,12 +7249,22 @@ async function loadXeDailyRecords() {
 function renderXeDailyHistoryTable(records) {
     const tbody = document.getElementById('tbody-xed-history');
     const countEl = document.getElementById('xed-history-count');
+    const thAction = document.getElementById('th-xed-action');
     if (!tbody) return;
 
     if (countEl) countEl.textContent = `${records.length} bản ghi`;
 
+    const savedKey = sessionStorage.getItem('ghn_admin_key') || localStorage.getItem('ghn_admin_key') || '';
+    const isAdmin = savedKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc';
+
+    // Show/hide Clear All button and Thao tác column header
+    const clearAllBtn = document.getElementById('btn-xed-clear-all');
+    if (clearAllBtn) clearAllBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (thAction) thAction.style.display = isAdmin ? '' : 'none';
+
     if (!records.length) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Chưa có ghi nhận nào. Hãy thêm ở form bên trên.</td></tr>`;
+        const colSpan = isAdmin ? 10 : 9;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;padding:30px;color:var(--text3)">Chưa có ghi nhận nào. Hãy thêm ở form bên trên.</td></tr>`;
         return;
     }
 
@@ -7261,6 +7276,15 @@ function renderXeDailyHistoryTable(records) {
             : `<span class="badge-off-xe"><i class="fa-solid fa-circle-xmark"></i> Xe không hoạt động</span>`;
 
         const ttLabel = _trongTaiLabel(r.trong_tai) || `${r.trong_tai || '--'} kg`;
+
+        let actionTd = '';
+        if (isAdmin) {
+            actionTd = `<td>
+                <button class="btn-xed-delete" onclick="deleteXeDailyRecord('${r.id}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:4px 10px;border-radius:6px;font-size:0.78rem;cursor:pointer;">
+                    <i class="fa-solid fa-trash-can"></i> Xóa
+                </button>
+            </td>`;
+        }
 
         return `<tr>
             <td style="font-weight:600;color:var(--cyan);white-space:nowrap">${escapeHtml(r.ngay || '--')}</td>
