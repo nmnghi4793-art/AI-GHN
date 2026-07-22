@@ -162,7 +162,7 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
 async def process_telegram_command(command: str, chat_id: str) -> str:
     """
     Xử lý các lệnh Telegram (/ping, /status, /odo, /testodo, /next, /sendtest).
-    Nhận diện cả /ping, /ping@ODOMienTrung, /ping@ODO_GXTMT_BOT.
+    Nhận diện cả /ping, /ping@ODOMienTrung_Bot, /ping@ODO_GXTMT_BOT.
     Chỉ trả lời cho chat ID -1002712779761.
     """
     if str(chat_id) != str(telegram_odo.ODO_CHAT_ID):
@@ -199,7 +199,7 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
         next_run = get_next_run_time()
         return f"Lần báo cáo tiếp theo:\n*{next_run}*"
     elif cmd == "/sendtest":
-        await telegram_odo.send_telegram_message("✅ *BOT ODO kết nối Telegram thành công.*")
+        await telegram_odo.send_telegram_message("✅ *BOT ODO đã kết nối đúng bot và đúng group.*")
         return "✅ *Đã gửi tin nhắn test kết nối vào group.*"
 
     return ""
@@ -207,11 +207,12 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
 async def run_odo_telegram_bot_polling():
     """
     Vòng lặp duy nhất (Single Instance Polling) cho ODO Telegram Bot.
+    Ưu tiên ODO_BOT_TOKEN từ Railway Environment Variables.
     Hỗ trợ xử lý các lệnh /odo, /ping, /status, /next, /testodo, /sendtest.
     """
-    token = telegram_odo.DEFAULT_BOT_TOKEN
+    token = telegram_odo.get_odo_bot_token()
     if not token:
-        log.error("[ODO BOT ERROR] TELEGRAM_BOT_TOKEN missing!")
+        log.error("[ODO BOT ERROR] TELEGRAM_BOT_TOKEN / ODO_BOT_TOKEN missing!")
         return
 
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -222,17 +223,17 @@ async def run_odo_telegram_bot_polling():
         except Exception as e:
             log.warning(f"[ODO BOT] deleteWebhook failed: {e}")
 
-        # 2. Lấy thông tin Bot qua getMe
-        bot_username = "ODO_GXTMT_BOT"
+        # 2. Lấy thông tin Bot thực tế từ Telegram API getMe
+        bot_username = "ODOMienTrung_Bot"
         try:
             me_res = await client.get(f"https://api.telegram.org/bot{token}/getMe")
             if me_res.status_code == 200:
                 bot_info = me_res.json().get("result", {})
-                bot_username = bot_info.get("username", "ODO_GXTMT_BOT")
+                bot_username = bot_info.get("username", bot_username)
         except Exception as me_err:
             log.warning(f"[ODO BOT] getMe error: {me_err}")
 
-        # 3. Log khởi động đầy đủ
+        # 3. Log khởi động đầy đủ theo chuẩn yêu cầu
         log.info("==========================================================================")
         log.info("[ODO BOT] BOT started")
         log.info(f"[ODO BOT] Telegram username: @{bot_username}")
@@ -242,7 +243,7 @@ async def run_odo_telegram_bot_polling():
         log.info("==========================================================================")
 
         # 4. Gửi tin nhắn khởi động chào mừng vào group
-        await telegram_odo.send_telegram_message("✅ BOT ODO đã kết nối và sẵn sàng nhận lệnh.")
+        await telegram_odo.send_telegram_message("✅ BOT ODO đã kết nối đúng bot và đúng group.")
 
         url = f"https://api.telegram.org/bot{token}/getUpdates"
         offset = 0

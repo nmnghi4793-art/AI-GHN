@@ -10,12 +10,18 @@ if BASE_DIR not in sys.path:
 
 import odo_monitor
 
-# Target Chat Group locked strictly to -1002712779761
-ODO_CHAT_ID = "-1002712779761"
+# Lock ODO Chat ID strictly to -1002712779761
+ODO_CHAT_ID = os.environ.get("ODO_CHAT_ID", "-1002712779761")
 ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
 
-# Primary Bot Token
-DEFAULT_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN") or "8969802246:AAElLvlCeHSgBNnKHNh5ytZbIR-1iyWtD7g"
+def get_odo_bot_token() -> str:
+    """Ưu tiên lấy ODO_BOT_TOKEN từ Railway Variable, sau đó là TELEGRAM_BOT_TOKEN hoặc fallback."""
+    return (
+        os.environ.get("ODO_BOT_TOKEN") or
+        os.environ.get("TELEGRAM_BOT_TOKEN") or
+        os.environ.get("VANHANH_BOT_TOKEN") or
+        "8969802246:AAElLvlCeHSgBNnKHNh5ytZbIR-1iyWtD7g"
+    )
 
 def get_vn_datetime() -> datetime:
     """Trả về datetime theo múi giờ Việt Nam (Asia/Ho_Chi_Minh / UTC+7)."""
@@ -30,8 +36,8 @@ async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
     Helper gửi message Telegram.
     Chỉ gửi vào đúng Chat Group -1002712779761.
     """
-    chat_id = ODO_CHAT_ID  # Khóa cứng chat_id
-    token = DEFAULT_BOT_TOKEN
+    chat_id = ODO_CHAT_ID  # Khóa cứng chat_id -1002712779761
+    token = get_odo_bot_token()
 
     if not token:
         print("[TELEGRAM ODO] Skipping send: BOT TOKEN missing.")
@@ -55,7 +61,6 @@ async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
                 print(f"[TELEGRAM ODO SUCCESS] Sent message to chat_id={chat_id} (HTTP 200 OK)")
                 return True
             else:
-                # Nếu Markdown gặp lỗi unescaped character, thử gửi lại với Plain Text
                 print(f"[TELEGRAM ODO WARNING] Markdown send returned HTTP {res.status_code}. Retrying plain text...")
                 payload_plain = {
                     "chat_id": chat_id,
