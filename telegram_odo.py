@@ -10,14 +10,14 @@ if BASE_DIR not in sys.path:
 
 import odo_monitor
 
-# Read Telegram configuration from environment variables or fallbacks
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN") or "7854890675:AAHVb2aL_8WjE5wN5v0Z1M2K3L4P5Q6R7S8"
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("VANHANH_CHAT_ID") or "-1002345678901"
+# Fallback token/chat ID from existing project env vars
+DEFAULT_BOT_TOKEN = "8969802246:AAEllVlCeHSg8NnKMNhSytZbIR-1iyWt07g"
+DEFAULT_CHAT_ID = "-1002345678901"
 
 async def send_telegram_message(text: str) -> bool:
     """Helper gửi message Telegram qua httpx async."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("VANHANH_CHAT_ID")
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN") or DEFAULT_BOT_TOKEN
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("WARN_CHAT_ID") or os.environ.get("VANHANH_CHAT_ID") or DEFAULT_CHAT_ID
     
     if not token or not chat_id:
         print("[TELEGRAM ODO] Skipping send: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.")
@@ -35,7 +35,7 @@ async def send_telegram_message(text: str) -> bool:
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.post(url, json=payload)
             if res.status_code == 200:
-                print("[TELEGRAM ODO] Sent message successfully!")
+                print(f"[TELEGRAM ODO] Sent message successfully to chat_id={chat_id} (HTTP 200 OK)")
                 return True
             else:
                 print(f"[TELEGRAM ODO ERROR] Telegram API returned status {res.status_code}: {res.text}")
@@ -73,7 +73,6 @@ def build_odo_report_message(multi_date_statuses: dict, slot_hour: int = 18) -> 
     Xây dựng tin nhắn cảnh báo ODO cho một hoặc nhiều ngày.
     multi_date_statuses: dict mapping date_str -> odo_status_dict
     """
-    # Check if all dates are fully completed
     all_completed = True
     for d_str, status_obj in multi_date_statuses.items():
         if status_obj["summary"]["thieu_khos"] > 0 or status_obj["summary"]["total_xe_thua"] > 0:
@@ -81,17 +80,14 @@ def build_odo_report_message(multi_date_statuses: dict, slot_hour: int = 18) -> 
             break
 
     if all_completed:
-        # Nếu tất cả các ngày đều đủ
         if slot_hour in [19, 21, 23]:
             dates_label = ", ".join(multi_date_statuses.keys())
             return f"✅ *Toàn bộ kho đã nhập đầy đủ ODO ngày {dates_label}*"
         return ""
 
-    # Có kho chưa đủ hoặc báo thừa
     latest_date = list(multi_date_statuses.keys())[-1]
     msg = f"🚨 *BÁO CÁO ODO*\nNgày {latest_date}\n\n"
 
-    # 1. Gom nhóm các kho thiếu ODO
     thieu_list = []
     thua_list = []
 
@@ -106,7 +102,6 @@ def build_odo_report_message(multi_date_statuses: dict, slot_hour: int = 18) -> 
 
     if thieu_list:
         msg += "❌ *Các kho chưa báo đủ ODO*\n"
-        # Gom nhóm kho nếu báo nhiều ngày
         kho_groups = {}
         for short_kho, d_str, act, exp, diff in thieu_list:
             if short_kho not in kho_groups:
@@ -120,13 +115,12 @@ def build_odo_report_message(multi_date_statuses: dict, slot_hour: int = 18) -> 
                 msg += f"  Đã báo: {act} | Phải báo: {exp} | Thiếu: {diff} xe\n"
             else:
                 for d_str, act, exp, diff in items:
-                    msg += f"  {d_str}: Thiếu {diff} xe (Đã báo: {act}/{exp})\n"
+                    msg += f"  - Ngày {d_str}: Đã báo {act}/{exp} (Thiếu {diff} xe)\n"
         msg += "\n"
 
     if thua_list:
-        msg += "➕ *Các kho báo thừa ODO*\n"
+        msg += "➕ *Các kho báo THỪA ODO*\n"
         for short_kho, d_str, act, exp, diff in thua_list:
-            msg += f"• *Kho {short_kho}*\n"
-            msg += f"  Đã báo: {act} | Phải báo: {exp} | Thừa: {diff} xe\n"
+            msg += f"• *Kho {short_kho}*: Đã báo {act}/{exp} (Thừa {diff} xe)\n"
 
     return msg.strip()
