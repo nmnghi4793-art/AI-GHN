@@ -9,22 +9,24 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Cài đặt Chromium và các thư viện hệ thống cần thiết cho Playwright
 RUN playwright install --with-deps chromium
 
-# Copy source code chính
+# Copy source code chính (dùng wildcard để không sập build nếu upload thiếu file phụ)
 COPY main.py .
-COPY telegram_bot.py .
-COPY giao_hang_scheduler.py .
-COPY collect_money_bot.py .
-COPY collect_money_scheduler.py .
-COPY vanhanh_bot.py .
-COPY vanhanh_scheduler.py .
-COPY app.js .
-COPY index.html .
-COPY styles.css .
-COPY ghn_logo.png .
-COPY Procfile .
+COPY telegram_bot.p[y] .
+COPY giao_hang_scheduler.p[y] .
+COPY collect_money_bot.p[y] .
+COPY collect_money_scheduler.p[y] .
+COPY vanhanh_bot.p[y] .
+COPY vanhanh_scheduler.p[y] .
+COPY odo_monitor.p[y] .
+COPY telegram_odo.p[y] .
+COPY odo_scheduler.p[y] .
+COPY app.j[s] .
+COPY index.htm[l] .
+COPY styles.cs[s] .
+COPY ghn_logo.pn[g] .
+COPY Procfil[e] .
 RUN mkdir -p /app/scratch
 COPY alien-oarlock-499610-a5-2d813b6cc71d.jso[n] .
-
 
 # Runtime env vars được Railway inject tự động — không cần hardcode gì ở đây
 EXPOSE $PORT

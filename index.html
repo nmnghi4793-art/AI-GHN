@@ -301,6 +301,9 @@
             <a href="#" class="nav-item" data-section="xe-daily" id="nav-xe-daily">
                 <i class="fa-solid fa-truck-moving" style="color:var(--orange)"></i><span>Xe Vận Hành Daily</span>
             </a>
+            <a href="#" class="nav-item" data-section="odo-monitor" id="nav-odo-monitor">
+                <i class="fa-solid fa-gauge-high" style="color:#06b6d4"></i><span>Theo Dõi ODO Xe</span>
+            </a>
             <a href="#" class="nav-item" data-section="login-logs" id="nav-login-logs" style="display: none;">
                 <i class="fa-solid fa-history" style="color:#22c55e"></i><span>Log Đăng Nhập</span>
             </a>
@@ -2085,6 +2088,128 @@
                         </thead>
                         <tbody id="tbody-login-logs">
                             <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <!-- ===== SECTION: THEO DÕI ODO XE ===== -->
+        <section class="section-content" id="section-odo-monitor" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+                <div>
+                    <h2 style="font-size:1.4rem;font-weight:700;margin:0;display:flex;align-items:center;gap:10px">
+                        <i class="fa-solid fa-gauge-high" style="color:#06b6d4"></i> Theo Dõi ODO Xe
+                    </h2>
+                    <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text3)">
+                        Đối soát tự động số lượng báo cáo ODO thực tế của các kho theo Công thức: <strong style="color:var(--cyan)">Xe phải báo = Xe chuẩn + Xe tăng cường - Xe OFF</strong>
+                    </p>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label style="font-size:0.82rem;color:var(--text3)">Chọn ngày:</label>
+                        <input type="date" id="odo-date-picker" onchange="loadOdoMonitorData()" style="font-size:0.85rem;padding:6px 10px;border-radius:6px;border:1px solid var(--border-card);background:var(--bg-white);color:var(--text)">
+                    </div>
+                    <button onclick="refreshOdoMonitorData()" class="btn btn-primary" style="font-size:0.85rem;padding:7px 16px;display:flex;align-items:center;gap:6px;background:#06b6d4;border:none">
+                        <i class="fa-solid fa-arrows-rotate"></i> Làm mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards Summary -->
+            <div class="overview-cards" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:20px">
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="odo-val-du" style="color:#10b981">--</div>
+                        <div class="overview-card-label">Tổng kho ĐỦ ODO</div>
+                    </div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#f43f5e,#e11d48)">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="odo-val-thieu" style="color:#f43f5e">--</div>
+                        <div class="overview-card-label">Tổng kho THIẾU ODO</div>
+                    </div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                        <i class="fa-solid fa-truck-pickup"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="odo-val-xe-thieu" style="color:#f59e0b">--</div>
+                        <div class="overview-card-label">Tổng xe THIẾU</div>
+                    </div>
+                </div>
+
+                <div class="overview-card">
+                    <div class="overview-card-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+                        <i class="fa-solid fa-square-plus"></i>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="overview-card-value" id="odo-val-xe-thua" style="color:#3b82f6">--</div>
+                        <div class="overview-card-label">Tổng xe THỪA</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ODO Main Table -->
+            <div class="table-card" style="margin-bottom:24px">
+                <div class="table-header" style="justify-content:space-between">
+                    <h3><i class="fa-solid fa-table-list" style="color:#06b6d4"></i> Bảng Chi Tiết Báo Cáo ODO Theo Kho</h3>
+                    <span id="odo-last-updated" style="font-size:0.8rem;color:var(--text3)">Cập nhật lần cuối: --</span>
+                </div>
+                <div class="table-scroll" style="max-height:540px;overflow-x:auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:45px">STT</th>
+                                <th style="min-width:90px">Ngày</th>
+                                <th style="min-width:220px">Tên Kho</th>
+                                <th style="min-width:85px;text-align:center">Xe Chuẩn</th>
+                                <th style="min-width:85px;text-align:center">Xe OFF</th>
+                                <th style="min-width:85px;text-align:center">Xe Tăng Cường</th>
+                                <th style="min-width:95px;text-align:center">Xe Phải Báo</th>
+                                <th style="min-width:95px;text-align:center">Xe Đã Báo (ODO)</th>
+                                <th style="min-width:90px;text-align:center">Chênh Lệch</th>
+                                <th style="min-width:110px;text-align:center">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-odo-monitor">
+                            <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Đang tải dữ liệu đối soát ODO...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Warning Logs History -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--cyan)"></i> Lịch Sử Cảnh Báo Telegram ODO</h3>
+                </div>
+                <div class="table-scroll" style="max-height:360px;overflow-x:auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:50px">STT</th>
+                                <th style="min-width:140px">Thời Gian Kiểm Tra</th>
+                                <th style="min-width:90px">Khung Giờ</th>
+                                <th style="min-width:90px">Ngày</th>
+                                <th style="min-width:200px">Tên Kho</th>
+                                <th style="min-width:90px;text-align:center">Đã Báo</th>
+                                <th style="min-width:90px;text-align:center">Phải Báo</th>
+                                <th style="min-width:90px;text-align:center">Thiếu</th>
+                                <th style="min-width:90px;text-align:center">Thừa</th>
+                                <th style="min-width:110px;text-align:center">Đã Gửi Telegram</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-odo-logs">
+                            <tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Chưa có lịch sử cảnh báo ODO.</td></tr>
                         </tbody>
                     </table>
                 </div>

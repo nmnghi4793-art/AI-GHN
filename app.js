@@ -7913,7 +7913,10 @@ async function ensureSectionData(name, force = false) {
             !state.gtcData || state.gtcData.length === 0 || 
             !state.donTaoData || state.donTaoData.length === 0 ||
             !state.backlogData || state.backlogData.length === 0
-        ) needsLoad = true;
+    } else if (name === 'odo-monitor') {
+        loadOdoMonitorData(force);
+        renderSection(name);
+        return;
     }
 
     if (!needsLoad) {
@@ -8161,3 +8164,159 @@ async function loadDashboardFromCache(force = false) {
     }
 }
 window.loadDashboardFromCache = loadDashboardFromCache;
+
+
+// =====================================================================
+// ODO MONITORING MODULE FRONTEND HANDLERS
+// =====================================================================
+
+let currentOdoData = null;
+
+async function loadOdoMonitorData(forceRefresh = false) {
+    const dateInput = document.getElementById('odo-date-picker');
+    let dateVal = '';
+    if (dateInput && dateInput.value) {
+        const parts = dateInput.value.split('-');
+        if (parts.length === 3) {
+            dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    }
+    
+    const endpoint = forceRefresh ? '/odo-monitor/refresh' : '/odo-monitor/status';
+    const url = `${API}${endpoint}${dateVal ? '?date=' + encodeURIComponent(dateVal) : ''}`;
+    
+    const tbody = document.getElementById('tbody-odo-monitor');
+    if (tbody && forceRefresh) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-arrows-rotate fa-spin"></i> Đang tính toán và làm mới dữ liệu ODO...</td></tr>';
+    }
+
+    try {
+        const res = await authFetch(url, null);
+        if (res && res.summary && res.details) {
+            currentOdoData = res;
+            renderOdoMonitorCards(res.summary);
+            renderOdoMonitorTable(res.details);
+            if (forceRefresh) {
+                showToast('✅ Đã làm mới dữ liệu ODO thành công!', 'success');
+            }
+        } else {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--red)">Không thể tải dữ liệu ODO.</td></tr>';
+        }
+    } catch (e) {
+        console.error('Error loading ODO data:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--red)">Lỗi kết nối khi tải ODO.</td></tr>';
+    }
+
+    loadOdoMonitorLogs();
+}
+
+async function refreshOdoMonitorData() {
+    await loadOdoMonitorData(true);
+}
+
+function renderOdoMonitorCards(summary) {
+    if (!summary) return;
+    const duEl = document.getElementById('odo-val-du');
+    const thieuEl = document.getElementById('odo-val-thieu');
+    const xeThieuEl = document.getElementById('odo-val-xe-thieu');
+    const xeThuaEl = document.getElementById('odo-val-xe-thua');
+    const updatedEl = document.getElementById('odo-last-updated');
+
+    if (duEl) duEl.textContent = `${summary.du_khos}/${summary.total_khos} kho`;
+    if (thieuEl) thieuEl.textContent = `${summary.thieu_khos}/${summary.total_khos} kho`;
+    if (xeThieuEl) xeThieuEl.textContent = `${summary.total_xe_thieu} xe`;
+    if (xeThuaEl) xeThuaEl.textContent = `${summary.total_xe_thua} xe`;
+    if (updatedEl) updatedEl.textContent = `Cập nhật lần cuối: ${summary.last_updated || '--'}`;
+}
+
+function renderOdoMonitorTable(details) {
+    const tbody = document.getElementById('tbody-odo-monitor');
+    if (!tbody) return;
+
+    if (!details || details.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Không có dữ liệu ODO cho ngày được chọn.</td></tr>';
+        return;
+    }
+
+    let html = '';
+    details.forEach((item, idx) => {
+        let badgeHtml = '';
+        let diffColor = 'var(--text)';
+        let diffText = '0';
+
+        if (item.status === 'DU') {
+            badgeHtml = '<span class="status-badge success" style="background:rgba(16,185,129,0.1);color:#10b981;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-circle-check"></i> Đủ</span>';
+            diffText = '0';
+        } else if (item.status === 'THIEU') {
+            badgeHtml = '<span class="status-badge danger" style="background:rgba(244,63,94,0.1);color:#f43f5e;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> Thiếu</span>';
+            diffColor = '#f43f5e';
+            diffText = `-${item.diff} xe`;
+        } else if (item.status === 'THUA') {
+            badgeHtml = '<span class="status-badge warning" style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-square-plus"></i> Thừa</span>';
+            diffColor = '#3b82f6';
+            diffText = `+${item.diff} xe`;
+        }
+
+        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim();
+
+        html += `
+        <tr>
+            <td style="text-align:center;color:var(--text3);font-size:0.82rem">${idx + 1}</td>
+            <td style="font-weight:500">${escapeHtml(item.ngay)}</td>
+            <td style="font-weight:600;color:var(--text1)">${escapeHtml(shortName)}</td>
+            <td style="text-align:center;font-weight:500">${item.tong_xe}</td>
+            <td style="text-align:center;color:${item.xe_off > 0 ? '#f43f5e' : 'var(--text3)'}">${item.xe_off}</td>
+            <td style="text-align:center;color:${item.xe_tc > 0 ? '#3b82f6' : 'var(--text3)'}">${item.xe_tc}</td>
+            <td style="text-align:center;font-weight:700;color:var(--cyan)">${item.expected_odo}</td>
+            <td style="text-align:center;font-weight:700;color:var(--text1)">${item.actual_odo}</td>
+            <td style="text-align:center;font-weight:700;color:${diffColor}">${diffText}</td>
+            <td style="text-align:center">${badgeHtml}</td>
+        </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+async function loadOdoMonitorLogs() {
+    const tbody = document.getElementById('tbody-odo-logs');
+    if (!tbody) return;
+
+    try {
+        const res = await authFetch(`${API}/odo-monitor/logs`, { logs: [] });
+        const logs = (res && res.logs) ? res.logs : [];
+
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Chưa có lịch sử cảnh báo ODO.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        const recentLogs = logs.slice(-50).reverse();
+        recentLogs.forEach((item, idx) => {
+            const shortKho = (item.kho || '').replace('Kho Giao Hàng Nặng - ', '').trim();
+            const isTelegram = item.sent_telegram ? '<span style="color:#10b981;font-weight:600"><i class="fa-solid fa-check"></i> Đã gửi</span>' : '<span style="color:var(--text3)">Bỏ qua</span>';
+
+            html += `
+            <tr>
+                <td style="text-align:center;color:var(--text3);font-size:0.8rem">${idx + 1}</td>
+                <td style="font-size:0.82rem">${escapeHtml(item.check_time || '--')}</td>
+                <td style="font-size:0.82rem;font-weight:500">${escapeHtml(item.slot_name || 'MANUAL')}</td>
+                <td style="font-size:0.82rem">${escapeHtml(item.ngay || '--')}</td>
+                <td style="font-weight:600">${escapeHtml(shortKho)}</td>
+                <td style="text-align:center">${item.actual_odo}</td>
+                <td style="text-align:center">${item.expected_odo}</td>
+                <td style="text-align:center;color:${item.thieu > 0 ? '#f43f5e' : 'var(--text3)'}">${item.thieu}</td>
+                <td style="text-align:center;color:${item.thua > 0 ? '#3b82f6' : 'var(--text3)'}">${item.thua}</td>
+                <td style="text-align:center">${isTelegram}</td>
+            </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (e) {
+        console.error('Error loading odo logs:', e);
+    }
+}
+
+window.loadOdoMonitorData = loadOdoMonitorData;
+window.refreshOdoMonitorData = refreshOdoMonitorData;

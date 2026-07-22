@@ -3034,4 +3034,33 @@ async def force_dashboard_sync():
     if success:
         return {"status": "ok", "message": "Đồng bộ hoàn tất thành công."}
     else:
-        return {"status": "busy", "message": "Hệ thống đang bận đồng bộ dữ liệu nền. Vui lòng chờ."}
+        raise HTTPException(status_code=500, detail="Đồng bộ thất bại, xem log server.")
+
+
+# =====================================================================
+# ODO MONITORING MODULE APIs & SCHEDULER INITIALIZATION
+# =====================================================================
+import odo_monitor
+import odo_scheduler
+
+@app.get("/api/odo-monitor/status", dependencies=[Depends(require_api_token)])
+def get_odo_monitor_status(date: str = None, force: bool = False):
+    """API trả về thống kê và bảng chi tiết ODO xe từng kho."""
+    return odo_monitor.calculate_odo_status(target_date=date, force_refresh=force)
+
+@app.post("/api/odo-monitor/refresh", dependencies=[Depends(require_api_token)])
+def refresh_odo_monitor_status(date: str = None):
+    """API làm mới cache và tính toán lại ODO."""
+    return odo_monitor.calculate_odo_status(target_date=date, force_refresh=True)
+
+@app.get("/api/odo-monitor/logs", dependencies=[Depends(require_api_token)])
+def get_odo_monitor_logs():
+    """API lấy lịch sử kiểm tra ODO."""
+    logs = odo_scheduler.load_logs()
+    return {"status": "ok", "logs": logs}
+
+@app.on_event("startup")
+async def start_odo_scheduler_on_startup():
+    """Khởi chạy background scheduler cho module ODO Monitor."""
+    asyncio.create_task(odo_scheduler.run_odo_scheduler())
+    print("[ODO MODULE] Background ODO Scheduler launched successfully!")
