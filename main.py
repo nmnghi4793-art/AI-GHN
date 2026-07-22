@@ -411,12 +411,15 @@ async def login(request: Request, payload: dict):
             headers={"Retry-After": "60"}
         )
 
-    username = (payload.get("username") or "").strip()
-    password = payload.get("password") or ""
+    username = (payload.get("username") or "").strip().lower()
+    password = (payload.get("password") or "").strip()
+
+    target_user = _DASH_USER.strip().lower()
+    target_pass = _DASH_PASS.strip()
 
     # Dùng compare_digest để tránh timing attack
-    user_ok = secrets.compare_digest(username, _DASH_USER)
-    pass_ok  = secrets.compare_digest(password, _DASH_PASS)
+    user_ok = secrets.compare_digest(username, target_user)
+    pass_ok = secrets.compare_digest(password, target_pass) or secrets.compare_digest(password.lower(), target_pass.lower())
 
     if user_ok and pass_ok:
         token = secrets.token_urlsafe(32)
