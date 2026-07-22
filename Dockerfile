@@ -22,6 +22,8 @@ COPY index.html .
 COPY styles.css .
 COPY ghn_logo.png .
 COPY Procfile .
+COPY alien-oarlock-499610-a5-2d813b6cc71d.json .
+COPY scratch ./scratch
 
 
 # Runtime env vars được Railway inject tự động — không cần hardcode gì ở đây
