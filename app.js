@@ -3633,6 +3633,8 @@ const SECTION_META = {
 
 
 function showSection(name) {
+    console.log(`[NAVIGATION LOG] showSection requested for: "${name}"`);
+
     // Alias: nangsuat → gtc + tab nangsuat
     if (name === 'nangsuat') {
         showSection('gtc');
@@ -3645,31 +3647,52 @@ function showSection(name) {
         switchKhoXeTab(name);
         return;
     }
+    // Alias: odo-monitor → xe-daily + tab odo
+    if (name === 'odo-monitor') {
+        name = 'xe-daily';
+    }
+
     // Mặc định khi vào gtc → reset tab về GTC
     if (name === 'gtc') switchGtcTab('gtc');
     // Mặc định khi vào khoxe → reset tab về Kho GXT
     if (name === 'khoxe') switchKhoXeTab('khogxt');
     
-    if (name === 'xe-daily' || name === 'odo-monitor') {
-        document.querySelectorAll('.section').forEach(s => {
-            s.classList.remove('active');
-            s.style.display = 'none';
-        });
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        const sectionEl = document.getElementById('section-xe-daily');
-        const navEl = document.getElementById('nav-xe-daily');
-        if (sectionEl) {
-            sectionEl.classList.add('active');
-            sectionEl.style.display = 'block';
-        }
-        if (navEl) navEl.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => {
+        s.classList.remove('active');
+        s.style.display = 'none';
+    });
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-        const [title, sub] = SECTION_META['xe-daily'] || ['Xe Vận Hành Daily', 'Đối soát ODO 25 Kho GXT và Quản lý Xe OFF / Tăng Cường hằng ngày'];
-        document.getElementById('page-title').textContent = title;
-        document.getElementById('page-subtitle').textContent = sub;
+    const sectionEl = document.getElementById('section-' + name);
+    const navEl = document.getElementById('nav-' + name);
 
+    if (sectionEl) {
+        sectionEl.classList.add('active');
+        sectionEl.style.display = 'block';
+        console.log(`[NAVIGATION LOG] Activated section: #section-${name}`);
+    } else {
+        console.warn(`[NAVIGATION LOG] Warning: Section element #section-${name} not found!`);
+    }
+
+    if (navEl) {
+        navEl.classList.add('active');
+    }
+
+    if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
+
+    const [title, sub] = SECTION_META[name] || ['--', '--'];
+    const pageTitleEl = document.getElementById('page-title');
+    const pageSubEl = document.getElementById('page-subtitle');
+    if (pageTitleEl) pageTitleEl.textContent = title;
+    if (pageSubEl) pageSubEl.textContent = sub;
+    
+    // Tự động kiểm tra và lazy load data cho section này
+    if (name === 'xe-daily') {
         switchXeDailySubTab('odo');
-        return;
+    } else if (name === 'login-logs') {
+        loadLoginLogs();
+    } else {
+        ensureSectionData(name);
     }
 }
 
