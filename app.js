@@ -4805,11 +4805,78 @@ async function initLogin() {
     }
 }
 
-function setupLoginForm() {
+async function handleLoginSubmit() {
     const submitBtn = document.getElementById('login-submit-btn');
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
     const loginError = document.getElementById('login-error');
+    const loginErrorText = document.getElementById('login-error-text');
+
+    if (!usernameInput || !passwordInput) return;
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+        if (loginError) loginError.style.display = 'flex';
+        if (loginErrorText) loginErrorText.textContent = 'Vui lòng nhập đầy đủ tài khoản và mật khẩu';
+        return;
+    }
+
+    let originalBtnHtml = '';
+    if (submitBtn) {
+        originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang đăng nhập...';
+    }
+
+    try {
+        const resp = await fetch(`${API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (resp.ok) {
+            const json = await resp.json();
+            if (json.token) {
+                setApiToken(json.token);
+                localStorage.setItem('ghn_logged_in', 'true');
+            }
+            if (loginError) loginError.style.display = 'none';
+            initLogin();
+        } else {
+            let errDetail = 'Tài khoản hoặc mật khẩu không đúng';
+            try {
+                const errJson = await resp.json();
+                if (errJson.detail) errDetail = errJson.detail;
+            } catch (e) {}
+            
+            if (loginErrorText) loginErrorText.textContent = errDetail;
+            if (loginError) {
+                loginError.style.display = 'flex';
+                loginError.style.animation = 'none';
+                loginError.offsetHeight;
+                loginError.style.animation = null;
+            }
+        }
+    } catch (err) {
+        console.error('[AUTH] Login error:', err);
+        if (loginErrorText) loginErrorText.textContent = 'Lỗi kết nối máy chủ đăng nhập';
+        if (loginError) loginError.style.display = 'flex';
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml || '<span class="login-btn-text">Đăng nhập</span> <i class="fa-solid fa-arrow-right"></i>';
+        }
+    }
+}
+window.handleLoginSubmit = handleLoginSubmit;
+
+function setupLoginForm() {
+    const submitBtn = document.getElementById('login-submit-btn');
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
     const togglePasswordEye = document.getElementById('toggle-password-eye');
 
     if (togglePasswordEye && passwordInput) {
@@ -4823,39 +4890,6 @@ function setupLoginForm() {
             }
         };
     }
-
-    const handleLoginSubmit = async () => {
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value;
-
-        try {
-            const resp = await fetch(`${API}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (resp.ok) {
-                const json = await resp.json();
-                if (json.token) {
-                    setApiToken(json.token);
-                    localStorage.setItem('ghn_logged_in', 'true');
-                }
-                if (loginError) loginError.style.display = 'none';
-                initLogin();
-            } else {
-                if (loginError) {
-                    loginError.style.display = 'flex';
-                    loginError.style.animation = 'none';
-                    loginError.offsetHeight;
-                    loginError.style.animation = null;
-                }
-            }
-        } catch (err) {
-            console.error('[AUTH] Login error:', err);
-            if (loginError) loginError.style.display = 'flex';
-        }
-    };
 
     if (submitBtn) {
         submitBtn.onclick = handleLoginSubmit;
