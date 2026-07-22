@@ -3650,11 +3650,17 @@ function showSection(name) {
     // Mặc định khi vào khoxe → reset tab về Kho GXT
     if (name === 'khoxe') switchKhoXeTab('khogxt');
     
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => {
+        s.classList.remove('active');
+        s.style.display = 'none';
+    });
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const sectionEl = document.getElementById('section-' + name);
     const navEl = document.getElementById('nav-' + name);
-    if (sectionEl) sectionEl.classList.add('active');
+    if (sectionEl) {
+        sectionEl.classList.add('active');
+        sectionEl.style.display = 'block';
+    }
     if (navEl) navEl.classList.add('active');
     
     if (name === 'gtc-b2b-prio') window.switchGtcB2bPrioTab('vung');
@@ -3668,7 +3674,10 @@ function showSection(name) {
     } else if (name === 'login-logs') {
         loadLoginLogs();
     } else if (name === 'odo-monitor') {
-        renderSection('odo-monitor');
+        console.log('[ODO RUNTIME] showSection(odo-monitor) called');
+        console.log('[ODO RUNTIME] ODO section found:', sectionEl);
+        console.log('[ODO RUNTIME] ODO section activated');
+        renderFallbackOdoState('23/07/2026', 'Đang tải dữ liệu ODO 25 Kho...');
         loadOdoMonitorData();
     } else {
         ensureSectionData(name);
