@@ -7947,6 +7947,7 @@ async function ensureSectionData(name, force = false) {
             !state.gtcData || state.gtcData.length === 0 || 
             !state.donTaoData || state.donTaoData.length === 0 ||
             !state.backlogData || state.backlogData.length === 0
+        ) needsLoad = true;
     } else if (name === 'odo-monitor') {
         loadOdoMonitorData(force);
         renderSection(name);
