@@ -145,12 +145,8 @@ def require_admin_key(x_admin_key: str = Header(None)):
 async def startup_event():
     import asyncio
     # --- Telegram Bot ---
-    try:
-        from telegram_bot import run_bot
-        asyncio.create_task(run_bot())
-        print("[STARTUP] Đã kích hoạt background task cho Telegram Bot.")
-    except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký background task cho Telegram Bot: {e}")
+    # Tắt telegram_bot.run_bot() để nhường quyền Polling duy nhất cho ODO Scheduler Polling (Tránh lỗi HTTP 409 Conflict)
+    print("[STARTUP] Single Instance Telegram Polling được quản lý bởi ODO Scheduler.")
 
     # --- Giao Hang Scheduler ---
     try:
