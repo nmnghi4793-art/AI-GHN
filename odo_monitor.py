@@ -13,7 +13,8 @@ if BASE_DIR not in sys.path:
 
 import main
 
-# GO-LIVE CONFIGURATION
+# GO-LIVE EXACT TIMESTAMP: 23/07/2026 18:00:00 (Asia/Ho_Chi_Minh)
+GOLIVE_DATETIME = datetime(2026, 7, 23, 18, 0, 0)
 GOLIVE_DATE = date(2026, 7, 23)
 
 ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
@@ -27,15 +28,39 @@ _ODO_CACHE = {
 
 CACHE_TTL_SECONDS = 180  # 3 minutes cache TTL
 
-def is_before_golive(date_str: str) -> bool:
-    """Kiểm tra ngày date_str (dd/MM/yyyy) có trước ngày Go-Live 23/07/2026 hay không."""
+def get_vn_datetime() -> datetime:
+    """Trả về datetime theo múi giờ Việt Nam (Asia/Ho_Chi_Minh / UTC+7)."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+    except Exception:
+        return datetime.utcnow() + timedelta(hours=7)
+
+def is_before_golive(date_str: str = None) -> bool:
+    """
+    Kiểm tra xem mốc thời gian kiểm tra có trước thời điểm GO-LIVE (18:00 23/07/2026) hay không.
+    - Ngày < 23/07/2026 -> True (Trước Go-Live)
+    - Ngày 23/07/2026 trước 18:00 -> True (Trước Go-Live)
+    - Ngày 23/07/2026 từ 18:00 trở đi -> False (GO-LIVE DÃ KÍCH HOẠT)
+    - Ngày > 23/07/2026 -> False (GO-LIVE ĐÃ KÍCH HOẠT)
+    """
+    vn_now = get_vn_datetime()
+    vn_now_naive = vn_now.replace(tzinfo=None) if vn_now.tzinfo else vn_now
+
     if not date_str:
-        return True
+        return vn_now_naive < GOLIVE_DATETIME
+
     try:
         parts = date_str.split("/")
         if len(parts) == 3:
             d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
-            return date(y, m, d) < GOLIVE_DATE
+            target_d = date(y, m, d)
+            if target_d < GOLIVE_DATE:
+                return True
+            elif target_d == GOLIVE_DATE:
+                return vn_now_naive < GOLIVE_DATETIME
+            else:
+                return False
     except Exception:
         pass
     return False
@@ -55,7 +80,6 @@ def parse_odo_date(raw_val) -> str:
     if not s:
         return ""
 
-    # Nếu là Serial Date của Google Sheets (vd: 46225 hoặc 46225.73)
     try:
         if s.replace('.', '', 1).isdigit() and '.' in s:
             num = float(s)
@@ -68,7 +92,6 @@ def parse_odo_date(raw_val) -> str:
     except Exception:
         pass
 
-    # Tách phần ngày và phần giờ (nếu có ' ' hoặc 'T')
     date_part = s.split(" ")[0].split("T")[0].strip()
     date_part = date_part.replace("-", "/").replace(".", "/")
     parts = date_part.split("/")
@@ -133,10 +156,13 @@ def _match_master_kho(kho_input: str, master_khos: list) -> str:
         for p in parts:
             if p and p in k_clean:
                 return mk
-    return kho_input
+    return ""  # Không thuộc 25 kho master -> Loại bỏ
 
 def get_master_kho_totals() -> dict:
-    """Lấy số xe chuẩn (tongXe) của từng kho từ module KPI Xe GXT hiện có."""
+    """
+    Lấy danh sách và số xe chuẩn của ĐÚNG 25 Kho GXT Miền Trung trực tiếp từ Dashboard Data (xe_gxt).
+    Không hardcode trong source.
+    """
     xe_gxt_data, _ = main.read_csv("xe_gxt")
     kho_totals = defaultdict(int)
     for row in xe_gxt_data:
@@ -152,7 +178,7 @@ def get_master_kho_totals() -> dict:
 
 def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
     """
-    Đọc dữ liệu báo ODO từ Google Sheet (ID: 1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo).
+    Đọc dữ liệu báo ODO từ Google Sheet.
     Tự động nhận biết tab tháng hiện tại (ví dụ: 'THÁNG 7').
     Returns: dict mapping (date_str, kho_name) -> count
     """
@@ -229,7 +255,7 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
         except Exception:
             pass
 
-        print(f"[ODO MONITOR] Successfully parsed & cached {len(rows)-1} rows into {len(res_dict)} (date, kho) counts.")
+        print(f"[ODO MONITOR] Successfully parsed & cached {len(rows)-1} rows into {len(res_dict)} (date, kho) counts for 25 master warehouses.")
         return res_dict
 
     except Exception as e:
@@ -262,7 +288,7 @@ def get_xe_daily_breakdown(date_str: str) -> tuple:
 
 def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -> dict:
     """
-    Tính toán trạng thái ODO của tất cả các kho theo target_date.
+    Tính toán trạng thái ODO cho 25 kho chuẩn GXT Miền Trung theo target_date.
     Công thức: expectedOdo = tongXe + xeTangCuong - xeOff
     """
     if not target_date:

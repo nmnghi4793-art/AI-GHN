@@ -34,20 +34,50 @@ def get_vn_datetime() -> datetime:
         return datetime.utcnow() + timedelta(hours=7)
 
 def get_next_run_time() -> str:
-    """Tính toán thời gian báo cáo ODO tiếp theo."""
+    """
+    Tính toán chính xác thời gian báo cáo ODO tiếp theo theo quy tắc GO-LIVE:
+    - GO-LIVE exact: 18:00 23/07/2026.
+    - Trước 18:00 23/07/2026 -> Trả về '18:00 23/07/2026'.
+    - Ngày 23/07/2026: Chỉ chạy các mốc 18:00, 19:00, 21:00, 23:00.
+    - Từ sau 23:00 ngày 23/07/2026 -> Nếu còn kho thiếu ODO thì mới bắt đầu Reminder N+1 từ 07:00 ngày 24/07/2026.
+    """
     vn_now = get_vn_datetime()
-    slots = [7, 9, 11, 13, 15, 17, 18, 19, 21, 23]
+    vn_now_naive = vn_now.replace(tzinfo=None) if vn_now.tzinfo else vn_now
 
-    next_dt = None
+    golive_dt = odo_monitor.GOLIVE_DATETIME
+
+    # Nếu trước mốc GO-LIVE (18:00 23/07/2026)
+    if vn_now_naive < golive_dt:
+        return "18:00 23/07/2026"
+
+    # Trong ngày GO-LIVE (23/07/2026)
+    if vn_now_naive.date() == odo_monitor.GOLIVE_DATE:
+        slots_23 = [18, 19, 21, 23]
+        for h in slots_23:
+            slot_dt = vn_now_naive.replace(hour=h, minute=0, second=0, microsecond=0)
+            if slot_dt > vn_now_naive:
+                return slot_dt.strftime("%H:%M %d/%m/%Y")
+        return "07:00 24/07/2026"
+
+    # Từ ngày 24/07/2026 trở đi
+    today_str = vn_now_naive.strftime("%d/%m/%Y")
+    status_today = odo_monitor.calculate_odo_status(today_str, force_refresh=False)
+
+    if status_today["summary"]["thieu_khos"] > 0:
+        slots = [7, 9, 11, 13, 15, 17, 18, 19, 21, 23]
+    else:
+        slots = [18, 19, 21, 23]
+
     for h in slots:
-        slot_dt = vn_now.replace(hour=h, minute=0, second=0, microsecond=0)
-        if slot_dt > vn_now:
-            next_dt = slot_dt
-            break
+        slot_dt = vn_now_naive.replace(hour=h, minute=0, second=0, microsecond=0)
+        if slot_dt > vn_now_naive:
+            return slot_dt.strftime("%H:%M %d/%m/%Y")
 
-    if not next_dt:
-        tomorrow = vn_now + timedelta(days=1)
+    tomorrow = vn_now_naive + timedelta(days=1)
+    if status_today["summary"]["thieu_khos"] > 0:
         next_dt = tomorrow.replace(hour=7, minute=0, second=0, microsecond=0)
+    else:
+        next_dt = tomorrow.replace(hour=18, minute=0, second=0, microsecond=0)
 
     return next_dt.strftime("%H:%M %d/%m/%Y")
 
@@ -103,7 +133,7 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     """
     Thực hiện 1 chu kỳ đối soát ODO và gửi Telegram nếu đạt điều kiện.
     Gửi ĐÚNG vào chat group -1002712779761.
-    Cấu hình GO-LIVE: Chỉ xử lý và nhắc nhở từ 23/07/2026 trở đi.
+    Cấu hình GO-LIVE: ĐÚNG 18:00 23/07/2026.
     """
     global LAST_RUN_INFO
     vn_now = get_vn_datetime()
@@ -112,10 +142,10 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
 
     log.info(f"========== [ODO SCHEDULER RUN] {now_str} (ICT Asia/Ho_Chi_Minh) ==========")
     log.info(f"1. Slot execution: {slot_name}")
-    log.info(f"2. Target checking date: {today_str} (GO-LIVE DATE: 23/07/2026)")
+    log.info(f"2. Target checking date: {today_str} (GO-LIVE TIMESTAMP: 18:00 23/07/2026)")
     log.info(f"3. Target Telegram Chat ID: {telegram_odo.ODO_CHAT_ID}")
 
-    # 1. Tính toán ODO ngày hôm nay
+    # 1. Tính toán ODO ngày hôm nay (chỉ kiểm tra 25 kho master GXT Miền Trung)
     today_status = odo_monitor.calculate_odo_status(today_str, force_refresh=force_refresh)
     summary = today_status["summary"]
 
@@ -130,18 +160,18 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     log.info(f"5. Warehouses status: Sufficient={summary['du_khos']}, Deficit={summary['thieu_khos']}, Surplus={summary['total_xe_thua']} xe")
     log.info(f"6. Total xe missing ODO: {summary['total_xe_thieu']} xe")
 
-    # Kiểm tra Go-Live Date: Nếu ngày hiện tại < 23/07/2026 thì xem là dữ liệu TEST, KHÔNG GỬI TELEGRAM CẢNH BÁO
+    # Kiểm tra Go-Live Timestamp: Nếu thời điểm hiện tại < 18:00 23/07/2026 thì KHÔNG GỬI TELEGRAM CẢNH BÁO
     if odo_monitor.is_before_golive(today_str) and "COMMAND" not in slot_name:
-        log.info(f"[ODO GO-LIVE FILTER] Date {today_str} is before GO-LIVE date (23/07/2026). Skipping Telegram alerts & reminders.")
+        log.info(f"[ODO GO-LIVE FILTER] Time {now_str} is before GO-LIVE timestamp (18:00 23/07/2026). Skipping Telegram alerts & reminders.")
         record_check_logs(today_status, sent_telegram=False, slot_name=f"{slot_name}_TEST_IGNORED")
         return today_status
 
-    # 2. Kiểm tra các ngày trước chưa đủ ODO (CHỈ XEM CÁC NGÀY >= 23/07/2026)
+    # 2. Kiểm tra các ngày trước chưa đủ ODO (CHỈ XEM CÁC NGÀY TỪ GO-LIVE TRỞ ĐI)
     multi_date_statuses = {}
     for days_back in range(3, 0, -1):
         prev_date = (vn_now - timedelta(days=days_back)).strftime("%d/%m/%Y")
         if odo_monitor.is_before_golive(prev_date):
-            continue  # Bỏ qua toàn bộ dữ liệu trước Go-Live 23/07/2026
+            continue  # Bỏ qua toàn bộ dữ liệu trước Go-Live 18:00 23/07/2026
         prev_status = odo_monitor.calculate_odo_status(prev_date, force_refresh=False)
         if prev_status["summary"]["thieu_khos"] > 0:
             multi_date_statuses[prev_date] = prev_status
@@ -188,7 +218,7 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
             "✅ *BOT ODO đang hoạt động*\n"
             f"🕒 *Server Time:* {now_str}\n"
             "📍 *Timezone:* Asia/Ho_Chi_Minh\n"
-            "🚀 *Go-Live Date:* 23/07/2026"
+            "🚀 *Go-Live Timestamp:* 18:00 23/07/2026"
         )
     elif cmd == "/status":
         next_run = get_next_run_time()
@@ -197,11 +227,11 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
         return (
             "📊 *TRẠNG THÁI BOT ODO*\n"
             "• *Scheduler:* 🟢 Đang hoạt động\n"
-            "• *Ngày Go-Live:* `23/07/2026`\n"
+            "• *Ngày Go-Live:* `18:00 23/07/2026`\n"
             f"• *Mốc chạy tiếp theo:* {next_run}\n"
             f"• *Chat ID hiện tại:* `{telegram_odo.ODO_CHAT_ID}`\n"
             f"• *Sheet đang đọc:* `{telegram_odo.ODO_SHEET_ID}`\n"
-            f"• *Số kho đã kiểm tra:* {total_k}/25 kho\n"
+            f"• *Số kho đã kiểm tra:* {total_k}/25 kho (GXT Miền Trung)\n"
             f"• *Thời gian chạy gần nhất:* {last_time}"
         )
     elif cmd in ["/odo", "/testodo"]:
@@ -246,7 +276,8 @@ async def run_odo_telegram_bot_polling():
         log.info(f"[ODO BOT] Telegram username: @{bot_username}")
         log.info(f"[ODO BOT] Allowed Chat ID: {telegram_odo.ODO_CHAT_ID}")
         log.info("[ODO BOT] Mode: Polling (Single Instance)")
-        log.info("[ODO BOT] Go-Live Date: 23/07/2026")
+        log.info("[ODO BOT] Go-Live Timestamp: 18:00 23/07/2026")
+        log.info("[ODO BOT] Master Warehouses: 25 kho GXT Miền Trung")
         log.info("[ODO BOT] Registered Commands: /odo, /ping, /status, /next, /testodo, /sendtest")
         log.info("==========================================================================")
 
@@ -280,10 +311,11 @@ async def run_odo_telegram_bot_polling():
 async def run_odo_scheduler():
     """
     Vòng lặp Railway Scheduler kiểm tra ODO tự động.
-    Lịch cố định: 18:00, 19:00, 21:00, 23:00 (múi giờ ICT Asia/Ho_Chi_Minh).
-    CHỈ KIỂM TRA VÀ BÁO CÁO TỪ 23/07/2026 TRỞ ĐI.
+    - Ngày GO-LIVE 23/07/2026: Chỉ chạy 18:00, 19:00, 21:00, 23:00. Bỏ qua các mốc sáng & chiều (07:00 -> 17:00).
+    - Từ sau 23:00 ngày 23/07/2026: Bắt đầu cơ chế Reminder N+1 từ ngày 24/07/2026 nếu còn kho thiếu ODO.
+    - CHỈ KIỂM TRA ĐÚNG 25 KHO GXT MIỀN TRUNG.
     """
-    log.info("[ODO SCHEDULER] Engine initialized with timezone Asia/Ho_Chi_Minh (UTC+7). GO-LIVE DATE: 23/07/2026...")
+    log.info("[ODO SCHEDULER] Engine initialized with timezone Asia/Ho_Chi_Minh (UTC+7). GO-LIVE TIMESTAMP: 18:00 23/07/2026...")
 
     asyncio.create_task(run_odo_telegram_bot_polling())
 
@@ -295,18 +327,23 @@ async def run_odo_scheduler():
             hour = vn_now.hour
             minute = vn_now.minute
             today_str = vn_now.strftime("%Y-%m-%d")
+            today_d = vn_now.date()
 
             current_slot_key = f"{today_str}_{hour}:{minute}"
 
-            # Fixed slots (18:00, 19:00, 21:00, 23:00)
-            is_fixed_slot = (hour in [18, 19, 21, 23]) and (minute < 3)
+            # Ngày Go-Live 23/07/2026: CHỈ CHẠY CÁC MỐC 18:00, 19:00, 21:00, 23:00
+            if today_d == odo_monitor.GOLIVE_DATE:
+                is_slot_active = (hour in [18, 19, 21, 23]) and (minute < 3)
+            elif today_d > odo_monitor.GOLIVE_DATE:
+                # Từ ngày 24/07/2026 trở đi: Chạy các mốc cố định và Reminder N+1
+                is_slot_active = (hour in [7, 9, 11, 13, 15, 17, 18, 19, 21, 23]) and (minute < 3)
+            else:
+                # Trước ngày 23/07/2026: Bỏ qua
+                is_slot_active = False
 
-            # N+1 reminder slots (07:00 -> 23:00 every 2h)
-            is_reminder_slot = (hour in [7, 9, 11, 13, 15, 17, 19, 21, 23]) and (minute < 3)
-
-            if (is_fixed_slot or is_reminder_slot) and (current_slot_key != last_executed_slot):
+            if is_slot_active and (current_slot_key != last_executed_slot):
                 last_executed_slot = current_slot_key
-                slot_label = f"FIXED_{hour}:00" if is_fixed_slot else f"REMINDER_{hour}:00"
+                slot_label = f"FIXED_{hour}:00" if hour in [18, 19, 21, 23] else f"REMINDER_{hour}:00"
                 log.info(f"[ODO SCHEDULER] Triggering check for ICT slot {slot_label}...")
                 await check_and_notify_odo(slot_name=slot_label, force_refresh=True)
 
