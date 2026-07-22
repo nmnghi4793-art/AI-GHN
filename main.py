@@ -3103,7 +3103,26 @@ import odo_scheduler
 @app.get("/api/odo-monitor/status", dependencies=[Depends(require_api_token)])
 def get_odo_monitor_status(date: str = None, force: bool = False):
     """API trả về thống kê và bảng chi tiết ODO xe từng kho."""
-    return odo_monitor.calculate_odo_status(target_date=date, force_refresh=force)
+    res = odo_monitor.calculate_odo_status(target_date=date, force_refresh=force)
+    summary = res.get("summary", {})
+    details = res.get("details", [])
+
+    alias_summary = {
+        **summary,
+        "totalWarehouses": summary.get("total_khos", 25),
+        "completedWarehouses": summary.get("du_khos", 0),
+        "missingWarehouses": summary.get("thieu_khos", 0),
+        "missingVehicles": summary.get("total_xe_thieu", 0),
+        "extraVehicles": summary.get("total_xe_thua", 0),
+    }
+
+    return {
+        "summary": alias_summary,
+        "details": details,
+        "rows": details,
+        "alertHistory": odo_scheduler.load_logs(),
+        "lastUpdated": summary.get("last_updated", None)
+    }
 
 @app.post("/api/odo-monitor/refresh", dependencies=[Depends(require_api_token)])
 def refresh_odo_monitor_status(date: str = None):

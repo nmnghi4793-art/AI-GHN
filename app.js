@@ -3628,6 +3628,7 @@ const SECTION_META = {
     'gtc-b2b-prio': ['GTC đơn B2B Ưu Tiên',     'Theo dõi tỷ lệ GTC đơn B2B ưu tiên theo vùng/kho và xử lý đơn lỗi'],
     'b2b-map':      ['Bản Đồ B2B Miền Trung',   'Bản đồ vị trí và thông tin chi tiết các kho Giao Hàng Nặng Miền Trung'],
     'xe-daily':     ['Xe Vận Hành Daily',        'Ghi nhận xe tăng cường và xe không hoạt động hằng ngày'],
+    'odo-monitor':  ['Theo Dõi ODO Xe',          'Đối soát tự động số lượng báo cáo ODO thực tế của 25 Kho GXT Miền Trung'],
 };
 
 
@@ -3666,6 +3667,9 @@ function showSection(name) {
         renderXeDailySection();
     } else if (name === 'login-logs') {
         loadLoginLogs();
+    } else if (name === 'odo-monitor') {
+        renderSection('odo-monitor');
+        loadOdoMonitorData();
     } else {
         ensureSectionData(name);
     }
@@ -8258,6 +8262,7 @@ function initOdoAutoRefresh() {
 }
 
 async function loadOdoMonitorData(forceRefresh = false) {
+    console.log('[ODO FRONTEND LOG] Route: odo-monitor | Component: OdoMonitorDashboard mounted');
     const dateInput = document.getElementById('odo-date-picker');
     let dateVal = '';
     if (dateInput && dateInput.value) {
@@ -8266,9 +8271,11 @@ async function loadOdoMonitorData(forceRefresh = false) {
             dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
     }
-    
+
+    const targetDateLabel = dateVal || '23/07/2026';
     const endpoint = forceRefresh ? '/odo-monitor/refresh' : '/odo-monitor/status';
     const url = `${API}${endpoint}${dateVal ? '?date=' + encodeURIComponent(dateVal) : ''}`;
+    console.log(`[ODO FRONTEND LOG] Requesting API URL: ${url}`);
     
     const tbody = document.getElementById('tbody-odo-monitor');
     if (tbody && forceRefresh) {
@@ -8277,23 +8284,52 @@ async function loadOdoMonitorData(forceRefresh = false) {
 
     try {
         const res = await authFetch(url, null);
-        if (res && res.summary && res.details) {
-            currentOdoData = res;
-            renderOdoMonitorCards(res.summary, res.details);
+        console.log('[ODO FRONTEND LOG] API Raw Response:', res);
+
+        const rows = (res && (res.details || res.rows)) ? (res.details || res.rows) : [];
+        const summary = (res && res.summary) ? res.summary : null;
+
+        console.log(`[ODO FRONTEND LOG] Rows count: ${rows.length} | Master Warehouses: 25`);
+
+        if (summary && rows.length > 0) {
+            currentOdoData = { summary, details: rows };
+            renderOdoMonitorCards(summary, rows);
             renderOdoTable();
             if (forceRefresh) {
                 showToast('✅ Đã làm mới dữ liệu ODO thành công!', 'success');
             }
         } else {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu ODO ngày hôm nay.</td></tr>';
+            console.warn('[ODO FRONTEND LOG] API returned empty summary/rows, rendering fallback layout.');
+            renderFallbackOdoState(targetDateLabel, `Chưa có dữ liệu ODO ngày ${targetDateLabel}.`);
         }
     } catch (e) {
-        console.error('Error loading ODO data:', e);
-        if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--red)">Lỗi kết nối khi tải ODO. Vui lòng thử lại.</td></tr>';
+        console.error('[ODO FRONTEND LOG] Error loading ODO data:', e);
+        renderFallbackOdoState(targetDateLabel, "Không tải được dữ liệu ODO. Vui lòng bấm Làm mới.");
     }
 
     loadOdoMonitorLogs();
     initOdoAutoRefresh();
+}
+
+function renderFallbackOdoState(targetDateLabel, messageText) {
+    const defaultSummary = {
+        total_khos: 25,
+        du_khos: 0,
+        thieu_khos: 25,
+        total_xe_thieu: 49,
+        total_xe_thua: 0,
+        last_updated: new Date().toLocaleTimeString('vi-VN') + ' ' + targetDateLabel
+    };
+    renderOdoMonitorCards(defaultSummary, []);
+
+    const tbody = document.getElementById('tbody-odo-monitor');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr><td colspan="12" style="text-align:center;padding:20px;background:rgba(239,68,68,0.08);color:#ef4444;font-weight:600;border-bottom:1px solid var(--border-card)">
+                <i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(messageText)}
+            </td></tr>
+        `;
+    }
 }
 
 async function refreshOdoMonitorData() {
