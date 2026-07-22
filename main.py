@@ -102,7 +102,10 @@ class PerformanceLoggingMiddleware(BaseHTTPMiddleware):
         duration = time.time() - start_time
         path = request.url.path
         if path.startswith("/api/"):
-            print(f"[PERFORMANCE LOG] API {request.method} {path} responded in {duration:.3f}s.")
+            try:
+                print(f"[PERFORMANCE LOG] API {request.method} {path} responded in {duration:.3f}s.")
+            except Exception:
+                pass
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -148,36 +151,42 @@ async def startup_event():
     # Tắt telegram_bot.run_bot() để nhường quyền Polling duy nhất cho ODO Scheduler Polling (Tránh lỗi HTTP 409 Conflict)
     print("[STARTUP] Single Instance Telegram Polling được quản lý bởi ODO Scheduler.")
 
+    def safe_print(msg):
+        try:
+            print(msg)
+        except Exception:
+            pass
+
     # --- Giao Hang Scheduler ---
     try:
         from giao_hang_scheduler import run_giao_hang_scheduler
         asyncio.create_task(run_giao_hang_scheduler())
-        print("[STARTUP] Đã kích hoạt Giao Hàng Scheduler (09:30 & 13:30).")
+        safe_print("[STARTUP] Đã kích hoạt Giao Hàng Scheduler (09:30 & 13:30).")
     except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký Giao Hàng Scheduler: {e}")
+        safe_print(f"[STARTUP ERROR] Không thể đăng ký Giao Hàng Scheduler: {e}")
 
     # --- Collect Money Scheduler ---
     try:
         from collect_money_scheduler import run_collect_money_scheduler
         asyncio.create_task(run_collect_money_scheduler())
-        print("[STARTUP] Đã kích hoạt Thu Tiền - Bắn Kiểm Scheduler (21:00, 22:00 & 23:00).")
+        safe_print("[STARTUP] Đã kích hoạt Thu Tiền - Bắn Kiểm Scheduler (21:00, 22:00 & 23:00).")
     except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký Thu Tiền - Bắn Kiểm Scheduler: {e}")
+        safe_print(f"[STARTUP ERROR] Không thể đăng ký Thu Tiền - Bắn Kiểm Scheduler: {e}")
 
     # --- Van Hanh Scheduler ---
     try:
         from vanhanh_scheduler import run_vanhanh_scheduler
         asyncio.create_task(run_vanhanh_scheduler())
-        print("[STARTUP] Đã kích hoạt Báo Cáo Tồn Phiếu Vận Hành GXT (Mỗi 5 phút).")
+        safe_print("[STARTUP] Đã kích hoạt Báo Cáo Tồn Phiếu Vận Hành GXT (Mỗi 5 phút).")
     except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký Van Hanh Scheduler: {e}")
+        safe_print(f"[STARTUP ERROR] Không thể đăng ký Van Hanh Scheduler: {e}")
 
     # --- Dashboard Sync Scheduler ---
     try:
         asyncio.create_task(run_dashboard_sync_scheduler())
-        print("[STARTUP] Đã kích hoạt Dashboard Sync Scheduler (Đồng bộ nền & cache).")
+        safe_print("[STARTUP] Đã kích hoạt Dashboard Sync Scheduler (Đồng bộ nền & cache).")
     except Exception as e:
-        print(f"[STARTUP ERROR] Không thể đăng ký Dashboard Sync Scheduler: {e}")
+        safe_print(f"[STARTUP ERROR] Không thể đăng ký Dashboard Sync Scheduler: {e}")
 
 
 # ---- ADMIN: Test Giao Hang Report ----
@@ -2855,14 +2864,23 @@ _IS_SYNCING = False
 async def run_dashboard_sync_scheduler():
     """Background task chạy định kỳ mỗi 3 phút để tự động sync dữ liệu."""
     import asyncio
-    print("[SCHEDULER] Kích hoạt Dashboard Background Sync Loop.")
+    try:
+        print("[SCHEDULER] Kích hoạt Dashboard Background Sync Loop.")
+    except Exception:
+        pass
     await asyncio.sleep(2)  # Đợi server khởi động ổn định
     while True:
         try:
-            print("[SCHEDULER] Bắt đầu tự động đồng bộ dữ liệu dashboard...")
+            try:
+                print("[SCHEDULER] Bắt đầu tự động đồng bộ dữ liệu dashboard...")
+            except Exception:
+                pass
             await sync_dashboard_cache(force=False)
         except Exception as e:
-            print(f"[SCHEDULER ERROR] Lỗi đồng bộ dashboard nền: {e}")
+            try:
+                print(f"[SCHEDULER ERROR] Lỗi đồng bộ dashboard nền: {e}")
+            except Exception:
+                pass
         await asyncio.sleep(180)  # Chạy mỗi 3 phút
 
 async def sync_dashboard_cache(force=False):
@@ -3098,8 +3116,58 @@ def get_odo_monitor_logs():
     logs = odo_scheduler.load_logs()
     return {"status": "ok", "logs": logs}
 
+@app.post("/api/odo-monitor/send-telegram", dependencies=[Depends(require_api_token)])
+async def trigger_odo_telegram_send():
+    """API gửi ngay báo cáo ODO vào nhóm Telegram -1002712779761."""
+    res = await odo_scheduler.check_and_notify_odo(slot_name="MANUAL_WEB_TRIGGER", force_refresh=True)
+    return {"status": "ok", "message": "Đã gửi báo cáo ODO vào nhóm Telegram thành công!", "summary": res.get("summary", {})}
+
+@app.get("/api/odo-monitor/detail", dependencies=[Depends(require_api_token)])
+def get_odo_kho_detail(kho: str, date: str = None):
+    """API trả về thông tin chi tiết ODO, xe OFF, xe tăng cường và lịch sử 7 ngày cho 1 kho."""
+    from datetime import datetime, timedelta
+    if not date:
+        date = datetime.now().strftime("%d/%m/%Y")
+    else:
+        date = odo_monitor.parse_odo_date(date)
+
+    status_obj = odo_monitor.calculate_odo_status(target_date=date, force_refresh=False)
+    kho_item = next((item for item in status_obj["details"] if item["kho"].lower() == kho.lower() or kho.lower() in item["kho"].lower()), None)
+
+    records = _load_xe_daily_records()
+    off_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == date and kho.lower() in r.get("ten_kho","").lower() and ("off" in r.get("loai","").lower() or "không hoạt động" in r.get("loai","").lower() or "bảo dưỡng" in r.get("loai","").lower() or "hư hỏng" in r.get("loai","").lower())]
+    tc_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == date and kho.lower() in r.get("ten_kho","").lower() and "tăng cường" in r.get("loai","").lower()]
+
+    history_7d = []
+    vn_now = odo_scheduler.get_vn_datetime()
+    for d in range(6, -1, -1):
+        h_date = (vn_now - timedelta(days=d)).strftime("%d/%m/%Y")
+        st = odo_monitor.calculate_odo_status(target_date=h_date, force_refresh=False)
+        h_item = next((it for it in st["details"] if kho.lower() in it["kho"].lower()), None)
+        if h_item:
+            history_7d.append({
+                "ngay": h_date,
+                "expected": h_item["expected_odo"],
+                "actual": h_item["actual_odo"],
+                "status": h_item["status"],
+                "diff": h_item["diff"]
+            })
+
+    return {
+        "status": "ok",
+        "kho": kho,
+        "date": date,
+        "summary_item": kho_item,
+        "off_details": off_details,
+        "tc_details": tc_details,
+        "history_7d": history_7d
+    }
+
 @app.on_event("startup")
 async def start_odo_scheduler_on_startup():
     """Khởi chạy background scheduler cho module ODO Monitor."""
     asyncio.create_task(odo_scheduler.run_odo_scheduler())
-    print("[ODO MODULE] Background ODO Scheduler launched successfully!")
+    try:
+        print("[ODO MODULE] Background ODO Scheduler launched successfully!")
+    except Exception:
+        pass

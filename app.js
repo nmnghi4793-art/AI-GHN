@@ -8228,8 +8228,34 @@ window.loadDashboardFromCache = loadDashboardFromCache;
 // =====================================================================
 // ODO MONITORING MODULE FRONTEND HANDLERS
 // =====================================================================
+// MODULE: THEO DÕI ODO XE (FULL DASHBOARD & INTERACTIVITY)
+// =====================================================================
 
 let currentOdoData = null;
+let currentOdoFilter = 'ALL';
+let odoTimerInterval = null;
+let odoCountdownSeconds = 60;
+
+function initOdoAutoRefresh() {
+    if (odoTimerInterval) clearInterval(odoTimerInterval);
+    odoCountdownSeconds = 60;
+    
+    odoTimerInterval = setInterval(() => {
+        const timerEl = document.getElementById('odo-countdown-timer');
+        const section = document.getElementById('section-odo-monitor');
+        if (!section || section.style.display === 'none') {
+            return;
+        }
+
+        odoCountdownSeconds--;
+        if (timerEl) timerEl.textContent = `${odoCountdownSeconds}s`;
+
+        if (odoCountdownSeconds <= 0) {
+            odoCountdownSeconds = 60;
+            loadOdoMonitorData(false);
+        }
+    }, 1000);
+}
 
 async function loadOdoMonitorData(forceRefresh = false) {
     const dateInput = document.getElementById('odo-date-picker');
@@ -8246,95 +8272,318 @@ async function loadOdoMonitorData(forceRefresh = false) {
     
     const tbody = document.getElementById('tbody-odo-monitor');
     if (tbody && forceRefresh) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-arrows-rotate fa-spin"></i> Đang tính toán và làm mới dữ liệu ODO...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:35px;color:var(--text3)"><i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:1.5rem;color:#06b6d4;margin-bottom:8px"></i><br>Đang tính toán và làm mới dữ liệu ODO 25 Kho...</td></tr>';
     }
 
     try {
         const res = await authFetch(url, null);
         if (res && res.summary && res.details) {
             currentOdoData = res;
-            renderOdoMonitorCards(res.summary);
-            renderOdoMonitorTable(res.details);
+            renderOdoMonitorCards(res.summary, res.details);
+            renderOdoTable();
             if (forceRefresh) {
                 showToast('✅ Đã làm mới dữ liệu ODO thành công!', 'success');
             }
         } else {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--red)">Không thể tải dữ liệu ODO.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Chưa có dữ liệu ODO ngày hôm nay.</td></tr>';
         }
     } catch (e) {
         console.error('Error loading ODO data:', e);
-        if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--red)">Lỗi kết nối khi tải ODO.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--red)">Lỗi kết nối khi tải ODO. Vui lòng thử lại.</td></tr>';
     }
 
     loadOdoMonitorLogs();
+    initOdoAutoRefresh();
 }
 
 async function refreshOdoMonitorData() {
+    odoCountdownSeconds = 60;
     await loadOdoMonitorData(true);
 }
 
-function renderOdoMonitorCards(summary) {
+function renderOdoMonitorCards(summary, details) {
     if (!summary) return;
+    const tongKhoEl = document.getElementById('odo-val-tong-kho');
     const duEl = document.getElementById('odo-val-du');
     const thieuEl = document.getElementById('odo-val-thieu');
     const xeThieuEl = document.getElementById('odo-val-xe-thieu');
-    const xeThuaEl = document.getElementById('odo-val-xe-thua');
+    const xeTcEl = document.getElementById('odo-val-xe-tc');
+    const xeOffEl = document.getElementById('odo-val-xe-off');
     const updatedEl = document.getElementById('odo-last-updated');
 
-    if (duEl) duEl.textContent = `${summary.du_khos}/${summary.total_khos} kho`;
-    if (thieuEl) thieuEl.textContent = `${summary.thieu_khos}/${summary.total_khos} kho`;
+    let totalTc = 0;
+    let totalOff = 0;
+    if (details) {
+        details.forEach(it => {
+            totalTc += (it.xe_tc || 0);
+            totalOff += (it.xe_off || 0);
+        });
+    }
+
+    if (tongKhoEl) tongKhoEl.textContent = summary.total_khos || 25;
+    if (duEl) duEl.textContent = `${summary.du_khos}/${summary.total_khos || 25} kho`;
+    if (thieuEl) thieuEl.textContent = `${summary.thieu_khos}/${summary.total_khos || 25} kho`;
     if (xeThieuEl) xeThieuEl.textContent = `${summary.total_xe_thieu} xe`;
-    if (xeThuaEl) xeThuaEl.textContent = `${summary.total_xe_thua} xe`;
+    if (xeTcEl) xeTcEl.textContent = `${totalTc} xe`;
+    if (xeOffEl) xeOffEl.textContent = `${totalOff} xe`;
     if (updatedEl) updatedEl.textContent = `Cập nhật lần cuối: ${summary.last_updated || '--'}`;
 }
 
-function renderOdoMonitorTable(details) {
+function filterOdoByStatus(status) {
+    currentOdoFilter = status;
+    const filterBtns = document.querySelectorAll('.odo-filter-btn');
+    filterBtns.forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`odo-tab-${status}`);
+    if (activeBtn) activeBtn.classList.add('active');
+    renderOdoTable();
+}
+
+function renderOdoTable() {
     const tbody = document.getElementById('tbody-odo-monitor');
     if (!tbody) return;
 
-    if (!details || details.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)">Không có dữ liệu ODO cho ngày được chọn.</td></tr>';
+    if (!currentOdoData || !currentOdoData.details || currentOdoData.details.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:35px;color:var(--text3)"><i class="fa-solid fa-inbox" style="font-size:1.8rem;margin-bottom:8px;display:block"></i>Chưa có dữ liệu ODO ngày hôm nay.</td></tr>';
+        return;
+    }
+
+    const searchInput = document.getElementById('odo-search-input');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    let filtered = currentOdoData.details.filter(item => {
+        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim().toLowerCase();
+        const fullName = item.kho.toLowerCase();
+        const matchesSearch = !query || shortName.includes(query) || fullName.includes(query);
+
+        let matchesFilter = true;
+        if (currentOdoFilter === 'DU') {
+            matchesFilter = (item.status === 'DU');
+        } else if (currentOdoFilter === 'THIEU') {
+            matchesFilter = (item.status === 'THIEU' && item.actual_odo > 0);
+        } else if (currentOdoFilter === 'CHUABAO') {
+            matchesFilter = (item.expected_odo > 0 && item.actual_odo === 0);
+        } else if (currentOdoFilter === 'THUA') {
+            matchesFilter = (item.status === 'THUA');
+        }
+
+        return matchesSearch && matchesFilter;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text3)">Không tìm thấy kho phù hợp với điều kiện lọc.</td></tr>';
         return;
     }
 
     let html = '';
-    details.forEach((item, idx) => {
+    filtered.forEach((item, idx) => {
         let badgeHtml = '';
         let diffColor = 'var(--text)';
         let diffText = '0';
+        let thuaText = '0';
 
-        if (item.status === 'DU') {
-            badgeHtml = '<span class="status-badge success" style="background:rgba(16,185,129,0.1);color:#10b981;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-circle-check"></i> Đủ</span>';
+        if (item.expected_odo > 0 && item.actual_odo === 0) {
+            badgeHtml = '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-circle-xmark"></i> Chưa báo</span>';
+            diffColor = '#ef4444';
+            diffText = `-${item.expected_odo}`;
+        } else if (item.status === 'DU') {
+            badgeHtml = '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-circle-check"></i> Đủ</span>';
             diffText = '0';
         } else if (item.status === 'THIEU') {
-            badgeHtml = '<span class="status-badge danger" style="background:rgba(244,63,94,0.1);color:#f43f5e;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> Thiếu</span>';
-            diffColor = '#f43f5e';
-            diffText = `-${item.diff} xe`;
+            badgeHtml = '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-triangle-exclamation"></i> Thiếu</span>';
+            diffColor = '#f59e0b';
+            diffText = `-${item.diff}`;
         } else if (item.status === 'THUA') {
-            badgeHtml = '<span class="status-badge warning" style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600"><i class="fa-solid fa-square-plus"></i> Thừa</span>';
-            diffColor = '#3b82f6';
-            diffText = `+${item.diff} xe`;
+            badgeHtml = '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-square-plus"></i> Thừa</span>';
+            thuaText = `+${item.diff}`;
         }
 
         const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim();
 
         html += `
-        <tr>
+        <tr onclick="openOdoKhoModal('${escapeHtml(item.kho)}')" style="cursor:pointer;transition:background 0.2s" class="hover-row">
             <td style="text-align:center;color:var(--text3);font-size:0.82rem">${idx + 1}</td>
-            <td style="font-weight:500">${escapeHtml(item.ngay)}</td>
-            <td style="font-weight:600;color:var(--text1)">${escapeHtml(shortName)}</td>
+            <td style="font-weight:600;color:var(--text1)">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-warehouse" style="color:#06b6d4;font-size:0.85rem"></i>
+                    <span>${escapeHtml(shortName)}</span>
+                </div>
+            </td>
             <td style="text-align:center;font-weight:500">${item.tong_xe}</td>
-            <td style="text-align:center;color:${item.xe_off > 0 ? '#f43f5e' : 'var(--text3)'}">${item.xe_off}</td>
-            <td style="text-align:center;color:${item.xe_tc > 0 ? '#3b82f6' : 'var(--text3)'}">${item.xe_tc}</td>
-            <td style="text-align:center;font-weight:700;color:var(--cyan)">${item.expected_odo}</td>
+            <td style="text-align:center;color:${item.xe_tc > 0 ? '#3b82f6' : 'var(--text3)'};font-weight:${item.xe_tc > 0 ? '700' : 'normal'}">${item.xe_tc}</td>
+            <td style="text-align:center;color:${item.xe_off > 0 ? '#f97316' : 'var(--text3)'};font-weight:${item.xe_off > 0 ? '700' : 'normal'}">${item.xe_off}</td>
+            <td style="text-align:center;font-weight:700;color:#06b6d4">${item.expected_odo}</td>
             <td style="text-align:center;font-weight:700;color:var(--text1)">${item.actual_odo}</td>
             <td style="text-align:center;font-weight:700;color:${diffColor}">${diffText}</td>
+            <td style="text-align:center;font-weight:700;color:#3b82f6">${thuaText}</td>
             <td style="text-align:center">${badgeHtml}</td>
+            <td style="text-align:center;font-size:0.8rem;color:var(--text3)">${escapeHtml(item.ngay)}</td>
+            <td style="text-align:center" onclick="event.stopPropagation()">
+                <button onclick="openOdoKhoModal('${escapeHtml(item.kho)}')" class="btn" style="padding:4px 10px;font-size:0.78rem;background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.3);border-radius:6px;cursor:pointer;font-weight:600">
+                    <i class="fa-solid fa-eye"></i> Chi tiết
+                </button>
+            </td>
         </tr>
         `;
     });
 
     tbody.innerHTML = html;
+}
+
+async function openOdoKhoModal(khoName) {
+    const modal = document.getElementById('odo-kho-modal');
+    const modalTitle = document.getElementById('odo-modal-title');
+    const modalBody = document.getElementById('odo-modal-body');
+
+    if (!modal || !modalBody) return;
+
+    modal.style.display = 'flex';
+    const shortName = khoName.replace('Kho Giao Hàng Nặng - ', '').trim();
+    if (modalTitle) modalTitle.innerHTML = `<i class="fa-solid fa-warehouse" style="color:#06b6d4"></i> Chi Tiết ODO Kho ${escapeHtml(shortName)}`;
+
+    modalBody.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--text3)">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:1.8rem;color:#06b6d4;margin-bottom:10px"></i><br>
+            Đang tải dữ liệu chi tiết ODO Kho ${escapeHtml(shortName)}...
+        </div>
+    `;
+
+    const dateInput = document.getElementById('odo-date-picker');
+    let dateVal = '';
+    if (dateInput && dateInput.value) {
+        const parts = dateInput.value.split('-');
+        if (parts.length === 3) dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    try {
+        const url = `${API}/odo-monitor/detail?kho=${encodeURIComponent(khoName)}${dateVal ? '&date=' + encodeURIComponent(dateVal) : ''}`;
+        const res = await authFetch(url, null);
+
+        if (res && res.status === 'ok') {
+            const item = res.summary_item || {};
+            const offList = res.off_details || [];
+            const tcList = res.tc_details || [];
+            const history7d = res.history_7d || [];
+
+            let badgeHtml = '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700">🟢 Đủ</span>';
+            if (item.expected_odo > 0 && item.actual_odo === 0) {
+                badgeHtml = '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700">🔴 Chưa báo ODO</span>';
+            } else if (item.status === 'THIEU') {
+                badgeHtml = '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700">🟡 Thiếu ODO</span>';
+            } else if (item.status === 'THUA') {
+                badgeHtml = '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700">🔵 Thừa ODO</span>';
+            }
+
+            let offRows = offList.map(r => `<li>Biển số: <strong style="color:var(--text)">${escapeHtml(r.bien_so || '--')}</strong> - Lý do: ${escapeHtml(r.loai || 'OFF')} (${r.so_luong_xe || 1} xe)</li>`).join('') || '<li style="color:var(--text3)">Không có xe OFF</li>';
+            let tcRows = tcList.map(r => `<li>Biển số: <strong style="color:var(--text)">${escapeHtml(r.bien_so || '--')}</strong> - Đơn vị: ${escapeHtml(r.loai || 'Tăng cường')} (${r.so_luong_xe || 1} xe)</li>`).join('') || '<li style="color:var(--text3)">Không có xe tăng cường</li>';
+
+            let historyRows = history7d.map(h => `
+                <tr>
+                    <td style="padding:6px;font-size:0.8rem">${escapeHtml(h.ngay)}</td>
+                    <td style="padding:6px;text-align:center;font-size:0.8rem">${h.expected}</td>
+                    <td style="padding:6px;text-align:center;font-size:0.8rem;font-weight:600">${h.actual}</td>
+                    <td style="padding:6px;text-align:center;font-size:0.8rem;color:${h.status === 'DU' ? '#10b981' : h.status === 'THIEU' ? '#f59e0b' : '#3b82f6'};font-weight:700">${h.status}</td>
+                </tr>
+            `).join('');
+
+            modalBody.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;background:var(--bg-card);padding:14px;border-radius:10px;border:1px solid var(--border-card)">
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Xe chuẩn</span><br><strong style="font-size:1.1rem;color:var(--text)">${item.tong_xe || 0}</strong></div>
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Xe tăng cường</span><br><strong style="font-size:1.1rem;color:#3b82f6">${item.xe_tc || 0}</strong></div>
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Xe OFF</span><br><strong style="font-size:1.1rem;color:#f97316">${item.xe_off || 0}</strong></div>
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Phải báo ODO</span><br><strong style="font-size:1.1rem;color:#06b6d4">${item.expected_odo || 0}</strong></div>
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Đã báo ODO</span><br><strong style="font-size:1.1rem;color:var(--text)">${item.actual_odo || 0}</strong></div>
+                    <div><span style="font-size:0.75rem;color:var(--text3)">Trạng thái</span><br>${badgeHtml}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div style="background:var(--bg-card);padding:12px 16px;border-radius:10px;border:1px solid var(--border-card)">
+                        <h4 style="margin:0 0 8px;font-size:0.9rem;color:#f97316"><i class="fa-solid fa-ban"></i> Danh Sách Xe OFF</h4>
+                        <ul style="margin:0;padding-left:18px;font-size:0.82rem;color:var(--text2)">${offRows}</ul>
+                    </div>
+
+                    <div style="background:var(--bg-card);padding:12px 16px;border-radius:10px;border:1px solid var(--border-card)">
+                        <h4 style="margin:0 0 8px;font-size:0.9rem;color:#3b82f6"><i class="fa-solid fa-circle-plus"></i> Danh Sách Xe Tăng Cường</h4>
+                        <ul style="margin:0;padding-left:18px;font-size:0.82rem;color:var(--text2)">${tcRows}</ul>
+                    </div>
+                </div>
+
+                <div style="background:var(--bg-card);padding:14px;border-radius:10px;border:1px solid var(--border-card)">
+                    <h4 style="margin:0 0 10px;font-size:0.9rem;color:#06b6d4"><i class="fa-solid fa-calendar-week"></i> Lịch Sử ODO 7 Ngày Gần Nhất</h4>
+                    <table style="width:100%;border-collapse:collapse">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border-card);color:var(--text3);font-size:0.78rem">
+                                <th style="text-align:left;padding:4px">Ngày</th>
+                                <th style="text-align:center;padding:4px">Xe Phải Báo</th>
+                                <th style="text-align:center;padding:4px">Xe Đã Báo</th>
+                                <th style="text-align:center;padding:4px">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>${historyRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+    } catch (e) {
+        console.error('Error fetching kho detail:', e);
+        modalBody.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red)">Không thể tải chi tiết kho ${escapeHtml(shortName)}.</div>`;
+    }
+}
+
+function closeOdoKhoModal() {
+    const modal = document.getElementById('odo-kho-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function sendOdoTelegramNow() {
+    try {
+        showToast('⏳ Đang phát tin báo cáo ODO sang Telegram group -1002712779761...', 'info');
+        const res = await authFetch(`${API}/odo-monitor/send-telegram`, {}, 'POST');
+        if (res && res.status === 'ok') {
+            showToast('✅ Đã gửi báo cáo ODO vào nhóm Telegram thành công!', 'success');
+            loadOdoMonitorLogs();
+        } else {
+            showToast('❌ Lỗi khi gửi tin Telegram. Vui lòng kiểm tra log.', 'error');
+        }
+    } catch (e) {
+        console.error('Error triggering telegram send:', e);
+        showToast('❌ Không thể kết nối tới server để gửi Telegram.', 'error');
+    }
+}
+
+function exportOdoToExcel() {
+    if (!currentOdoData || !currentOdoData.details) {
+        showToast('⚠️ Chưa có dữ liệu ODO để xuất Excel!', 'warning');
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFFSTT,Tên Kho,Xe Chuẩn,Xe Tăng Cường,Xe OFF,Xe Phải Báo,Xe Đã Báo,Thiếu,Thừa,Trạng Thái,Ngày Cập Nhật\n";
+    
+    currentOdoData.details.forEach((item, idx) => {
+        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim();
+        const row = [
+            idx + 1,
+            `"${shortName}"`,
+            item.tong_xe,
+            item.xe_tc,
+            item.xe_off,
+            item.expected_odo,
+            item.actual_odo,
+            item.status === 'THIEU' ? item.diff : 0,
+            item.status === 'THUA' ? item.diff : 0,
+            `"${item.status}"`,
+            `"${item.ngay}"`
+        ];
+        csvContent += row.join(",") + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Bao_Cao_ODO_GXT_${currentOdoData.summary.target_date.replace(/\//g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('📥 Đã xuất file Báo Cáo ODO Excel (.csv) thành công!', 'success');
 }
 
 async function loadOdoMonitorLogs() {
@@ -8346,7 +8595,7 @@ async function loadOdoMonitorLogs() {
         const logs = (res && res.logs) ? res.logs : [];
 
         if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Chưa có lịch sử cảnh báo ODO.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:25px;color:var(--text3)">Chưa có lịch sử cảnh báo ODO.</td></tr>';
             return;
         }
 
@@ -8356,18 +8605,18 @@ async function loadOdoMonitorLogs() {
             const shortKho = (item.kho || '').replace('Kho Giao Hàng Nặng - ', '').trim();
             const isTelegram = item.sent_telegram ? '<span style="color:#10b981;font-weight:600"><i class="fa-solid fa-check"></i> Đã gửi</span>' : '<span style="color:var(--text3)">Bỏ qua</span>';
 
+            let timeParts = (item.check_time || '').split(' ');
+            let checkTimeOnly = timeParts.length > 1 ? timeParts[1] : '--';
+
             html += `
             <tr>
                 <td style="text-align:center;color:var(--text3);font-size:0.8rem">${idx + 1}</td>
-                <td style="font-size:0.82rem">${escapeHtml(item.check_time || '--')}</td>
-                <td style="font-size:0.82rem;font-weight:500">${escapeHtml(item.slot_name || 'MANUAL')}</td>
-                <td style="font-size:0.82rem">${escapeHtml(item.ngay || '--')}</td>
+                <td style="text-align:center;font-size:0.82rem">${escapeHtml(item.ngay || '--')}</td>
+                <td style="text-align:center;font-size:0.82rem;font-weight:500;color:#06b6d4">${escapeHtml(checkTimeOnly)}</td>
                 <td style="font-weight:600">${escapeHtml(shortKho)}</td>
-                <td style="text-align:center">${item.actual_odo}</td>
-                <td style="text-align:center">${item.expected_odo}</td>
-                <td style="text-align:center;color:${item.thieu > 0 ? '#f43f5e' : 'var(--text3)'}">${item.thieu}</td>
-                <td style="text-align:center;color:${item.thua > 0 ? '#3b82f6' : 'var(--text3)'}">${item.thua}</td>
+                <td style="text-align:center;color:${item.thieu > 0 ? '#ef4444' : 'var(--text3)'};font-weight:${item.thieu > 0 ? '700' : 'normal'}">${item.thieu || 0} xe</td>
                 <td style="text-align:center">${isTelegram}</td>
+                <td style="text-align:center;font-size:0.8rem;color:var(--text3)">${escapeHtml(item.user_confirm || 'Hệ thống Bot')}</td>
             </tr>
             `;
         });
@@ -8379,3 +8628,10 @@ async function loadOdoMonitorLogs() {
 
 window.loadOdoMonitorData = loadOdoMonitorData;
 window.refreshOdoMonitorData = refreshOdoMonitorData;
+window.filterOdoByStatus = filterOdoByStatus;
+window.renderOdoTable = renderOdoTable;
+window.openOdoKhoModal = openOdoKhoModal;
+window.closeOdoKhoModal = closeOdoKhoModal;
+window.sendOdoTelegramNow = sendOdoTelegramNow;
+window.exportOdoToExcel = exportOdoToExcel;
+
