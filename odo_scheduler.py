@@ -15,12 +15,22 @@ logger = logging.getLogger(__name__)
 
 TZ = pytz.timezone("Asia/Ho_Chi_Minh")
 
-# ── Config từ env ──────────────────────────────────────────────────────────────
-ODO_BOT_TOKEN  = os.environ.get("ODO_BOT_TOKEN", "")
-ODO_CHAT_ID    = os.environ.get("ODO_CHAT_ID", "-1002712779761")
-DASHBOARD_BASE_URL = os.environ.get("DASHBOARD_BASE_URL", "https://ai-ghn-gxt.up.railway.app")
-ODO_SPREADSHEET_ID = os.environ.get("ODO_SPREADSHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
-ODO_SHEET_NAME     = os.environ.get("ODO_SHEET_NAME", "Tháng 7")
+# ── Config từ env (dynamic getters) ─────────────────────────────────────────────
+def get_odo_token() -> str:
+    return os.environ.get("ODO_BOT_TOKEN", "").strip()
+
+def get_odo_chat_id() -> str:
+    return os.environ.get("ODO_CHAT_ID", "-1002712779761").strip()
+
+def get_dashboard_url() -> str:
+    return os.environ.get("DASHBOARD_BASE_URL", "https://ai-ghn-gxt.up.railway.app").strip().rstrip("/")
+
+def get_odo_sheet_id() -> str:
+    return os.environ.get("ODO_SPREADSHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo").strip()
+
+def get_odo_sheet_name() -> str:
+    return os.environ.get("ODO_SHEET_NAME", "Tháng 7").strip()
+
 
 # ── In-memory state (backup cho JSON file) ────────────────────────────────────
 _odo_state: Dict = {}           # { "YYYY-MM-DD|kho": { missing, expected, reported } }
@@ -91,9 +101,10 @@ def _hhmm() -> str:
 async def _send(bot, text: str):
     if not text.strip():
         return
+    chat_id = get_odo_chat_id()
     try:
         await bot.send_message(
-            chat_id=ODO_CHAT_ID,
+            chat_id=chat_id,
             text=text,
             parse_mode="MarkdownV2",
         )
@@ -102,7 +113,7 @@ async def _send(bot, text: str):
         try:
             # Fallback: gửi plain text
             plain = text.replace("*", "").replace("\\.", ".").replace("\\_", "_")
-            await bot.send_message(chat_id=ODO_CHAT_ID, text=plain)
+            await bot.send_message(chat_id=chat_id, text=plain)
         except Exception as e2:
             logger.error(f"[ODO Bot] send plain fallback failed: {e2}")
 
@@ -147,8 +158,8 @@ def _read_odo_sheet() -> Dict:
     service = build("sheets", "v4", credentials=creds)
 
     result = service.spreadsheets().values().get(
-        spreadsheetId=ODO_SPREADSHEET_ID,
-        range=f"'{ODO_SHEET_NAME}'!A:Z",
+        spreadsheetId=get_odo_sheet_id(),
+        range=f"'{get_odo_sheet_name()}'!A:Z",
     ).execute()
 
     rows = result.get("values", [])
@@ -227,7 +238,7 @@ def _get_fleet() -> List[Dict]:
     try:
         with httpx.Client(timeout=15.0) as c:
             r = c.get(
-                f"{DASHBOARD_BASE_URL}/api/vehicle-fleet-by-warehouse",
+                f"{get_dashboard_url()}/api/vehicle-fleet-by-warehouse",
                 headers={"Authorization": f"Bearer {token}"},
             )
             r.raise_for_status()
@@ -243,7 +254,7 @@ def _get_daily(date_iso: str) -> List[Dict]:
     try:
         with httpx.Client(timeout=15.0) as c:
             r = c.get(
-                f"{DASHBOARD_BASE_URL}/api/vehicle-daily",
+                f"{get_dashboard_url()}/api/vehicle-daily",
                 headers={"Authorization": f"Bearer {token}"},
                 params={"date": date_iso},
             )
@@ -611,8 +622,10 @@ async def run_odo_scheduler():
     Khởi động ODO Bot + Scheduler.
     Gọi qua: asyncio.create_task(run_odo_scheduler())
     """
-    if not ODO_BOT_TOKEN:
+    token = get_odo_token()
+    if not token:
         logger.warning("[ODO Scheduler] ODO_BOT_TOKEN chưa được đặt — scheduler không chạy.")
+        print("[ODO Scheduler WARNING] ODO_BOT_TOKEN chưa được cài đặt trong Variables!")
         return
 
     _load_state()
@@ -623,7 +636,7 @@ async def run_odo_scheduler():
 
         global _odo_bot_app
 
-        _odo_bot_app = Application.builder().token(ODO_BOT_TOKEN).build()
+        _odo_bot_app = Application.builder().token(token).build()
 
         # Khởi tạo application
         await _odo_bot_app.initialize()
