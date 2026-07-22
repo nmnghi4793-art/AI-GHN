@@ -10,7 +10,7 @@ if BASE_DIR not in sys.path:
 
 import odo_monitor
 
-# Lock ODO Chat ID strictly to -1002712779761 as requested
+# Target Chat Group locked strictly to -1002712779761
 ODO_CHAT_ID = "-1002712779761"
 ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
 
@@ -28,9 +28,9 @@ def get_vn_datetime() -> datetime:
 async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
     """
     Helper gửi message Telegram.
-    CHỈ GỬI VÀO ĐÚNG CHAT GROUP -1002712779761.
+    Chỉ gửi vào đúng Chat Group -1002712779761.
     """
-    chat_id = ODO_CHAT_ID
+    chat_id = ODO_CHAT_ID  # Khóa cứng chat_id
     token = DEFAULT_BOT_TOKEN
 
     if not token:
@@ -55,8 +55,20 @@ async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
                 print(f"[TELEGRAM ODO SUCCESS] Sent message to chat_id={chat_id} (HTTP 200 OK)")
                 return True
             else:
-                print(f"[TELEGRAM ODO WARNING] Telegram API returned status {res.status_code}: {res.text}")
-                return False
+                # Nếu Markdown gặp lỗi unescaped character, thử gửi lại với Plain Text
+                print(f"[TELEGRAM ODO WARNING] Markdown send returned HTTP {res.status_code}. Retrying plain text...")
+                payload_plain = {
+                    "chat_id": chat_id,
+                    "text": text.replace("*", "").replace("`", "").replace("_", ""),
+                    "disable_web_page_preview": True
+                }
+                res2 = await client.post(url, json=payload_plain)
+                if res2.status_code == 200:
+                    print(f"[TELEGRAM ODO SUCCESS] Sent fallback plain text message to chat_id={chat_id} (HTTP 200 OK)")
+                    return True
+                else:
+                    print(f"[TELEGRAM ODO ERROR] Telegram API returned status {res2.status_code}: {res2.text}")
+                    return False
     except Exception as e:
         print(f"[TELEGRAM ODO ERROR] Failed to send telegram message: {e}")
         return False

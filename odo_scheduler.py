@@ -18,7 +18,6 @@ log = logging.getLogger("odo_scheduler")
 
 LOGS_FILE = os.path.join(BASE_DIR, "scratch", "odo_monitor_logs.json")
 
-# State tracking for /status command
 LAST_RUN_INFO = {
     "last_run_time": "--",
     "target_date": "--",
@@ -160,8 +159,16 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     record_check_logs(today_status, sent_telegram=sent_any, slot_name=slot_name)
     return today_status
 
-async def process_telegram_command(command: str) -> str:
-    """Xử lý các lệnh Telegram (/ping, /status, /testodo, /next, /sendtest)."""
+async def process_telegram_command(command: str, chat_id: str) -> str:
+    """
+    Xử lý các lệnh Telegram (/ping, /status, /odo, /testodo, /next, /sendtest).
+    Nhận diện cả /ping, /ping@ODOMienTrung, /ping@ODO_GXTMT_BOT.
+    Chỉ trả lời cho chat ID -1002712779761.
+    """
+    if str(chat_id) != str(telegram_odo.ODO_CHAT_ID):
+        log.info(f"[ODO BOT FILTER] Ignored command from unauthorized chat_id={chat_id}")
+        return ""
+
     cmd = command.strip().lower().split("@")[0]
     vn_now = get_vn_datetime()
     now_str = vn_now.strftime("%d/%m/%Y %H:%M")
@@ -185,8 +192,8 @@ async def process_telegram_command(command: str) -> str:
             f"• *Số kho đã kiểm tra:* {total_k}/25 kho\n"
             f"• *Thời gian chạy gần nhất:* {last_time}"
         )
-    elif cmd == "/testodo":
-        await check_and_notify_odo(slot_name="COMMAND_TESTODO", force_refresh=True)
+    elif cmd in ["/odo", "/testodo"]:
+        await check_and_notify_odo(slot_name="COMMAND_ODO", force_refresh=True)
         return "✅ *Đã thực hiện kiểm tra ODO ngay lập tức và gửi báo cáo vào group.*"
     elif cmd == "/next":
         next_run = get_next_run_time()
@@ -198,35 +205,71 @@ async def process_telegram_command(command: str) -> str:
     return ""
 
 async def run_odo_telegram_bot_polling():
-    """Vòng lặp lắng nghe lệnh Telegram (/ping, /status, /testodo, /next, /sendtest)."""
+    """
+    Vòng lặp duy nhất (Single Instance Polling) cho ODO Telegram Bot.
+    Hỗ trợ xử lý các lệnh /odo, /ping, /status, /next, /testodo, /sendtest.
+    """
     token = telegram_odo.DEFAULT_BOT_TOKEN
     if not token:
+        log.error("[ODO BOT ERROR] TELEGRAM_BOT_TOKEN missing!")
         return
 
-    url = f"https://api.telegram.org/bot{token}/getUpdates"
-    offset = 0
-    log.info("[ODO BOT POLLING] Command listener initialized for /ping, /status, /testodo, /next, /sendtest...")
-
-    while True:
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # 1. Gọi deleteWebhook trước khi start polling để tránh HTTP 409 Conflict
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.get(url, params={"offset": offset, "timeout": 5})
+            del_res = await client.post(f"https://api.telegram.org/bot{token}/deleteWebhook", json={"drop_pending_updates": True})
+            log.info(f"[ODO BOT] Reset Webhook result: {del_res.json()}")
+        except Exception as e:
+            log.warning(f"[ODO BOT] deleteWebhook failed: {e}")
+
+        # 2. Lấy thông tin Bot qua getMe
+        bot_username = "ODO_GXTMT_BOT"
+        try:
+            me_res = await client.get(f"https://api.telegram.org/bot{token}/getMe")
+            if me_res.status_code == 200:
+                bot_info = me_res.json().get("result", {})
+                bot_username = bot_info.get("username", "ODO_GXTMT_BOT")
+        except Exception as me_err:
+            log.warning(f"[ODO BOT] getMe error: {me_err}")
+
+        # 3. Log khởi động đầy đủ
+        log.info("==========================================================================")
+        log.info("[ODO BOT] BOT started")
+        log.info(f"[ODO BOT] Telegram username: @{bot_username}")
+        log.info(f"[ODO BOT] Allowed Chat ID: {telegram_odo.ODO_CHAT_ID}")
+        log.info("[ODO BOT] Mode: Polling (Single Instance)")
+        log.info("[ODO BOT] Registered Commands: /odo, /ping, /status, /next, /testodo, /sendtest")
+        log.info("==========================================================================")
+
+        # 4. Gửi tin nhắn khởi động chào mừng vào group
+        await telegram_odo.send_telegram_message("✅ BOT ODO đã kết nối và sẵn sàng nhận lệnh.")
+
+        url = f"https://api.telegram.org/bot{token}/getUpdates"
+        offset = 0
+
+        while True:
+            try:
+                res = await client.get(url, params={"offset": offset, "timeout": 5, "allowed_updates": ["message", "edited_message"]})
                 if res.status_code == 200:
                     data = res.json()
                     for update in data.get("result", []):
                         offset = update["update_id"] + 1
                         msg = update.get("message", {})
                         text = msg.get("text", "").strip()
+                        chat_id = msg.get("chat", {}).get("id")
 
-                        if text.startswith("/"):
-                            log.info(f"[ODO BOT COMMAND] Received command '{text}'")
-                            resp_text = await process_telegram_command(text)
+                        if text.startswith("/") and chat_id:
+                            log.info(f"[ODO BOT COMMAND] Received '{text}' from chat_id={chat_id}")
+                            resp_text = await process_telegram_command(text, chat_id=str(chat_id))
                             if resp_text:
                                 await telegram_odo.send_telegram_message(resp_text)
-        except Exception:
-            pass
+                elif res.status_code == 409:
+                    log.warning("[ODO BOT 409] Detected duplicate polling instance. Sleeping 5s before retrying...")
+                    await asyncio.sleep(5)
+            except Exception:
+                pass
 
-        await asyncio.sleep(3)
+            await asyncio.sleep(2)
 
 async def run_odo_scheduler():
     """
@@ -235,7 +278,7 @@ async def run_odo_scheduler():
     """
     log.info("[ODO SCHEDULER] Engine initialized with timezone Asia/Ho_Chi_Minh (UTC+7)...")
 
-    # Run command listener in background task
+    # Run single instance command polling loop
     asyncio.create_task(run_odo_telegram_bot_polling())
 
     last_executed_slot = None

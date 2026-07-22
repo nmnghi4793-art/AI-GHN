@@ -1416,8 +1416,9 @@ async def run_bot():
     else:
         BOT_STATUS["gemini_status"] = "Chưa cấu hình"
 
-    if os.environ.get("DISABLE_TELEGRAM_POLLING", "").lower() == "true":
-        log_status("INFO: Telegram Bot polling bị vô hiệu hóa qua biến môi trường DISABLE_TELEGRAM_POLLING.")
+    # Tránh 409 Conflict — ODO Bot Scheduler quản lý single polling instance duy nhất
+    if os.environ.get("DISABLE_TELEGRAM_POLLING", "true").lower() == "true":
+        log_status("INFO: Telegram Bot polling bị vô hiệu hóa để nhường quyền cho Single Instance ODO Scheduler.")
         return
 
     # Kiểm tra nếu chạy ở local và Railway đang chạy/được deploy
