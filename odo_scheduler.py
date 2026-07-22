@@ -78,6 +78,8 @@ def record_check_logs(status_obj: dict, sent_telegram: bool, slot_name: str):
     vn_now = get_vn_datetime()
     check_time = vn_now.strftime("%Y-%m-%d %H:%M:%S")
 
+    is_test = odo_monitor.is_before_golive(target_date)
+
     for item in status_obj["details"]:
         logs.append({
             "check_id": f"{target_date}_{item['kho']}_{int(vn_now.timestamp())}",
@@ -88,9 +90,9 @@ def record_check_logs(status_obj: dict, sent_telegram: bool, slot_name: str):
             "xe_tc": item["xe_tc"],
             "expected_odo": item["expected_odo"],
             "actual_odo": item["actual_odo"],
-            "thieu": item["diff"] if item["status"] == "THIEU" else 0,
+            "thieu": 0 if is_test else (item["diff"] if item["status"] == "THIEU" else 0),
             "thua": item["diff"] if item["status"] == "THUA" else 0,
-            "status": item["status"],
+            "status": "TEST / IGNORED" if is_test else item["status"],
             "check_time": check_time,
             "slot_name": slot_name,
             "sent_telegram": sent_telegram
@@ -101,6 +103,7 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     """
     Thực hiện 1 chu kỳ đối soát ODO và gửi Telegram nếu đạt điều kiện.
     Gửi ĐÚNG vào chat group -1002712779761.
+    Cấu hình GO-LIVE: Chỉ xử lý và nhắc nhở từ 23/07/2026 trở đi.
     """
     global LAST_RUN_INFO
     vn_now = get_vn_datetime()
@@ -109,7 +112,7 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
 
     log.info(f"========== [ODO SCHEDULER RUN] {now_str} (ICT Asia/Ho_Chi_Minh) ==========")
     log.info(f"1. Slot execution: {slot_name}")
-    log.info(f"2. Target checking date: {today_str}")
+    log.info(f"2. Target checking date: {today_str} (GO-LIVE DATE: 23/07/2026)")
     log.info(f"3. Target Telegram Chat ID: {telegram_odo.ODO_CHAT_ID}")
 
     # 1. Tính toán ODO ngày hôm nay
@@ -127,10 +130,18 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     log.info(f"5. Warehouses status: Sufficient={summary['du_khos']}, Deficit={summary['thieu_khos']}, Surplus={summary['total_xe_thua']} xe")
     log.info(f"6. Total xe missing ODO: {summary['total_xe_thieu']} xe")
 
-    # 2. Kiểm tra các ngày trước chưa đủ ODO
+    # Kiểm tra Go-Live Date: Nếu ngày hiện tại < 23/07/2026 thì xem là dữ liệu TEST, KHÔNG GỬI TELEGRAM CẢNH BÁO
+    if odo_monitor.is_before_golive(today_str) and "COMMAND" not in slot_name:
+        log.info(f"[ODO GO-LIVE FILTER] Date {today_str} is before GO-LIVE date (23/07/2026). Skipping Telegram alerts & reminders.")
+        record_check_logs(today_status, sent_telegram=False, slot_name=f"{slot_name}_TEST_IGNORED")
+        return today_status
+
+    # 2. Kiểm tra các ngày trước chưa đủ ODO (CHỈ XEM CÁC NGÀY >= 23/07/2026)
     multi_date_statuses = {}
     for days_back in range(3, 0, -1):
         prev_date = (vn_now - timedelta(days=days_back)).strftime("%d/%m/%Y")
+        if odo_monitor.is_before_golive(prev_date):
+            continue  # Bỏ qua toàn bộ dữ liệu trước Go-Live 23/07/2026
         prev_status = odo_monitor.calculate_odo_status(prev_date, force_refresh=False)
         if prev_status["summary"]["thieu_khos"] > 0:
             multi_date_statuses[prev_date] = prev_status
@@ -162,7 +173,6 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
 async def process_telegram_command(command: str, chat_id: str) -> str:
     """
     Xử lý các lệnh Telegram (/ping, /status, /odo, /testodo, /next, /sendtest).
-    Nhận diện cả /ping, /ping@ODOMienTrung_Bot, /ping@ODO_GXTMT_BOT.
     Chỉ trả lời cho chat ID -1002712779761.
     """
     if str(chat_id) != str(telegram_odo.ODO_CHAT_ID):
@@ -177,7 +187,8 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
         return (
             "✅ *BOT ODO đang hoạt động*\n"
             f"🕒 *Server Time:* {now_str}\n"
-            "📍 *Timezone:* Asia/Ho_Chi_Minh"
+            "📍 *Timezone:* Asia/Ho_Chi_Minh\n"
+            "🚀 *Go-Live Date:* 23/07/2026"
         )
     elif cmd == "/status":
         next_run = get_next_run_time()
@@ -186,6 +197,7 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
         return (
             "📊 *TRẠNG THÁI BOT ODO*\n"
             "• *Scheduler:* 🟢 Đang hoạt động\n"
+            "• *Ngày Go-Live:* `23/07/2026`\n"
             f"• *Mốc chạy tiếp theo:* {next_run}\n"
             f"• *Chat ID hiện tại:* `{telegram_odo.ODO_CHAT_ID}`\n"
             f"• *Sheet đang đọc:* `{telegram_odo.ODO_SHEET_ID}`\n"
@@ -207,8 +219,6 @@ async def process_telegram_command(command: str, chat_id: str) -> str:
 async def run_odo_telegram_bot_polling():
     """
     Vòng lặp duy nhất (Single Instance Polling) cho ODO Telegram Bot.
-    Ưu tiên ODO_BOT_TOKEN từ Railway Environment Variables.
-    Hỗ trợ xử lý các lệnh /odo, /ping, /status, /next, /testodo, /sendtest.
     """
     token = telegram_odo.get_odo_bot_token()
     if not token:
@@ -216,14 +226,12 @@ async def run_odo_telegram_bot_polling():
         return
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        # 1. Gọi deleteWebhook trước khi start polling để tránh HTTP 409 Conflict
         try:
             del_res = await client.post(f"https://api.telegram.org/bot{token}/deleteWebhook", json={"drop_pending_updates": True})
             log.info(f"[ODO BOT] Reset Webhook result: {del_res.json()}")
         except Exception as e:
             log.warning(f"[ODO BOT] deleteWebhook failed: {e}")
 
-        # 2. Lấy thông tin Bot thực tế từ Telegram API getMe
         bot_username = "ODOMienTrung_Bot"
         try:
             me_res = await client.get(f"https://api.telegram.org/bot{token}/getMe")
@@ -233,17 +241,14 @@ async def run_odo_telegram_bot_polling():
         except Exception as me_err:
             log.warning(f"[ODO BOT] getMe error: {me_err}")
 
-        # 3. Log khởi động đầy đủ theo chuẩn yêu cầu
         log.info("==========================================================================")
         log.info("[ODO BOT] BOT started")
         log.info(f"[ODO BOT] Telegram username: @{bot_username}")
         log.info(f"[ODO BOT] Allowed Chat ID: {telegram_odo.ODO_CHAT_ID}")
         log.info("[ODO BOT] Mode: Polling (Single Instance)")
+        log.info("[ODO BOT] Go-Live Date: 23/07/2026")
         log.info("[ODO BOT] Registered Commands: /odo, /ping, /status, /next, /testodo, /sendtest")
         log.info("==========================================================================")
-
-        # 4. Gửi tin nhắn khởi động chào mừng vào group
-        await telegram_odo.send_telegram_message("✅ BOT ODO đã kết nối đúng bot và đúng group.")
 
         url = f"https://api.telegram.org/bot{token}/getUpdates"
         offset = 0
@@ -276,10 +281,10 @@ async def run_odo_scheduler():
     """
     Vòng lặp Railway Scheduler kiểm tra ODO tự động.
     Lịch cố định: 18:00, 19:00, 21:00, 23:00 (múi giờ ICT Asia/Ho_Chi_Minh).
+    CHỈ KIỂM TRA VÀ BÁO CÁO TỪ 23/07/2026 TRỞ ĐI.
     """
-    log.info("[ODO SCHEDULER] Engine initialized with timezone Asia/Ho_Chi_Minh (UTC+7)...")
+    log.info("[ODO SCHEDULER] Engine initialized with timezone Asia/Ho_Chi_Minh (UTC+7). GO-LIVE DATE: 23/07/2026...")
 
-    # Run single instance command polling loop
     asyncio.create_task(run_odo_telegram_bot_polling())
 
     last_executed_slot = None

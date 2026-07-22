@@ -4,7 +4,7 @@ import time
 import ssl
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,6 +12,9 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 import main
+
+# GO-LIVE CONFIGURATION
+GOLIVE_DATE = date(2026, 7, 23)
 
 ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
 CACHE_FILE = os.path.join(BASE_DIR, "scratch", "odo_cache.json")
@@ -24,16 +27,23 @@ _ODO_CACHE = {
 
 CACHE_TTL_SECONDS = 180  # 3 minutes cache TTL
 
+def is_before_golive(date_str: str) -> bool:
+    """Kiểm tra ngày date_str (dd/MM/yyyy) có trước ngày Go-Live 23/07/2026 hay không."""
+    if not date_str:
+        return True
+    try:
+        parts = date_str.split("/")
+        if len(parts) == 3:
+            d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+            return date(y, m, d) < GOLIVE_DATE
+    except Exception:
+        pass
+    return False
+
 def parse_odo_date(raw_val) -> str:
     """
     Hỗ trợ đọc và chuyển đổi mọi định dạng ngày từ Google Sheets về chuỗi 'dd/MM/yyyy'.
     Xóa bỏ hoàn toàn phần Giờ (HH:mm:ss).
-    Hỗ trợ:
-      - Chuỗi 'dd/MM/yyyy HH:mm:ss' (vd: 22/07/2026 17:33:19)
-      - Chuỗi 'yyyy-MM-dd HH:mm:ss' (vd: 2026-07-22 17:33:19)
-      - Chuỗi 'dd/MM/yyyy' hoặc 'yyyy/MM/dd'
-      - Serial date Google Sheets (ví dụ float/int 46225.73)
-      - Objects datetime / date
     """
     if raw_val is None or raw_val == "":
         return ""
@@ -86,12 +96,10 @@ def _match_master_kho(kho_input: str, master_khos: list) -> str:
         return ""
     k_clean = str(kho_input).strip().lower()
 
-    # Check exact match
     for mk in master_khos:
         if k_clean == mk.lower().strip():
             return mk
 
-    # Check substring / alias matching
     keywords = {
         "nha trang": "Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa",
         "đà nẵng": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
@@ -119,7 +127,6 @@ def _match_master_kho(kho_input: str, master_khos: list) -> str:
                     return mk
             return target_kho
 
-    # Fallback fuzzy substring match
     for mk in master_khos:
         mk_clean = mk.lower().replace("kho giao hàng nặng -", "").strip()
         parts = [p.strip() for p in mk_clean.split("-")]
@@ -147,7 +154,6 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
     """
     Đọc dữ liệu báo ODO từ Google Sheet (ID: 1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo).
     Tự động nhận biết tab tháng hiện tại (ví dụ: 'THÁNG 7').
-    Bỏ hoàn toàn giờ HH:mm:ss khi group và đếm ODO.
     Returns: dict mapping (date_str, kho_name) -> count
     """
     global _ODO_CACHE
@@ -170,7 +176,6 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
         )
         service = build("sheets", "v4", credentials=creds)
 
-        # 1. Tìm tên tab tháng hiện tại
         meta = service.spreadsheets().get(spreadsheetId=ODO_SHEET_ID).execute()
         sheet_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
 
@@ -193,18 +198,9 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
         rows = res.get("values", [])
 
         if not rows or len(rows) < 2:
-            print("[ODO MONITOR WARNING] Google Sheet returned empty rows or header only.")
             return {}
 
         master_khos = list(get_master_kho_totals().keys())
-
-        # Logging Yêu cầu 6: In giá trị raw 5 ô đầu cột A và sau khi parse
-        print("--- [ODO MONITOR LOG] TOP 5 RAW COLUMN A & PARSED DATES ---")
-        for i, r in enumerate(rows[1:6], 1):
-            raw_a = r[0] if len(r) > 0 else ""
-            parsed_a = parse_odo_date(raw_a)
-            raw_kho = r[5] if len(r) > 5 else ""
-            print(f"  Row {i}: Raw Col A = {repr(raw_a)} -> Parsed = {repr(parsed_a)} | Kho = {repr(raw_kho)}")
 
         counts = defaultdict(int)
         for r in rows[1:]:
@@ -225,7 +221,6 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
         _ODO_CACHE["timestamp"] = now
         _ODO_CACHE["data"] = res_dict
 
-        # Save cache file
         try:
             os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
             serializable = {f"{k[0]}|||{k[1]}": v for k, v in res_dict.items()}
@@ -292,7 +287,6 @@ def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -
 
         actual_odo = actual_odo_map.get((target_date, kho), 0)
 
-        # Fuzzy fallback lookup if exact key not matched
         if actual_odo == 0:
             for (d, k), cnt in actual_odo_map.items():
                 if d == target_date and (kho.lower() in k.lower() or k.lower() in kho.lower()):
@@ -332,7 +326,8 @@ def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -
         "thieu_khos": total_thieu,
         "total_xe_thieu": total_xe_thieu,
         "total_xe_thua": total_xe_thua,
-        "last_updated": datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+        "last_updated": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "is_before_golive": is_before_golive(target_date)
     }
 
     return {
