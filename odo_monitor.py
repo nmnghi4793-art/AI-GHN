@@ -160,20 +160,20 @@ def _match_master_kho(kho_input: str, master_khos: list) -> str:
 
 def get_master_kho_totals() -> dict:
     """
-    Lấy danh sách và số xe chuẩn của ĐÚNG 25 Kho GXT Miền Trung trực tiếp từ Dashboard Data (xe_gxt).
+    Lấy danh sách và số 'Xe chuẩn' của ĐÚNG 25 Kho GXT Miền Trung trực tiếp từ bảng 'Số Lượng Xe GXT Theo Kho' (cột 'Tổng xe đang chạy').
     Không hardcode trong source.
     """
     xe_gxt_data, _ = main.read_csv("xe_gxt")
     kho_totals = defaultdict(int)
     for row in xe_gxt_data:
-        kho = main._flex_get(row, ["tên kho", "ten kho", "kho"])
-        sl = main._flex_get(row, ["số lượng xe", "so luong xe", "sl xe", "sl_xe", "số xe"], "1")
+        kho = (row.get("Kho") or row.get("Kho GXT") or row.get("Tên kho") or row.get("ten kho") or "").strip()
+        val = row.get("Tổng xe đang chạy") or row.get("Tá»•ng xe Ä‘ang cháº¡y") or row.get("Tổng xe") or "0"
         try:
-            sl_num = int(sl)
+            count = int(str(val).strip()) if str(val).strip().isdigit() else 0
         except Exception:
-            sl_num = 1
+            count = 0
         if kho:
-            kho_totals[kho] += sl_num
+            kho_totals[kho] += count
     return dict(kho_totals)
 
 def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
@@ -345,6 +345,9 @@ def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -
             "diff": diff
         })
 
+    before_golive = is_before_golive(target_date)
+    last_updated_str = "Chưa có (Chờ GO-LIVE 18:00 23/07/2026)" if before_golive else datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+
     summary = {
         "target_date": target_date,
         "total_khos": len(master_totals),
@@ -352,8 +355,8 @@ def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -
         "thieu_khos": total_thieu,
         "total_xe_thieu": total_xe_thieu,
         "total_xe_thua": total_xe_thua,
-        "last_updated": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
-        "is_before_golive": is_before_golive(target_date)
+        "last_updated": last_updated_str,
+        "is_before_golive": before_golive
     }
 
     return {

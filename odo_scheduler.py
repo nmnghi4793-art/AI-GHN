@@ -82,11 +82,17 @@ def get_next_run_time() -> str:
     return next_dt.strftime("%H:%M %d/%m/%Y")
 
 def load_logs() -> list:
-    """Đọc lịch sử kiểm tra ODO."""
+    """Đọc lịch sử kiểm tra ODO. Bỏ qua hoàn toàn dữ liệu test trước ngày 23/07/2026."""
     if os.path.exists(LOGS_FILE):
         try:
             with open(LOGS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                logs = json.load(f)
+                valid = []
+                for entry in logs:
+                    d_str = entry.get("ngay") or entry.get("date") or ""
+                    if not odo_monitor.is_before_golive(d_str):
+                        valid.append(entry)
+                return valid
         except Exception:
             return []
     return []
