@@ -183,6 +183,14 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP ERROR] Không thể đăng ký Dashboard Sync Scheduler: {e}")
 
+    # --- ODO Bot Scheduler ---
+    try:
+        from odo_scheduler import run_odo_scheduler
+        asyncio.create_task(run_odo_scheduler())
+        print("[STARTUP] Đã kích hoạt ODO Bot Scheduler (Kiểm tra ODO 18:00/19:00/21:00/23:00).")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Không thể đăng ký ODO Scheduler: {e}")
+
 
 # ---- ADMIN: Test Giao Hang Report ----
 @app.get("/api/giao-hang/test", dependencies=[Depends(require_admin_key)])
@@ -230,7 +238,35 @@ async def test_collect_money():
         return {"status": "error", "message": str(e)}
 
 
+# ---- ADMIN: Test ODO Bot ----
+@app.get("/api/odo/test", dependencies=[Depends(require_admin_key)])
+async def test_odo_check(date: str = Query(None)):
+    """Trigger kiểm tra ODO ngay. date=dd/mm/yyyy (tuỳ chọn)."""
+    try:
+        from odo_scheduler import manual_odo_check, _odo_bot_app
+        if _odo_bot_app is None:
+            return {"status": "error", "message": "ODO Bot chưa khởi động. Kiểm tra ODO_BOT_TOKEN."}
+        asyncio.create_task(manual_odo_check(_odo_bot_app.bot, date_str=date))
+        return {"status": "ok", "message": f"Đã trigger ODO check ngày {date or 'hôm nay'}."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/odo/xe-daily/test", dependencies=[Depends(require_admin_key)])
+async def test_odo_xe_daily():
+    """Trigger báo cáo xe vận hành daily ngay lập tức."""
+    try:
+        from odo_scheduler import manual_xe_daily, _odo_bot_app
+        if _odo_bot_app is None:
+            return {"status": "error", "message": "ODO Bot chưa khởi động."}
+        asyncio.create_task(manual_xe_daily(_odo_bot_app.bot))
+        return {"status": "ok", "message": "Đã trigger báo cáo xe daily."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Frontend files (index.html, app.js, styles.css) are deployed at root alongside main.py
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend") if os.path.isdir(os.path.join(BASE_DIR, "frontend")) else BASE_DIR
 MOCK_DATA_DIR = os.path.join(BASE_DIR, "mock_data")
@@ -2747,6 +2783,97 @@ if os.path.exists(FRONTEND_DIR):
     print(f"[STARTUP] StaticFiles mounted from {FRONTEND_DIR}")
 else:
     print(f"[STARTUP] WARNING: frontend/ directory not found at {FRONTEND_DIR}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BOT ODO API — Read-only endpoints for ODO Telegram Bot
+# Không làm thay đổi bất kỳ dữ liệu KPI hiện tại nào.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/vehicle-fleet-by-warehouse", dependencies=[Depends(require_api_token)])
+def get_vehicle_fleet_by_warehouse():
+    """
+    [BOT ODO] Trả về danh sách kho và tổng số xe đang hoạt động.
+    Đọc từ xe_gxt CSV — đếm số dòng (xe) theo từng kho.
+    Response: { "data": [ { warehouseId, warehouseName, activeVehicleCount } ] }
+    """
+    try:
+        xe_data, last_sync = read_csv("xe_gxt", False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi đọc dữ liệu xe GXT: {e}")
+
+    kho_count: dict = {}   # ten_kho → { id_kho, count }
+
+    for row in xe_data:
+        ten_kho = (
+            row.get("Tên Kho GXT") or row.get("Ten Kho GXT") or
+            row.get("TÃªn Kho GXT") or row.get("Kho") or ""
+        ).strip()
+        id_kho = (
+            row.get("ID Kho") or row.get("Id Kho") or
+            row.get("id_kho") or ""
+        ).strip()
+
+        # Bỏ qua dòng không có tên kho
+        if not ten_kho:
+            continue
+
+        if ten_kho not in kho_count:
+            kho_count[ten_kho] = {"id": id_kho, "count": 0}
+        kho_count[ten_kho]["count"] += 1
+
+    fleet = [
+        {
+            "warehouseId":        v["id"],
+            "warehouseName":      kho,
+            "activeVehicleCount": v["count"],
+        }
+        for kho, v in sorted(kho_count.items())
+    ]
+
+    return {"data": fleet, "total": len(fleet), "last_sync": last_sync}
+
+
+@app.get("/api/vehicle-daily", dependencies=[Depends(require_api_token)])
+def get_vehicle_daily_for_bot(date: str = Query(None)):
+    """
+    [BOT ODO] Trả về xe tăng cường và xe ngừng hoạt động theo ngày.
+    Query param: date=YYYY-MM-DD (hoặc dd/mm/yyyy)
+    Response: { "data": [ { warehouseName, additionalVehicleCount, inactiveVehicleCount,
+                             bien_so_xe, ten_ncc, trong_tai } ] }
+    """
+    records = _load_xe_daily_records()
+
+    # Chuẩn hóa date param về dd/mm/yyyy để so sánh với trường "ngay"
+    date_filter = None
+    if date:
+        if "-" in date and len(date) == 10:
+            parts = date.split("-")
+            date_filter = f"{parts[2]}/{parts[1]}/{parts[0]}"
+        else:
+            date_filter = date
+
+    if date_filter:
+        records = [r for r in records if r.get("ngay", "") == date_filter]
+
+    result = []
+    for r in records:
+        loai = r.get("loai", "")
+        result.append({
+            "warehouseName":         r.get("ten_kho", ""),
+            "loai":                  loai,
+            "additionalVehicleCount": int(r.get("so_luong_xe", 0) or 0)
+                                       if loai == "Xe tăng cường" else 0,
+            "inactiveVehicleCount":  int(r.get("so_luong_xe", 0) or 0)
+                                       if loai == "Xe không hoạt động" else 0,
+            "bien_so_xe":            r.get("bien_so_xe", ""),
+            "ten_ncc":               r.get("ten_ncc", ""),
+            "trong_tai":             r.get("trong_tai", ""),
+            "ghi_chu":               r.get("ghi_chu", ""),
+        })
+
+    return {"data": result, "total": len(result), "date": date_filter}
+
 
 def serve_utf8(filepath: str, media_type: str):
     try:
