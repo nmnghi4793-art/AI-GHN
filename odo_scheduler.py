@@ -630,12 +630,39 @@ async def run_odo_scheduler():
         await _odo_bot_app.start()
         bot = _odo_bot_app.bot
 
+        # Command handlers trong Telegram
+        async def _cmd_odo(update: Update, context):
+            text = update.message.text.strip() if update.message else ""
+            date_str = None
+            if "_" in text and len(text.split("_")[1]) == 8:
+                raw = text.split("_")[1]
+                date_str = f"{raw[:2]}/{raw[2:4]}/{raw[4:]}"
+            await update.message.reply_text(f"⏳ Đang kiểm tra ODO {date_str or 'hôm nay'}...")
+            await manual_odo_check(bot, date_str=date_str)
+
+        async def _cmd_xe_daily(update: Update, context):
+            await update.message.reply_text("⏳ Đang lấy dữ liệu xe vận hành...")
+            await manual_xe_daily(bot)
+
+        async def _cmd_status(update: Update, context):
+            pending = [v for v in _odo_state.values() if v.get("status") == "pending"]
+            if not pending:
+                await update.message.reply_text("✅ Không có ngày nào thiếu ODO.")
+            else:
+                msg = _build_old_days_msg(pending)
+                await _send(bot, msg)
+
+        _odo_bot_app.add_handler(CommandHandler("odo", _cmd_odo))
+        _odo_bot_app.add_handler(CommandHandler("xe_daily", _cmd_xe_daily))
+        _odo_bot_app.add_handler(CommandHandler("status", _cmd_status))
+        _odo_bot_app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^/odo_\d{8}"), _cmd_odo))
+
         # Bắt đầu polling trong background task
         asyncio.create_task(
             _odo_bot_app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
         )
 
-        logger.info(f"[ODO Bot] Started. Chat ID: {ODO_CHAT_ID}")
+        logger.info(f"[ODO Bot] Started with command handlers (/odo, /xe_daily, /status). Chat ID: {ODO_CHAT_ID}")
 
         # Bắt đầu scheduler loop
         await _odo_scheduler_loop(bot)
