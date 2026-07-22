@@ -2,7 +2,7 @@ import os
 import sys
 import httpx
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -10,19 +10,36 @@ if BASE_DIR not in sys.path:
 
 import odo_monitor
 
-# Fallback token/chat ID from existing project env vars
-DEFAULT_BOT_TOKEN = "8969802246:AAEllVlCeHSg8NnKMNhSytZbIR-1iyWt07g"
-DEFAULT_CHAT_ID = "-1002345678901"
+# Lock ODO Chat ID strictly to -1002712779761 as requested
+ODO_CHAT_ID = "-1002712779761"
+ODO_SHEET_ID = os.environ.get("ODO_SHEET_ID", "1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo")
 
-async def send_telegram_message(text: str) -> bool:
-    """Helper gửi message Telegram qua httpx async."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN") or DEFAULT_BOT_TOKEN
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("WARN_CHAT_ID") or os.environ.get("VANHANH_CHAT_ID") or DEFAULT_CHAT_ID
-    
-    if not token or not chat_id:
-        print("[TELEGRAM ODO] Skipping send: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.")
+# Primary Bot Token
+DEFAULT_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("VANHANH_BOT_TOKEN") or "8969802246:AAElLvlCeHSgBNnKHNh5ytZbIR-1iyWtD7g"
+
+def get_vn_datetime() -> datetime:
+    """Trả về datetime theo múi giờ Việt Nam (Asia/Ho_Chi_Minh / UTC+7)."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+    except Exception:
+        return datetime.utcnow() + timedelta(hours=7)
+
+async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
+    """
+    Helper gửi message Telegram.
+    CHỈ GỬI VÀO ĐÚNG CHAT GROUP -1002712779761.
+    """
+    chat_id = ODO_CHAT_ID
+    token = DEFAULT_BOT_TOKEN
+
+    if not token:
+        print("[TELEGRAM ODO] Skipping send: BOT TOKEN missing.")
         print(f"[TELEGRAM ODO PREVIEW]\n{text}\n")
         return False
+
+    vn_now = get_vn_datetime()
+    print(f"[TELEGRAM ODO LOG] [{vn_now.strftime('%H:%M:%S %d/%m/%Y')}] Sending message to target chat_id={chat_id}...")
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
@@ -35,10 +52,10 @@ async def send_telegram_message(text: str) -> bool:
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.post(url, json=payload)
             if res.status_code == 200:
-                print(f"[TELEGRAM ODO] Sent message successfully to chat_id={chat_id} (HTTP 200 OK)")
+                print(f"[TELEGRAM ODO SUCCESS] Sent message to chat_id={chat_id} (HTTP 200 OK)")
                 return True
             else:
-                print(f"[TELEGRAM ODO ERROR] Telegram API returned status {res.status_code}: {res.text}")
+                print(f"[TELEGRAM ODO WARNING] Telegram API returned status {res.status_code}: {res.text}")
                 return False
     except Exception as e:
         print(f"[TELEGRAM ODO ERROR] Failed to send telegram message: {e}")
@@ -47,12 +64,12 @@ async def send_telegram_message(text: str) -> bool:
 def build_xe_van_hanh_message(target_date: str) -> str:
     """Xây dựng tin nhắn 🚚 XE VẬN HÀNH (Xe OFF & Xe tăng cường) dành cho mốc 18:00."""
     xe_off_map, xe_tc_map = odo_monitor.get_xe_daily_breakdown(target_date)
-    
+
     if not xe_off_map and not xe_tc_map:
         return ""
 
     msg = f"🚚 *XE VẬN HÀNH*\nNgày {target_date}\n\n"
-    
+
     if xe_off_map:
         msg += "*Xe OFF*\n"
         for k, v in xe_off_map.items():
