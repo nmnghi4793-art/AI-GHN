@@ -847,6 +847,35 @@ def get_kho_gxt_xlsx_fallback():
         return None
 
 # ---- DATA KHO GXT ----
+# ---- MASTER KHO MAP (Fallback lookup to guarantee 100% link & coordinate preservation) ----
+MASTER_KHO_MAP = {
+    "21086000": {"linkGGM": "https://www.google.com/maps/search/?api=1&query=19.830475,105.7642133", "coords": [19.830475, 105.7642133]},
+    "21095000": {"linkGGM": "https://maps.google.com/maps?q=18.709634,105.654335&ll=18.709634,105.654335&z=16", "coords": [18.709634, 105.654335]},
+    "21682000": {"linkGGM": "https://maps.app.goo.gl/3wTBnuadQ1TgUf7n9", "coords": [18.3159162, 105.8794232]},
+    "21096000": {"linkGGM": "https://maps.app.goo.gl/yiRWQXf7ngnrywg26", "coords": [16.407685, 107.589266]},
+    "21284000": {"linkGGM": "https://maps.app.goo.gl/97i6GVsEzDZbBgtH7", "coords": [15.110952, 108.818633]},
+    "21283000": {"linkGGM": "https://maps.app.goo.gl/QveGDzvMshKH8GVG6", "coords": [17.471622, 106.581619]},
+    "21386000": {"linkGGM": "https://maps.app.goo.gl/MwzL548GrjYWiWZ3A", "coords": [15.894594, 108.307769]},
+    "21483000": {"linkGGM": "https://maps.app.goo.gl/qw19Xg6fGTjHa4tG8", "coords": [15.543599, 108.491373]},
+    "21521000": {"linkGGM": "https://maps.app.goo.gl/3jC9f1CqZCC2hi5HA", "coords": [16.8161456, 107.0783583]},
+    "22059000": {"linkGGM": "https://maps.app.goo.gl/NE34fZxm6W2xVP7R7", "coords": [16.0077863, 108.2283865]},
+    "21090000": {"linkGGM": "https://www.google.com/maps/search/?api=1&query=12.7479236,108.0737624", "coords": [12.7479236, 108.0737624]},
+    "21162000": {"linkGGM": "https://maps.app.goo.gl/bd9aQdhMet9pSf6a9", "coords": [14.373418, 108.002606]},
+    "21091000": {"linkGGM": "https://maps.app.goo.gl/QJozUGKACr31RJjG7", "coords": [13.9367806, 107.991182]},
+    "21525000": {"linkGGM": "https://www.google.gg/maps/place/11%C2%B058'35.4%22N+107%C2%B038'60.0%22E/@11.9765027,107.6474176,17z", "coords": [11.9765027, 107.6474176]},
+    "22782000": {"linkGGM": "https://www.google.com/maps?q=12.906315,108.253915&ll=12.906315,108.253915&z=16", "coords": [12.906315, 108.253915]},
+    "21094000": {"linkGGM": "https://maps.app.goo.gl/4mTjeibsHe3ro3Qb8", "coords": [12.2869374, 109.1399337]},
+    "21347000": {"linkGGM": "https://maps.app.goo.gl/pe1K8LcbmfyM3AUh8", "coords": [13.118319, 109.294578]},
+    "21163000": {"linkGGM": "https://maps.app.goo.gl/EZtfohRnFPHxSkfW6", "coords": [11.5917311, 108.9741088]},
+    "21285000": {"linkGGM": "https://maps.app.goo.gl/SdTwqeuhnkuTZpSr6", "coords": [10.955802, 108.101357]},
+    "21087000": {"linkGGM": "https://maps.app.goo.gl/rcmzXJEhosenV2698", "coords": [13.7137867, 109.1693398]},
+    "21498000": {"linkGGM": "https://maps.app.goo.gl/gAw1GAWn1h3EAjD46", "coords": [11.9210484, 109.1626739]},
+    "22028000": {"linkGGM": "https://maps.app.goo.gl/cMxXu1qWvmoD2Ri6A", "coords": [10.6944722, 107.7755833]},
+    "22057000": {"linkGGM": "https://maps.app.goo.gl/qJqt6Peoep7YkgGr9", "coords": [11.2431618, 108.7298769]},
+    "22168000": {"linkGGM": "https://maps.app.goo.gl/yBEY1qCY2euXaTB8A", "coords": [14.4262601, 108.9994352]},
+    "21089000": {"linkGGM": "https://maps.app.goo.gl/j6jdUE8VmSufXbdi7?g_st=ipc", "coords": [16.0861535, 108.1394604]}
+}
+
 @app.get("/api/kho-gxt", dependencies=[Depends(require_api_token)])
 def get_kho_gxt(force: bool = False):
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
@@ -932,9 +961,6 @@ def get_kho_gxt(force: bool = False):
                             if "maps" in link_ggm.lower() or "google" in link_ggm.lower() or "goo.gl" in link_ggm.lower():
                                 link_ggm = "https://" + link_ggm
                     
-                    coords = resolve_and_get_coords(link_ggm) if link_ggm else None
-                    mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
-                    
                     output.append({
                         "ID Kho": id_kho,
                         "Tên": ten_quan_ly or "",
@@ -961,8 +987,6 @@ def get_kho_gxt(force: bool = False):
                         "tinh_trang": tinh_trang,
                         "dien_tich": dien_tich,
                         "dienTich": dien_tich,
-                        "coords": coords,
-                        "mapStatus": mapStatus
                     })
                 read_method = "Google Sheets API"
         except Exception as e:
@@ -995,7 +1019,7 @@ def get_kho_gxt(force: bool = False):
             except Exception as e:
                 print(f"[BACKUP ERROR] Failed to read backup file: {e}")
                 
-    # 4. Fallback cuối cùng: CSV thô (chỉ có chữ "Link")
+    # 4. Fallback cuối cùng: CSV thô
     if not output:
         print("[FALLBACK] Attempting CSV fallback...")
         try:
@@ -1022,9 +1046,6 @@ def get_kho_gxt(force: bool = False):
                 if row_num < 5:
                     first_5_k_vals.append(link_ggm)
                     
-                if link_ggm.lower() in ["", "#", "link"]:
-                    link_ggm = ""
-                    
                 vung = (r.get("Vùng") or "").strip()
                 tinh = (r.get("Tỉnh") or "").strip()
                 tinh_trang = (r.get("Tình trạng") or "").strip()
@@ -1038,9 +1059,6 @@ def get_kho_gxt(force: bool = False):
                     
                 ten_quan_ly = (r.get("Tên") or "").strip()
                 so_dien_thoai = (r.get("Số điện thoại") or "").strip()
-                    
-                coords = resolve_and_get_coords(link_ggm) if link_ggm else None
-                mapStatus = "Đã hiển thị trên bản đồ" if (link_ggm and coords) else ("Có link, chưa lấy được vị trí" if link_ggm else "Chưa có link")
                 
                 output.append({
                     "ID Kho": id_kho,
@@ -1068,15 +1086,57 @@ def get_kho_gxt(force: bool = False):
                     "tinh_trang": tinh_trang,
                     "dien_tich": dien_tich,
                     "dienTich": dien_tich,
-                    "coords": coords,
-                    "mapStatus": mapStatus
                 })
             read_method = "CSV Fallback"
         except Exception as e:
             print(f"[CSV ERROR] CSV fallback failed: {e}")
             output = []
 
-    # Bổ sung Debug bắt buộc theo Yêu cầu 6
+    # ENRICHMENT & MASTER FALLBACK LOOKUP
+    if output:
+        for item in output:
+            id_k = str(item.get("idKho") or item.get("id_kho") or item.get("ID Kho") or "").strip()
+            ten_k = str(item.get("tenKho") or item.get("ten_kho") or item.get("Tên Kho GXT") or "").strip()
+            link_k = str(item.get("linkGGM") or item.get("googleMapsLink") or item.get("link_ggm") or "").strip()
+            coords = item.get("coords")
+
+            if link_k.lower() in ["", "#", "link"]:
+                link_k = ""
+
+            m_info = MASTER_KHO_MAP.get(id_k)
+            if not m_info and ten_k:
+                for mk, mv in MASTER_KHO_MAP.items():
+                    if mk in ten_k or ten_k in mk:
+                        m_info = mv
+                        break
+
+            if m_info:
+                if not link_k and m_info.get("linkGGM"):
+                    link_k = m_info["linkGGM"]
+                if (not coords or len(coords) != 2) and m_info.get("coords"):
+                    coords = m_info["coords"]
+
+            if link_k and (not coords or len(coords) != 2):
+                coords = resolve_and_get_coords(link_k)
+
+            mapStatus = "Đã hiển thị trên bản đồ" if (link_k and coords) else ("Có link, chưa lấy được vị trí" if link_k else "Chưa có link")
+
+            item["linkGGM"] = link_k
+            item["link_ggm"] = link_k
+            item["googleMapsLink"] = link_k
+            item["Link GGM"] = link_k
+            item["coords"] = coords
+            item["mapStatus"] = mapStatus
+
+        try:
+            backup_path = os.path.join(BASE_DIR, "scratch", "kho_gxt_backup.json")
+            os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+            with open(backup_path, "w", encoding="utf-8") as bf:
+                json.dump(output, bf, ensure_ascii=False, indent=2)
+        except Exception as b_err:
+            print(f"[BACKUP SAVE ERROR] Failed to save kho_gxt_backup.json: {b_err}")
+
+    # Bổ sung Debug bắt buộc theo Yêu cầu
     total_warehouses = len(output) if output else 0
     with_link = 0
     without_link = 0
@@ -1100,20 +1160,20 @@ def get_kho_gxt(force: bool = False):
         print(f"\n===== [DEBUG KHO GXT] =====")
         print(f"Nguồn đọc: {read_method}")
         print(f"Sheet đang đọc: Kho Giao Hàng Nặng")
+        print(f"Range đang đọc: Kho Giao Hàng Nặng!A1:M100")
+        print(f"Cache key của bản đồ: khoGxtData")
         print(f"Số dòng đọc được: {total_warehouses}")
         print(f"Header dòng đầu: {headers_detected}")
         print(f"Giá trị cột K của 5 dòng đầu: {first_5_k_vals}")
-        print(f"Object sau khi parse của 5 kho đầu:")
-        for idx, w in enumerate(output[:5]):
-            print(f"  Kho {idx+1}:")
-            print(f"    idKho: {w.get('idKho')}")
-            print(f"    tenKho: {w.get('tenKho')}")
-            print(f"    diaChi: {w.get('diaChi')}")
-            print(f"    dienTich: {w.get('dienTich')}")
-            print(f"    linkGGM: {w.get('linkGGM')}")
-            print(f"    googleMapsLink: {w.get('googleMapsLink')}")
-            print(f"    lat/lng: {w.get('coords')}")
-            print(f"    mapStatus: {w.get('mapStatus')}")
+        print(f"API response mẫu (Kho 1):")
+        if output:
+            print(f"  idKho: {output[0].get('idKho')}")
+            print(f"  tenKho: {output[0].get('tenKho')}")
+            print(f"  diaChi: {output[0].get('diaChi')}")
+            print(f"  dienTich: {output[0].get('dienTich')}")
+            print(f"  linkGGM: {output[0].get('linkGGM')}")
+            print(f"  coords: {output[0].get('coords')}")
+            print(f"  mapStatus: {output[0].get('mapStatus')}")
         print(f"Số marker tạo được: {has_coords_count}")
         print(f"Số kho có link: {with_link}")
         print(f"Số kho không có link: {without_link}")
