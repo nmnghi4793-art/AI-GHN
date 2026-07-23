@@ -197,6 +197,7 @@
                 <p class="login-right-sub">Sử dụng tài khoản được cấp để tiếp tục.</p>
 
                 <div class="login-form">
+                    <form id="login-form" autocomplete="on" novalidate>
                     <div class="login-error" id="login-error">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
@@ -205,22 +206,23 @@
                         <label for="login-username">Tài khoản</label>
                         <div class="input-field-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input type="text" id="login-username" class="login-input" placeholder="Tên đăng nhập" autocomplete="username">
+                            <input type="text" id="login-username" name="username" class="login-input" placeholder="Tên đăng nhập" autocomplete="username">
                         </div>
                     </div>
                     <div class="input-group">
                         <label for="login-password">Mật khẩu</label>
                         <div class="input-field-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="login-password" class="login-input" placeholder="••••••••" style="padding-right: 40px;" autocomplete="current-password">
+                            <input type="password" id="login-password" name="password" class="login-input" placeholder="••••••••" style="padding-right: 40px;" autocomplete="current-password">
                             <i class="fa-solid fa-eye" id="toggle-password-eye" style="left: auto; right: 14px; cursor: pointer;"></i>
                         </div>
                     </div>
-                    <button type="button" class="login-btn" id="login-submit-btn" onclick="handleLoginSubmit()">
+                    <button type="submit" class="login-btn" id="login-submit-btn">
                         <span class="login-btn-text">Đăng nhập</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
                     <p class="login-right-terms">Bằng việc đăng nhập, bạn đồng ý tuân thủ quy định sử dụng hệ thống nội bộ GHN.</p>
+                    </form>
                 </div>
             </div>
         </div>
@@ -2397,7 +2399,7 @@
     </div>
 </div>
 
-<script src="app.js?v=5.5"></script>
+<script src="app.js?v=20260723-3"></script>
 </body>
 
 </html>

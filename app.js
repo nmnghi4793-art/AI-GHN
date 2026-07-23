@@ -1,4 +1,5 @@
 const API = window.location.origin + '/api';
+console.log('[LOGIN] Script loaded, API base:', API);
 
 // ---- SECURITY UTILS ----
 /**
@@ -4928,11 +4929,33 @@ async function handleLoginSubmit() {
 window.handleLoginSubmit = handleLoginSubmit;
 
 function setupLoginForm() {
+    console.log('[LOGIN] setupLoginForm() called');
+    const loginForm = document.getElementById('login-form');
     const submitBtn = document.getElementById('login-submit-btn');
-    const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
     const togglePasswordEye = document.getElementById('toggle-password-eye');
 
+    if (!loginForm) {
+        console.warn('[LOGIN] #login-form not found in DOM — falling back to button onclick');
+        // Fallback: bind directly on button for old HTML without <form>
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                handleLoginSubmit(e);
+            });
+            console.log('[LOGIN] Fallback: bound click on #login-submit-btn');
+        }
+    } else {
+        // Primary: use form submit event — handles both button click and Enter key
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('[LOGIN] Submit event triggered on #login-form');
+            handleLoginSubmit(e);
+        });
+        console.log('[LOGIN] Form found, bound submit event on #login-form');
+    }
+
+    // Password eye toggle
     if (togglePasswordEye && passwordInput) {
         togglePasswordEye.onclick = () => {
             if (passwordInput.type === 'password') {
@@ -4944,21 +4967,6 @@ function setupLoginForm() {
             }
         };
     }
-
-    if (submitBtn) {
-        submitBtn.onclick = handleLoginSubmit;
-    }
-
-    const inputs = [usernameInput, passwordInput];
-    inputs.forEach(input => {
-        if (input) {
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    handleLoginSubmit();
-                }
-            };
-        }
-    });
 }
 
 async function setupProfileForm() {
@@ -5141,6 +5149,7 @@ function setupLogout() {
 
 // ---- INIT ----
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[LOGIN] DOM ready — running initLogin()');
     initLogin();
 });
 
