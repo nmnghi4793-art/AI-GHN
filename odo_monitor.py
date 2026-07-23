@@ -179,8 +179,16 @@ def get_master_kho_totals() -> dict:
 def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
     """
     Đọc dữ liệu báo ODO từ Google Sheet.
-    Tự động nhận biết tab tháng hiện tại (ví dụ: 'THÁNG 7').
-    Returns: dict mapping (date_str, kho_name) -> count
+    Spreadsheet ID: 1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo.
+    Tự động chọn tab 'THÁNG X' (ví dụ 'THÁNG 7').
+    Range đọc: 'THÁNG X'!A:H (Đọc toàn bộ các dòng, không giới hạn A1:Z5000).
+
+    Mapping cột chính:
+    Col A (index 0) = Dấu thời gian (Submission Timestamp)
+    Col F (index 5) = Kho giao (Warehouse Name)
+    Col H (index 7) = Biển kiểm soát (License Plate)
+
+    Returns: dict mapping (date_str, kho_name) -> unique_vehicle_count
     """
     global _ODO_CACHE
     now = time.time()
@@ -217,46 +225,68 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
             month_tabs = [t for t in sheet_titles if "THÁNG" in t.upper() or "THANG" in t.upper()]
             target_tab = month_tabs[-1] if month_tabs else sheet_titles[0]
 
-        print(f"[ODO MONITOR] Fetching ODO data from tab '{target_tab}'...")
+        print(f"\n===== [ODO MONITOR FETCH API V4] =====")
+        print(f"Spreadsheet ID: {ODO_SHEET_ID}")
+        print(f"Sheet Name (Tab): '{target_tab}'")
+        print(f"Reading Range: '{target_tab}'!A:H")
+        
         res = service.spreadsheets().values().get(
-            spreadsheetId=ODO_SHEET_ID, range=f"{target_tab}!A1:Z5000"
+            spreadsheetId=ODO_SHEET_ID, range=f"'{target_tab}'!A:H"
         ).execute()
         rows = res.get("values", [])
 
+        total_read_rows = len(rows)
+        print(f"[BACKEND LOG] số dòng đọc được từ Sheet: {total_read_rows}")
+
         if not rows or len(rows) < 2:
+            print("[ODO MONITOR WARNING] Sheet rỗng hoặc chỉ có 1 dòng tiêu đề.")
             return {}
 
         master_khos = list(get_master_kho_totals().keys())
 
-        counts = defaultdict(int)
-        for r in rows[1:]:
-            if not r or len(r) < 6:
+        # (date_str, master_kho_name) -> Set of normalized license plates
+        unique_plates_map = defaultdict(set)
+        import re
+
+        for idx, r in enumerate(rows[1:], start=2):
+            if not r or not any(r):
                 continue
             col_a = r[0].strip() if len(r) > 0 else ""
-            col_g = r[6].strip() if len(r) > 6 else ""
             raw_kho = r[5].strip() if len(r) > 5 else ""
+            raw_bien = r[7].strip() if len(r) > 7 else ""
 
-            raw_date = col_g if col_g else col_a
-            date_norm = parse_odo_date(raw_date)
+            date_norm = parse_odo_date(col_a)
             kho_norm = _match_master_kho(raw_kho, master_khos)
+            clean_plate = re.sub(r'[^A-Z0-9]', '', str(raw_bien).upper()) if raw_bien else ""
 
-            if date_norm and kho_norm:
-                counts[(date_norm, kho_norm)] += 1
+            if date_norm and kho_norm and clean_plate:
+                unique_plates_map[(date_norm, kho_norm)].add(clean_plate)
 
-        res_dict = dict(counts)
+        counts = {k: len(v) for k, v in unique_plates_map.items()}
+
         _ODO_CACHE["timestamp"] = now
-        _ODO_CACHE["data"] = res_dict
+        _ODO_CACHE["data"] = counts
+
+        # Print detailed backend logs for today's date
+        vn_today_str = get_vn_datetime().strftime("%d/%m/%Y")
+        today_khos = {k[1]: len(v) for k, v in unique_plates_map.items() if k[0] == vn_today_str}
+        
+        print(f"[BACKEND LOG] Ngày hôm nay: {vn_today_str}")
+        print(f"[BACKEND LOG] Số kho tìm thấy ODO ngày {vn_today_str}: {len(today_khos)}")
+        print(f"[BACKEND LOG] Unique license plates per kho:")
+        for k_name, p_cnt in sorted(today_khos.items()):
+            print(f"  - {k_name}: {p_cnt} xe")
+        print(f"======================================\n")
 
         try:
             os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
-            serializable = {f"{k[0]}|||{k[1]}": v for k, v in res_dict.items()}
+            serializable = {f"{k[0]}|||{k[1]}": v for k, v in counts.items()}
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump({"timestamp": now, "counts": serializable}, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
 
-        print(f"[ODO MONITOR] Successfully parsed & cached {len(rows)-1} rows into {len(res_dict)} (date, kho) counts for 25 master warehouses.")
-        return res_dict
+        return counts
 
     except Exception as e:
         print(f"[ODO MONITOR ERROR] Failed to fetch ODO sheet: {e}")
