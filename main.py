@@ -2740,16 +2740,61 @@ def get_xe_van_hanh_meta(force: bool = False):
 
     ncc_all = sorted(list(ncc_set))
 
+    # Build kho_ncc_map mapping warehouse ID & warehouse Name -> list of NCC names
+    kho_ncc_map = {}
+    for r in xe_gxt_data:
+        w_id = str(r.get("ID") or r.get("id_kho") or "").strip()
+        w_name = str(r.get("Kho") or r.get("Tên kho") or "").strip()
+        ncc = str(r.get("Tên NCC") or r.get("Ten NCC") or r.get("NCC") or "").strip()
+
+        if not ncc:
+            continue
+
+        if w_id:
+            if w_id not in kho_ncc_map: kho_ncc_map[w_id] = set()
+            kho_ncc_map[w_id].add(ncc)
+
+        if w_name:
+            if w_name not in kho_ncc_map: kho_ncc_map[w_name] = set()
+            kho_ncc_map[w_name].add(ncc)
+            clean = w_name.replace("Kho Giao Hàng Nặng", "").strip(" -")
+            if clean and clean not in kho_ncc_map: kho_ncc_map[clean] = set()
+            if clean: kho_ncc_map[clean].add(ncc)
+
+    # Also map from warehouses list for matching names/labels
+    for w in warehouses:
+        w_id = w["id"]
+        w_name = w["name"]
+        w_short = w["short_name"]
+        
+        matched_nccs = set()
+        if w_id in kho_ncc_map: matched_nccs.update(kho_ncc_map[w_id])
+        if w_name in kho_ncc_map: matched_nccs.update(kho_ncc_map[w_name])
+        if w_short in kho_ncc_map: matched_nccs.update(kho_ncc_map[w_short])
+
+        if not matched_nccs:
+            for k_key, n_set in kho_ncc_map.items():
+                if w_short.lower() in k_key.lower() or k_key.lower() in w_short.lower():
+                    matched_nccs.update(n_set)
+
+        sorted_nccs = sorted(list(matched_nccs))
+        kho_ncc_map[w_id] = sorted_nccs
+        kho_ncc_map[w_name] = sorted_nccs
+
+    kho_ncc_map_clean = {k: list(v) if isinstance(v, (list, set)) else v for k, v in kho_ncc_map.items()}
+
     print(f"\n===== [DEBUG XE DAILY META] =====")
     print(f"Tổng số kho GXT Miền Trung load được: {len(warehouses)}")
     print(f"Danh sách {len(warehouses)} ID kho: {[w['id'] for w in warehouses]}")
     print(f"Tổng số NCC load được: {len(ncc_all)}")
+    print(f"Kho-NCC mapping keys count: {len(kho_ncc_map_clean)}")
     print(f"==================================\n")
 
     return {
         "warehouses": warehouses,
         "kho_list": kho_list,
         "ncc_all": ncc_all,
+        "kho_ncc_map": kho_ncc_map_clean,
         "total_warehouses": len(warehouses)
     }
 

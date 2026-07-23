@@ -7100,24 +7100,68 @@ async function loadXeDailyMeta() {
 function _populateKhoDropdown(rowId) {
     const sel = document.getElementById(`xed-kho-${rowId}`);
     if (!sel) return;
-    const warehouses = state.xeDailyMeta?.warehouses || [];
+
+    let warehouses = state.xeDailyMeta?.warehouses || [];
+    if (!warehouses.length) {
+        warehouses = DEFAULT_25_KHOS.map(k => ({
+            id: k,
+            id_kho: k,
+            name: k,
+            label: k
+        }));
+    }
+
     const currentWarehouseId = xeDailyRowState[rowId]?.warehouseId || sel.value || '';
 
     sel.innerHTML = '<option value="">-- Chọn kho (25 kho GXT) --</option>' +
-        warehouses.map(w => `<option value="${w.id}"${currentWarehouseId === w.id ? ' selected' : ''}>${escapeHtml(w.name)}</option>`).join('');
+        warehouses.map(w => `<option value="${escapeHtml(w.id || w.name)}"${currentWarehouseId === (w.id || w.name) ? ' selected' : ''}>${escapeHtml(w.name || w.label)}</option>`).join('');
 }
 
 function _populateNccDropdown(rowId) {
     const sel = document.getElementById(`xed-ncc-${rowId}`);
     if (!sel) return;
-    const nccList = state.xeDailyMeta?.ncc_all || [];
-    const currentVendorName = xeDailyRowState[rowId]?.vendorName || sel.value || '';
 
-    sel.innerHTML = '<option value="">-- Chọn NCC --</option>' +
-        nccList.map(n => `<option value="${escapeHtml(n)}"${currentVendorName === n ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    const rowState = xeDailyRowState[rowId] || {};
+    const selectedKhoId = rowState.warehouseId || '';
+    const selectedKhoName = rowState.warehouseName || '';
+
+    if (!selectedKhoId && !selectedKhoName) {
+        sel.innerHTML = '<option value="">-- Vui lòng chọn kho trước --</option>';
+        sel.disabled = true;
+        rowState.vendorName = '';
+        rowState.vendorId = '';
+        return;
+    }
+
+    const khoNccMap = state.xeDailyMeta?.kho_ncc_map || {};
+    let nccList = khoNccMap[selectedKhoId] || khoNccMap[selectedKhoName] || [];
+
+    if (!nccList.length && selectedKhoName) {
+        const cleanName = selectedKhoName.replace("Kho Giao Hàng Nặng", "").replace(/^[\s-]+|[\s-]+$/g, "");
+        nccList = khoNccMap[cleanName] || [];
+    }
+
+    console.log(`[DEBUG NCC DROPDOWN] Row ID: ${rowId} | Kho: "${selectedKhoName}" (${selectedKhoId}) -> Found ${nccList.length} NCCs:`, nccList);
+
+    if (nccList.length === 0) {
+        sel.innerHTML = '<option value="">-- Kho này chưa có dữ liệu NCC --</option>';
+        sel.disabled = true;
+        rowState.vendorName = '';
+        rowState.vendorId = '';
+    } else if (nccList.length === 1) {
+        const onlyNcc = nccList[0];
+        sel.innerHTML = `<option value="${escapeHtml(onlyNcc)}" selected>${escapeHtml(onlyNcc)}</option>`;
+        rowState.vendorName = onlyNcc;
+        rowState.vendorId = onlyNcc;
+        sel.disabled = false;
+    } else {
+        const currentVendorName = rowState.vendorName || sel.value || '';
+        sel.innerHTML = '<option value="">-- Chọn NCC --</option>' +
+            nccList.map(n => `<option value="${escapeHtml(n)}"${currentVendorName === n ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+        sel.disabled = false;
+    }
 }
 
-// Field change handler — updates only the targeted rowId state without options[selectedIndex] lookup
 function onXedFieldChange(rowId, fieldName, value) {
     if (!xeDailyRowState[rowId]) {
         xeDailyRowState[rowId] = {
@@ -7133,37 +7177,44 @@ function onXedFieldChange(rowId, fieldName, value) {
     let updatedState = { ...prevState };
 
     if (fieldName === 'warehouseId') {
-        const warehouses = state.xeDailyMeta?.warehouses || [];
-        // Use Array.find by ID — NO options[selectedIndex]!
-        const selectedWarehouse = warehouses.find(w => w.id === value);
-        
-        updatedState.warehouseId = value;
-        updatedState.warehouseName = selectedWarehouse ? selectedWarehouse.name : '';
+        let warehouses = state.xeDailyMeta?.warehouses || [];
+        if (!warehouses.length) {
+            warehouses = DEFAULT_25_KHOS.map(k => ({ id: k, name: k }));
+        }
+        const selectedWarehouse = warehouses.find(w => w.id === value || w.name === value);
 
-        console.log(`[DEBUG FORM ROW] Row ID: ${rowId}`);
-        console.log(`[DEBUG FORM ROW] Kho được chọn (ID): ${value} -> Tên kho: "${updatedState.warehouseName}"`);
-        console.log(`[DEBUG FORM ROW] NCC trước khi chọn kho: "${prevState.vendorName}"`);
-        console.log(`[DEBUG FORM ROW] NCC sau khi chọn kho: "${updatedState.vendorName}" (Giữ nguyên, không tự đổi)`);
+        updatedState.warehouseId = value;
+        updatedState.warehouseName = selectedWarehouse ? selectedWarehouse.name : value;
+        updatedState.vendorName = '';
+        updatedState.vendorId = '';
+
+        xeDailyRowState[rowId] = updatedState;
+        _populateNccDropdown(rowId);
+
+        console.log(`[DEBUG FORM ROW] Row ID: ${rowId} | Kho selected: "${value}" -> ${updatedState.warehouseName}`);
     } else if (fieldName === 'vendorName') {
         const vVal = (value || '').trim();
         updatedState.vendorId = vVal;
         updatedState.vendorName = vVal;
+        xeDailyRowState[rowId] = updatedState;
     } else if (fieldName === 'recordType') {
         updatedState.recordType = value;
+        xeDailyRowState[rowId] = updatedState;
     } else if (fieldName === 'vehicleCount') {
         updatedState.vehicleCount = parseInt(value) || 1;
+        xeDailyRowState[rowId] = updatedState;
     } else if (fieldName === 'licensePlate') {
         updatedState.licensePlate = (value || '').toUpperCase().trim();
+        xeDailyRowState[rowId] = updatedState;
     } else if (fieldName === 'payloadKg') {
         updatedState.payloadKg = parseInt(value) || 0;
         updateTrongTaiHint(rowId, updatedState.payloadKg);
+        xeDailyRowState[rowId] = updatedState;
     } else if (fieldName === 'date') {
         updatedState.date = value;
+        xeDailyRowState[rowId] = updatedState;
     }
 
-    xeDailyRowState[rowId] = updatedState;
-
-    console.log(`[DEBUG FORM ROW STATE] Row ID: ${rowId} | State BEFORE:`, prevState);
     console.log(`[DEBUG FORM ROW STATE] Row ID: ${rowId} | State AFTER:`, xeDailyRowState[rowId]);
 }
 
