@@ -2460,7 +2460,7 @@ MASTER_30_XE_DAILY_RECORDS = [
     "ngay": "21/07/2026",
     "ten_kho": "Kho Giao Hàng Nặng - Đà Nẵng",
     "loai": "Xe không hoạt động",
-    "so_luong_xe": 1,
+"so_luong_xe": 1,
     "bien_so_xe": "79H-098.114",
     "ten_ncc": "Ngọc Đỉnh",
     "trong_tai": 1900,
@@ -2542,33 +2542,38 @@ def _load_xe_daily_records(force: bool = False):
     return records
 
 
-def _save_xe_daily_records(records: list, sync_db: bool = True):
+def _append_records_to_google_sheet(records: list):
     """
-    Ghi / Append trực tiếp dữ liệu mới vào Google Sheet tab 'Xe Off/Tăng Cường'.
-    Google Sheet là DATABASE CHÍNH duy nhất.
+    Append list of vehicle records to Google Sheet tab 'Xe Off/Tăng Cường'.
+    Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk.
+    Columns A..J:
+    A: Ngày | B: ID kho | C: Tên kho | D: Loại ghi nhận | E: Số lượng xe | F: Biển số xe | G: Tên NCC | H: Trọng tải | I: Người nhập | J: Thời gian ghi nhận
+    Returns (success: bool, updated_range: str, error_msg: str, sa_email: str)
     """
-    if not records:
-        return True, 0
-
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
     creds = None
+
     if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
         try:
             sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            sa_email = sa_info.get("client_email", sa_email)
             from google.oauth2.service_account import Credentials
             creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
         except Exception as e:
-            print(f"[GOOGLE SHEET AUTH ERROR from env]: {e}")
+            return False, "", f"Lỗi parse GOOGLE_SERVICE_ACCOUNT_JSON: {e}", sa_email
     elif os.path.exists(sa_path):
         try:
+            with open(sa_path, "r", encoding="utf-8") as f:
+                sa_info = json.load(f)
+                sa_email = sa_info.get("client_email", sa_email)
             from google.oauth2.service_account import Credentials
             creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
         except Exception as e:
-            print(f"[GOOGLE SHEET AUTH ERROR from file]: {e}")
+            return False, "", f"Lỗi đọc file Service Account local: {e}", sa_email
 
     if not creds:
-        print("[GOOGLE SHEET WARNING] Service account credentials not available.")
-        return True, len(records)
+        return False, "", f"Không tìm thấy Service Account credentials (GOOGLE_SERVICE_ACCOUNT_JSON). Email: {sa_email}", sa_email
 
     try:
         from googleapiclient.discovery import build
@@ -2578,30 +2583,51 @@ def _save_xe_daily_records(records: list, sync_db: bool = True):
         for r in records:
             rows_to_append.append([
                 str(r.get("ngay") or r.get("date") or "").strip(),
-                str(r.get("ten_kho") or r.get("warehouse") or "").strip(),
                 str(r.get("id_kho") or r.get("warehouseId") or r.get("id") or "").strip(),
+                str(r.get("ten_kho") or r.get("warehouse") or r.get("warehouseName") or "").strip(),
                 str(r.get("loai") or r.get("recordType") or "").strip(),
                 str(r.get("so_luong_xe") or r.get("vehicleCount") or 1),
                 str(r.get("bien_so_xe") or r.get("licensePlate") or "").strip(),
-                str(r.get("ten_ncc") or r.get("vendor") or "").strip(),
+                str(r.get("ten_ncc") or r.get("vendor") or r.get("vendorName") or "").strip(),
                 str(r.get("trong_tai") or r.get("payloadKg") or 0),
                 str(r.get("nguoi_nhap") or r.get("createdBy") or "Manager").strip(),
                 str(r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "").strip()
             ])
 
+        SPREADSHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+        SHEET_NAME = "Xe Off/Tăng Cường"
+
         res = service.spreadsheets().values().append(
-            spreadsheetId="1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk",
-            range="'Xe Off/Tăng Cường'!A1",
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{SHEET_NAME}'!A1",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": rows_to_append}
         ).execute()
 
-        print(f"[GOOGLE SHEET APPEND SUCCESS] Appended {len(rows_to_append)} rows to tab 'Xe Off/Tăng Cường'. Response: {res}")
-        return True, len(records)
+        updates = res.get("updates", {})
+        updated_range = updates.get("updatedRange", f"'{SHEET_NAME}'!A2:J{len(rows_to_append)+1}")
+
+        CACHE.pop("xe_off_tc", None)
+
+        print(f"\n===== [GOOGLE SHEET APPEND SUCCESS] =====")
+        print(f"Spreadsheet ID: {SPREADSHEET_ID}")
+        print(f"Sheet Name: {SHEET_NAME}")
+        print(f"Service Account Email: {sa_email}")
+        print(f"Appended Rows Count: {len(rows_to_append)}")
+        print(f"Updated Range: {updated_range}")
+        print(f"=========================================\n")
+
+        return True, updated_range, "", sa_email
+
     except Exception as err:
-        print(f"[GOOGLE SHEET APPEND ERROR]: {err}")
-        return True, len(records)
+        err_msg = str(err)
+        if "403" in err_msg or "permission" in err_msg.lower():
+            clean_err = f"Service Account '{sa_email}' chưa được cấp quyền Editor trên Google Sheet ID 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk (Tab: 'Xe Off/Tăng Cường'). Vui lòng bấm Chia sẻ (Share) trên Google Sheet và cấp quyền Chỉnh sửa (Editor) cho {sa_email}."
+        else:
+            clean_err = f"Google Sheets API Error: {err_msg}"
+        print(f"[GOOGLE SHEET APPEND ERROR]: {clean_err}")
+        return False, "", clean_err, sa_email
 
 
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
@@ -2763,43 +2789,10 @@ def get_xe_van_hanh_records(
     return {"data": records, "total": len(records)}
 
 
-def _sync_xe_daily_to_google_sheets(new_records: list):
-    """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs'."""
-    def _worker():
-        sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
-        if not os.path.exists(sa_path) or not new_records:
-            return
-        try:
-            from google.oauth2.service_account import Credentials
-            from googleapiclient.discovery import build
-            creds = Credentials.from_service_account_file(
-                sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"]
-            )
-            service = build("sheets", "v4", credentials=creds)
-            rows_to_append = []
-            for r in new_records:
-                rows_to_append.append([
-                    r.get("id", ""), r.get("ngay", ""), r.get("ten_kho", ""),
-                    r.get("loai", ""), str(r.get("so_luong_xe", 1)), r.get("bien_so_xe", ""),
-                    r.get("ten_ncc", ""), str(r.get("trong_tai", 0)), r.get("ghi_chu", ""),
-                    r.get("nguoi_nhap", "Hệ thống"), r.get("thoi_gian_ghi_nhan", "")
-                ])
-            service.spreadsheets().values().append(
-                spreadsheetId=SHEET_ID,
-                range="Xe Daily Logs!A1",
-                valueInputOption="USER_ENTERED",
-                body={"values": rows_to_append}
-            ).execute()
-        except Exception as e:
-            print(f"[XE DAILY SYNC SHEET WARNING] {e}")
-
-    threading.Thread(target=_worker, daemon=True).start()
-
-
 @app.post("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
 async def save_xe_van_hanh_records(request: Request):
     """
-    Lưu một hoặc nhiều bản ghi xe vận hành daily.
+    Lưu một hoặc nhiều bản ghi xe vận hành daily trực tiếp vào Google Sheet.
     """
     try:
         payload = await request.json()
@@ -2821,7 +2814,6 @@ async def save_xe_van_hanh_records(request: Request):
 
     VALID_LOAI = ["Xe tăng cường", "Xe không hoạt động"]
     saved = []
-    existing = _load_xe_daily_records()
     now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     for idx, item in enumerate(new_items):
@@ -2829,10 +2821,11 @@ async def save_xe_van_hanh_records(request: Request):
             continue
 
         ngay = str(item.get("ngay") or item.get("date") or "").strip()
-        ten_kho = str(item.get("ten_kho") or item.get("warehouse") or "").strip()
+        id_kho = str(item.get("id_kho") or item.get("warehouseId") or item.get("id") or "").strip()
+        ten_kho = str(item.get("ten_kho") or item.get("warehouse") or item.get("warehouseName") or "").strip()
         loai = str(item.get("loai") or item.get("recordType") or item.get("record_type") or "").strip()
         bien_so_xe = str(item.get("bien_so_xe") or item.get("licensePlate") or item.get("license_plate") or "").strip()
-        ten_ncc = str(item.get("ten_ncc") or item.get("vendor") or "").strip()
+        ten_ncc = str(item.get("ten_ncc") or item.get("vendor") or item.get("vendorName") or "").strip()
         ghi_chu = str(item.get("ghi_chu") or item.get("note") or "").strip()
         nguoi_nhap = str(item.get("nguoi_nhap") or item.get("createdBy") or item.get("created_by") or "Manager").strip()[:50]
 
@@ -3200,19 +3193,31 @@ async def import_xe_van_hanh_records(
         saved_records.append(record)
         dup_keys.add(dup_key)
 
-    total_db_count = len(existing)
+    updated_range = ""
+    sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
     if saved_records:
-        res_ok, total_db_count = _save_xe_daily_records(existing, sync_db=True)
-        if not res_ok:
-            raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu vào database sau khi import.")
-        _sync_xe_daily_to_google_sheets(saved_records)
+        success, updated_range, err_msg, sa_email = _append_records_to_google_sheet(saved_records)
+        if not success:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "success": False,
+                    "sheetAppendSuccess": False,
+                    "stage": "google_sheet_append",
+                    "serviceAccountEmail": sa_email,
+                    "message": f"❌ Lỗi ghi Google Sheet: {err_msg}"
+                }
+            )
 
     total_read = len(rows)
     res_dict = {
         "success": len(saved_records) > 0,
+        "sheetAppendSuccess": len(saved_records) > 0,
+        "savedCount": len(saved_records),
+        "updatedRange": updated_range,
+        "serviceAccountEmail": sa_email,
         "successRows": len(saved_records),
         "errorRows": len(error_details),
-        "totalRecords": total_db_count,
         "status": "ok" if len(saved_records) > 0 or len(error_details) == 0 else "error",
         "totalRows": total_read,
         "errors": error_details,
@@ -3220,15 +3225,15 @@ async def import_xe_van_hanh_records(
         "saved": len(saved_records),
         "duplicates": duplicate_count,
         "error_details": error_details,
-        "message": f"Import hoàn tất: {len(saved_records)}/{total_read} bản ghi thành công."
+        "message": f"Import thành công {len(saved_records)}/{total_read} bản ghi vào Google Sheet ({updated_range})."
     }
 
     print(f"\n===== [DEBUG IMPORT EXCEL] =====")
     print(f"Tên file import: {file.filename}")
     print(f"Số dòng đọc được (totalRows): {total_read}")
     print(f"Số dòng hợp lệ (successRows): {len(saved_records)} | Lỗi (errorRows): {len(error_details)} | Trùng: {duplicate_count}")
-    print(f"Storage đang ghi: PostgreSQL / Master Storage")
-    print(f"Số bản ghi trong DB sau khi lưu: {total_db_count}")
+    print(f"Service Account Email: {sa_email}")
+    print(f"Updated Range: {updated_range}")
     print(f"Response JSON: {res_dict}")
     print(f"=================================\n")
 

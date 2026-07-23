@@ -7424,10 +7424,10 @@ async function saveXeDaily() {
 
         if (res.ok) {
             const data = await res.json();
-            if (data.success && (data.savedCount > 0 || data.saved > 0)) {
+            if (data.success && data.sheetAppendSuccess === true) {
                 const savedCount = data.savedCount || data.saved || 1;
-                const totalRecs = data.totalRecords || '';
-                showToast(`✅ Đã lưu ghi nhận ${savedCount} xe vận hành daily.${totalRecs ? ' Tổng: ' + totalRecs + ' bản ghi.' : ''}`, 'success');
+                const rangeMsg = data.updatedRange ? ` (${data.updatedRange})` : '';
+                showToast(`✅ Đã lưu ghi nhận ${savedCount} xe vào Google Sheet thành công${rangeMsg}.`, 'success');
                 // Reset form
                 const c = document.getElementById('xe-daily-rows-container');
                 if (c) c.innerHTML = '';
@@ -7437,13 +7437,13 @@ async function saveXeDaily() {
                 // Reload history & cards with reset filters
                 await loadXeDailyRecords(true);
             } else {
-                const msg = data.message || 'Không thể lưu ghi nhận.';
-                showToast(`❌ Lỗi: ${msg}`, 'error');
+                const msg = data.message || data.detail || 'Không thể lưu ghi nhận vào Google Sheet.';
+                showToast(msg.startsWith('❌') ? msg : `❌ ${msg}`, 'error');
             }
         } else {
             const errData = await res.json().catch(() => ({}));
-            const msg = errData.detail || errData.message || 'Không thể lưu ghi nhận.';
-            showToast(`❌ Lỗi: ${msg}`, 'error');
+            const msg = errData.detail || errData.message || 'Không thể lưu ghi nhận vào Google Sheet.';
+            showToast(msg.startsWith('❌') ? msg : `❌ ${msg}`, 'error');
         }
     } catch (err) {
         console.error('[XE DAILY] Save error:', err);
