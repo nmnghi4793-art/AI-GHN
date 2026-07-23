@@ -132,6 +132,8 @@ async function apiFetch(url, opts = {}) {
     }
     return resp;
 }
+const authFetch = apiFetch;
+window.authFetch = authFetch;
 
 // GHN Brand Colors - Redefined for dark cyan neon theme
 const C_ORANGE = '#FF6600';
@@ -8575,7 +8577,11 @@ async function loadOdoMonitorData(forceRefresh = false) {
     }
 
     try {
-        const res = await authFetch(url, null);
+        const resp = await apiFetch(url);
+        if (!resp || !resp.ok) {
+            throw new Error(`API returned HTTP ${resp ? resp.status : 'No response'}`);
+        }
+        const res = await resp.json();
         console.log('[ODO FRONTEND LOG] API Raw Response:', res);
 
         const rows = (res && (res.details || res.rows)) ? (res.details || res.rows) : [];
