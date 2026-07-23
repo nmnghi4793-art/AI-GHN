@@ -15,10 +15,21 @@ from typing import Optional
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# Setup encoding for windows stdout / log output (Windows-only to avoid issues)
-if os.name == "nt":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+import builtins
+_orig_print = builtins.print
+def safe_print(*args, **kwargs):
+    try:
+        _orig_print(*args, **kwargs)
+    except Exception:
+        pass
+builtins.print = safe_print
+
+try:
+    if os.name == "nt" and sys.stdout and hasattr(sys.stdout, 'buffer') and not sys.stdout.closed:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:

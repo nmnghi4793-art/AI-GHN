@@ -8189,14 +8189,32 @@ window.addEventListener('error', function(event) {
 // =====================================================================
 const sectionLoadingStates = {};
 
-async function ensureSectionData(name, force = false) {
-    console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
-    hideSectionSkeleton(name);
-    if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
-        await loadDashboardFromCache(force);
+function renderSection(name = 'overview') {
+    console.log(`[RENDER SECTION] Rendering section '${name}'`);
+    if (name === 'overview') {
+        renderOverviewCards();
+        try { renderGtcTrendChart(); } catch(e){}
+        try { renderReturnsPieChart(); } catch(e){}
+        try { renderOverviewB2bChart(); } catch(e){}
+        try { renderBacklogOverviewTable(); } catch(e){}
+        try { renderB2bOverviewTable(); } catch(e){}
+        try { renderCriticalWarningsOverview(); } catch(e){}
+        try { renderPersonnelOverview(); } catch(e){}
+    } else if (name === 'gtc') {
+        try { renderGtcSection(); } catch(e){}
+    } else if (name === 'backlog') {
+        try { renderBacklogSection(); } catch(e){}
+    } else if (name === 'personnel') {
+        try { renderPersonnelSection(); } catch(e){}
+    } else if (name === 'returns') {
+        try { renderReturnsSection(); } catch(e){}
+    } else {
+        renderAll();
     }
-    renderSection(name);
 }
+window.renderSection = renderSection;
+
+async function ensureSectionData(name, force = false) {
     console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
     hideSectionSkeleton(name);
     if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
