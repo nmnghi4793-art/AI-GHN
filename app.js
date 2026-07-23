@@ -359,21 +359,26 @@ async function fetchAll(force = false) {
 function startSyncTimer() {
     if (syncTimerInterval) clearInterval(syncTimerInterval);
     syncTimerInterval = setInterval(() => {
-        const now = Date.now();
-        const diff = Math.max(0, nextSyncTime - now);
+        try {
+            const now = Date.now();
+            const diff = Math.max(0, nextSyncTime - now);
 
-        if (diff <= 0) {
-            // Auto refresh from dashboard-cache periodically
-            loadDashboardFromCache(false);
-            return;
+            if (diff <= 0) {
+                // Auto refresh from dashboard-cache periodically
+                loadDashboardFromCache(false).catch(() => {});
+                return;
+            }
+
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            const timerEl = document.getElementById('sync-timer');
+            if (timerEl) timerEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+            const progressEl = document.getElementById('sync-progress');
+            if (progressEl) progressEl.style.width = ((diff / (5 * 60 * 1000)) * 100) + '%';
+        } catch(e) {
+            // Không để timer crash block UI
         }
-
-        const mins = Math.floor(diff / 60000);
-        const secs = Math.floor((diff % 60000) / 1000);
-        document.getElementById('sync-timer').textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-
-        const progress = (diff / (5 * 60 * 1000)) * 100;
-        document.getElementById('sync-progress').style.width = progress + '%';
     }, 1000);
 }
 
@@ -8299,25 +8304,9 @@ function exportLoginLogsExcel() {
 // GLOBAL ERROR BOUNDARY HANDLER
 // =====================================================================
 window.addEventListener('error', function(event) {
-    console.error('Global Error Boundary caught error:', event.error || event.message);
-    const boundary = document.getElementById('app-error-boundary');
-    const msgEl = document.getElementById('app-error-msg');
-    if (boundary) {
-        boundary.style.display = 'flex';
-        // Hide standard containers to clean viewport
-        const loginWrapper = document.getElementById('login-wrapper');
-        const profileWrapper = document.getElementById('profile-wrapper');
-        const appContainer = document.getElementById('app-container');
-        if (loginWrapper) loginWrapper.style.display = 'none';
-        if (profileWrapper) profileWrapper.style.display = 'none';
-        if (appContainer) appContainer.style.display = 'none';
-
-        if (msgEl) {
-            const detailMsg = (event.error && event.error.message) ? event.error.message : event.message;
-            msgEl.innerHTML = `Không tải được bước nhập thông tin cá nhân hoặc ứng dụng.<br>` +
-                              `<small style="opacity:0.6;font-family:monospace;font-size:0.75rem;">Chi tiết: ${detailMsg}</small>`;
-        }
-    }
+    console.error('[GLOBAL ERROR] Caught (non-blocking):', event.error || event.message);
+    // CHỈ log lỗi, KHÔNG che UI hoặc ẩn app-container
+    // Việc ẩn UI sẽ làm Dashboard bị treo hoàn toàn
 });
 
 // =====================================================================
@@ -9118,42 +9107,37 @@ function initAppBootSequence() {
     console.log("==========================================");
     console.log("APP START - INITIALIZING DASHBOARD BOOT");
     console.log("[APP] DOM READY");
-    
+
+    // BƯỚC 1: Đảm bảo overlay bị ẩn TRƯỚC KHI bất kỳ code nào chạy
+    const errBoundary = document.getElementById('app-error-boundary');
+    if (errBoundary) errBoundary.style.display = 'none';
+
+    // BƯỚC 2: Setup sidebar/menu
     try {
         setupSidebarAndMenu();
     } catch(e) {
         console.error('[APP ERR] setupSidebarAndMenu:', e);
     }
 
+    // BƯỚC 3: initLogin xử lý toàn bộ luồng auth + data loading
+    // KHÔNG gọi loadDashboardFromCache ở đây để tránh double-call
     try {
         initLogin();
     } catch(e) {
         console.error('[APP ERR] initLogin:', e);
-    }
-
-    try {
-        if (localStorage.getItem('ghn_logged_in') === 'true') {
-            loadDashboardFromCache(false);
-        }
-    } catch(e) {
-        console.error('[APP ERR] loadDashboardFromCache:', e);
-    } finally {
-        // ALWAYS HIDE OVERLAYS & ENABLE UI
-        const errBoundary = document.getElementById('app-error-boundary');
-        if (errBoundary) errBoundary.style.display = 'none';
-
+        // Nếu initLogin crash, vẫn hiển thị UI đúng trạng thái
         const loginWrapper = document.getElementById('login-wrapper');
-        const profileWrapper = document.getElementById('profile-wrapper');
         const appContainer = document.getElementById('app-container');
-
         if (localStorage.getItem('ghn_logged_in') === 'true') {
             if (loginWrapper) loginWrapper.style.display = 'none';
-            if (profileWrapper) profileWrapper.style.display = 'none';
             if (appContainer) appContainer.style.display = 'flex';
+        } else {
+            if (loginWrapper) loginWrapper.style.display = 'flex';
         }
-        console.log("DASHBOARD READY");
-        console.log("==========================================");
     }
+
+    console.log("DASHBOARD BOOT COMPLETE");
+    console.log("==========================================");
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
