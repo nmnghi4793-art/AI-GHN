@@ -2717,73 +2717,118 @@ def get_xe_van_hanh_records(
 async def save_xe_van_hanh_records(request: Request):
     """
     Lưu một hoặc nhiều bản ghi xe vận hành daily.
-    Body: { "records": [ { ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu? }, ... ] }
+    Hỗ trợ cả camelCase (date, warehouse, recordType, vehicleCount, licensePlate, vendor, payloadKg, note, createdBy)
+    và snake_case (ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu, nguoi_nhap).
+    Hỗ trợ body là Object đơn hoặc { "records": [...] } hoặc Array [...].
     """
     try:
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
-    new_items = payload.get("records", [])
-    if not new_items or not isinstance(new_items, list):
-        raise HTTPException(status_code=400, detail="Field 'records' is required and must be a non-empty list")
+    if isinstance(payload, list):
+        new_items = payload
+    elif isinstance(payload, dict):
+        if "records" in payload and isinstance(payload["records"], list):
+            new_items = payload["records"]
+        else:
+            new_items = [payload]
+    else:
+        raise HTTPException(status_code=400, detail="Payload phải là JSON Object hoặc Array.")
 
-    REQUIRED_FIELDS = ["ngay", "ten_kho", "loai", "so_luong_xe", "bien_so_xe", "ten_ncc", "trong_tai"]
+    if not new_items:
+        raise HTTPException(status_code=400, detail="Danh sách bản ghi không được rỗng.")
+
     VALID_LOAI = ["Xe tăng cường", "Xe không hoạt động"]
-
     saved = []
     existing = _load_xe_daily_records()
     now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     for idx, item in enumerate(new_items):
-        missing = [f for f in REQUIRED_FIELDS if not str(item.get(f, "")).strip()]
-        if missing:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Dòng {idx+1}: Thiếu các trường bắt buộc: {', '.join(missing)}"
-            )
+        if not isinstance(item, dict):
+            continue
 
-        loai = str(item.get("loai", "")).strip()
-        if loai not in VALID_LOAI:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Dòng {idx+1}: Loại ghi nhận không hợp lệ. Chỉ chấp nhận: {', '.join(VALID_LOAI)}"
-            )
+        ngay = str(item.get("ngay") or item.get("date") or "").strip()
+        ten_kho = str(item.get("ten_kho") or item.get("warehouse") or "").strip()
+        loai = str(item.get("loai") or item.get("recordType") or item.get("record_type") or "").strip()
+        bien_so_xe = str(item.get("bien_so_xe") or item.get("licensePlate") or item.get("license_plate") or "").strip()
+        ten_ncc = str(item.get("ten_ncc") or item.get("vendor") or "").strip()
+        ghi_chu = str(item.get("ghi_chu") or item.get("note") or "").strip()
+        nguoi_nhap = str(item.get("nguoi_nhap") or item.get("createdBy") or item.get("created_by") or "Manager").strip()[:50]
 
+        # Convert numbers safely
+        raw_sl = item.get("so_luong_xe") if item.get("so_luong_xe") is not None else item.get("vehicleCount")
+        if raw_sl is None: raw_sl = item.get("vehicle_count")
         try:
-            so_luong_xe = int(item.get("so_luong_xe", 1))
+            so_luong_xe = int(raw_sl or 1)
             if so_luong_xe < 1 or so_luong_xe > 10:
                 so_luong_xe = max(1, min(10, so_luong_xe))
         except (ValueError, TypeError):
             so_luong_xe = 1
 
+        raw_tt = item.get("trong_tai") if item.get("trong_tai") is not None else item.get("payloadKg")
+        if raw_tt is None: raw_tt = item.get("payload_kg")
         try:
-            trong_tai = int(str(item.get("trong_tai", "0")).replace(",", "").strip())
+            trong_tai = int(str(raw_tt or "0").replace(",", "").strip())
         except (ValueError, TypeError):
             trong_tai = 0
 
+        # Validate required
+        missing = []
+        if not ngay: missing.append("ngày (date)")
+        if not ten_kho: missing.append("tên kho (warehouse)")
+        if not loai: missing.append("loại (recordType)")
+        if not bien_so_xe: missing.append("biển số xe (licensePlate)")
+        if not ten_ncc: missing.append("tên NCC (vendor)")
+        if not trong_tai: missing.append("trọng tải (payloadKg)")
+
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Dòng {idx+1}: Thiếu thông tin bắt buộc: {', '.join(missing)}"
+            )
+
+        if loai not in VALID_LOAI:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Dòng {idx+1}: Loại ghi nhận '{loai}' không hợp lệ. Chỉ nhận: {', '.join(VALID_LOAI)}"
+            )
+
         record = {
             "id": secrets.token_hex(8),
-            "ngay": str(item.get("ngay", "")).strip(),
-            "ten_kho": str(item.get("ten_kho", "")).strip(),
+            "ngay": ngay,
+            "ten_kho": ten_kho,
             "loai": loai,
             "so_luong_xe": so_luong_xe,
-            "bien_so_xe": str(item.get("bien_so_xe", "")).strip(),
-            "ten_ncc": str(item.get("ten_ncc", "")).strip(),
+            "bien_so_xe": bien_so_xe,
+            "ten_ncc": ten_ncc,
             "trong_tai": trong_tai,
-            "ghi_chu": str(item.get("ghi_chu", "")).strip(),
-            "nguoi_nhap": str(item.get("nguoi_nhap", "Manager")).strip()[:50],
+            "ghi_chu": ghi_chu,
+            "nguoi_nhap": nguoi_nhap,
             "thoi_gian_ghi_nhan": now_iso,
         }
         existing.append(record)
         saved.append(record)
 
-    if _save_xe_daily_records(existing):
+    if _save_xe_daily_records(existing, sync_db=True):
         _sync_xe_daily_to_google_sheets(saved)
-        print(f"[XE DAILY] Saved {len(saved)} new records. Total: {len(existing)}")
-        return {"status": "ok", "saved": len(saved), "data": saved}
+        res_data = {
+            "success": True,
+            "status": "ok",
+            "message": f"Đã lưu ghi nhận {len(saved)} xe vận hành daily thành công.",
+            "saved": len(saved),
+            "data": saved,
+            "record": saved[0] if len(saved) == 1 else saved
+        }
+        print(f"\n===== [DEBUG SAVE RECORD] =====")
+        print(f"Payload received: {payload}")
+        print(f"Storage đang ghi: PostgreSQL / Master Storage")
+        print(f"Số bản ghi sau khi lưu: {len(existing)}")
+        print(f"Response JSON: {res_data}")
+        print(f"================================\n")
+        return res_data
     else:
-        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu. Vui lòng thử lại.")
+        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu vào hệ thống persistent storage.")
 
 
 ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
@@ -2852,19 +2897,17 @@ async def import_xe_van_hanh_records(
     file: UploadFile = File(...),
 ):
     """
-    Import nhiều bản ghi xe vận hành daily từ file CSV (hoặc XLSX đã convert sang CSV).
+    Import nhiều bản ghi xe vận hành daily từ file CSV hoặc XLSX/XLS.
     Validate từng dòng, kiểm tra trùng, lưu các dòng hợp lệ.
-    Trả về: { status, saved, errors, duplicates, error_details }
+    Trả về: { success, status, totalRows, successRows, errorRows, errors, total_read, saved, duplicates, error_details, message }
     """
     import re as _re
 
     VALID_LOAI = ["Xe tăng cường", "Xe không hoạt động"]
-    MIN_DATE = "2026-07-01"  # ISO so sánh được
+    MIN_DATE = "2026-07-01"
 
     def _ddmmyyyy_to_iso(date_str: str):
-        """Chuyển dd/mm/yyyy → YYYY-MM-DD để so sánh. Trả None nếu lỗi."""
         s = (date_str or "").strip()
-        # Accept dd/mm/yyyy or dd-mm-yyyy
         m = _re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$", s)
         if not m:
             return None
@@ -2881,16 +2924,13 @@ async def import_xe_van_hanh_records(
         vn_now = datetime.now(timezone(timedelta(hours=7)))
         return vn_now.strftime("%Y-%m-%d")
 
-    # ---- Read raw bytes ----
     raw_bytes = await file.read()
     filename = (file.filename or "").lower()
 
-    # ---- Parse to rows ----
     rows = []
     parse_error = None
 
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        # Try openpyxl (xlsx) or xlrd (xls)
         try:
             import openpyxl
             wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), read_only=True, data_only=True)
@@ -2898,19 +2938,18 @@ async def import_xe_van_hanh_records(
             all_rows = list(ws.iter_rows(values_only=True))
             wb.close()
             if not all_rows:
-                return {"status": "error", "message": "File Excel rỗng."}
+                return {"success": False, "status": "error", "message": "File Excel rỗng."}
             header = [str(c).strip() if c is not None else "" for c in all_rows[0]]
             for r in all_rows[1:]:
                 row_dict = {header[i]: (str(r[i]).strip() if r[i] is not None else "") for i in range(min(len(header), len(r)))}
                 rows.append(row_dict)
         except ImportError:
-            parse_error = "Server chưa cài openpyxl. Vui lòng upload file .csv."
+            parse_error = "Server chưa cài thư viện openpyxl để đọc Excel."
         except Exception as e:
-            parse_error = f"Không thể đọc file Excel: {e}"
+            parse_error = f"Không thể đọc file Excel: {str(e)}"
     else:
-        # CSV
         try:
-            text = raw_bytes.decode("utf-8-sig")  # handles BOM
+            text = raw_bytes.decode("utf-8-sig")
         except UnicodeDecodeError:
             try:
                 text = raw_bytes.decode("cp1258")
@@ -2920,23 +2959,22 @@ async def import_xe_van_hanh_records(
         try:
             rows = list(reader)
         except Exception as e:
-            parse_error = f"Không thể đọc file CSV: {e}"
+            parse_error = f"Không thể đọc file CSV: {str(e)}"
 
     if parse_error:
-        return {"status": "error", "message": parse_error}
+        return {"success": False, "status": "error", "message": parse_error}
 
     if not rows:
-        return {"status": "error", "message": "File không có dữ liệu (chỉ có header hoặc rỗng)."}
+        return {"success": False, "status": "error", "message": "File không có dữ liệu (chỉ có header hoặc rỗng)."}
 
-    # ---- Normalize column names (flexible mapping) ----
     COL_MAP = {
-        "ngay":         ["ngày", "ngay", "date", "Ngày", "Ngay"],
-        "ten_kho":      ["tên kho", "ten kho", "tenkho", "kho", "Tên kho", "Ten kho"],
-        "loai":         ["loại ghi nhận", "loai ghi nhan", "loai", "Loại ghi nhận", "Loai ghi nhan"],
-        "so_luong_xe":  ["số lượng xe", "so luong xe", "sl xe", "sl_xe", "Số lượng xe", "So luong xe"],
-        "bien_so_xe":   ["biển số xe", "bien so xe", "biensoxe", "bien_so", "Biển số xe", "Bien so xe"],
-        "ten_ncc":      ["tên ncc", "ten ncc", "ncc", "Tên NCC", "Ten NCC"],
-        "trong_tai":    ["trọng tải", "trong tai", "trongtai", "Trọng tải", "Trong tai"],
+        "ngay":         ["ngày", "ngay", "date", "Date", "Ngày", "Ngay", "day", "Day"],
+        "ten_kho":      ["tên kho", "ten kho", "tenkho", "kho", "warehouse", "Warehouse", "Tên kho", "Ten kho"],
+        "loai":         ["loại ghi nhận", "loai ghi nhan", "loai", "recordtype", "record_type", "Record Type", "Loại ghi nhận", "Loai ghi nhan"],
+        "so_luong_xe":  ["số lượng xe", "so luong xe", "sl xe", "sl_xe", "vehiclecount", "vehicle_count", "quantity", "Quantity", "Số lượng xe", "So luong xe"],
+        "bien_so_xe":   ["biển số xe", "bien so xe", "biensoxe", "bien_so", "licenseplate", "license_plate", "License Plate", "Biển số xe", "Bien so xe"],
+        "ten_ncc":      ["tên ncc", "ten ncc", "ncc", "vendor", "Vendor", "supplier", "Supplier", "Tên NCC", "Ten NCC"],
+        "trong_tai":    ["trọng tải", "trong tai", "trongtai", "payloadkg", "payload_kg", "Payload", "Capacity", "Trọng tải", "Trong tai"],
     }
 
     def _find_col(row_keys, variants):
@@ -2947,22 +2985,18 @@ async def import_xe_van_hanh_records(
                 return list(row_keys)[idx]
         return None
 
-    if not rows:
-        return {"status": "error", "message": "Không có dòng dữ liệu nào."}
-
     first_row_keys = list(rows[0].keys())
     col_refs = {field: _find_col(first_row_keys, variants) for field, variants in COL_MAP.items()}
 
-    # Check required columns exist
     missing_cols = [f for f, c in col_refs.items() if c is None]
     if missing_cols:
         return {
+            "success": False,
             "status": "error",
             "message": f"File thiếu các cột bắt buộc: {', '.join(missing_cols)}. "
                        f"Các cột tìm thấy trong file: {', '.join(first_row_keys)}"
         }
 
-    # ---- Load existing records for duplicate check ----
     existing = _load_xe_daily_records()
     dup_keys = set()
     for r in existing:
@@ -2975,15 +3009,14 @@ async def import_xe_van_hanh_records(
         )
         dup_keys.add(dk)
 
-    # ---- Validate & collect ----
     today_iso = _today_iso()
     saved_records = []
     error_details = []
     duplicate_count = 0
-    import_dup_keys = set()  # track within this import batch
+    import_dup_keys = set()
 
     for i, row in enumerate(rows):
-        row_num = i + 2  # 1-indexed, +1 for header
+        row_num = i + 2
         err_list = []
 
         def get_col(field):
@@ -2998,11 +3031,9 @@ async def import_xe_van_hanh_records(
         raw_ncc     = get_col("ten_ncc")
         raw_tt      = get_col("trong_tai")
 
-        # Skip completely empty rows
         if not any([raw_ngay, raw_kho, raw_loai, raw_sl, raw_bien, raw_ncc, raw_tt]):
             continue
 
-        # 1. Ngày
         if not raw_ngay:
             err_list.append("Thiếu ngày")
         else:
@@ -3016,41 +3047,29 @@ async def import_xe_van_hanh_records(
             else:
                 raw_ngay = _re.sub(r"^(\d)[/\-]", r"0\1/", raw_ngay.replace("-", "/"))
                 raw_ngay = _re.sub(r"/(\d)[/\-]", r"/0\1/", raw_ngay)
-                # Normalize to dd/mm/yyyy
                 parts = raw_ngay.replace("-", "/").split("/")
                 raw_ngay = f"{parts[0].zfill(2)}/{parts[1].zfill(2)}/{parts[2]}"
 
-        # 2. Tên kho
-        if not raw_kho:
-            err_list.append("Thiếu tên kho")
-
-        # 3. Loại ghi nhận
+        if not raw_kho: err_list.append("Thiếu tên kho")
         if not raw_loai:
             err_list.append("Thiếu loại ghi nhận")
         elif raw_loai not in VALID_LOAI:
             err_list.append(f"Loại ghi nhận '{raw_loai}' không hợp lệ (chỉ nhận: {', '.join(VALID_LOAI)})")
 
-        # 4. Số lượng xe
         sl_xe = 1
         if not raw_sl:
             err_list.append("Thiếu số lượng xe")
         else:
             try:
                 sl_xe = int(float(raw_sl))
-                if sl_xe < 1 or sl_xe > 5:
-                    err_list.append(f"Số lượng xe '{raw_sl}' phải từ 1 đến 5")
+                if sl_xe < 1 or sl_xe > 10:
+                    err_list.append(f"Số lượng xe '{raw_sl}' phải từ 1 đến 10")
             except ValueError:
                 err_list.append(f"Số lượng xe '{raw_sl}' không phải số nguyên")
 
-        # 5. Biển số xe
-        if not raw_bien:
-            err_list.append("Thiếu biển số xe")
+        if not raw_bien: err_list.append("Thiếu biển số xe")
+        if not raw_ncc: err_list.append("Thiếu tên NCC")
 
-        # 6. Tên NCC
-        if not raw_ncc:
-            err_list.append("Thiếu tên NCC")
-
-        # 7. Trọng tải
         trong_tai = 0
         if not raw_tt:
             err_list.append("Thiếu trọng tải")
@@ -3066,7 +3085,6 @@ async def import_xe_van_hanh_records(
             error_details.append({"row": row_num, "errors": err_list})
             continue
 
-        # ---- Duplicate check ----
         dup_key = (
             raw_ngay.strip(),
             raw_kho.strip().lower(),
@@ -3079,7 +3097,6 @@ async def import_xe_van_hanh_records(
             continue
         import_dup_keys.add(dup_key)
 
-        # ---- Build record ----
         now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         record = {
             "id": secrets.token_hex(8),
@@ -3098,23 +3115,36 @@ async def import_xe_van_hanh_records(
         saved_records.append(record)
         dup_keys.add(dup_key)
 
-    # ---- Save ----
     if saved_records:
-        if not _save_xe_daily_records(existing):
+        if not _save_xe_daily_records(existing, sync_db=True):
             raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi import.")
         _sync_xe_daily_to_google_sheets(saved_records)
 
     total_read = len(rows)
-    print(f"[XE DAILY IMPORT] Read={total_read}, Saved={len(saved_records)}, Errors={len(error_details)}, Dups={duplicate_count}")
-
-    return {
-        "status": "ok",
+    res_dict = {
+        "success": len(saved_records) > 0 or len(error_details) == 0,
+        "status": "ok" if len(saved_records) > 0 or len(error_details) == 0 else "error",
+        "totalRows": total_read,
+        "successRows": len(saved_records),
+        "errorRows": len(error_details),
+        "errors": error_details,
         "total_read": total_read,
         "saved": len(saved_records),
-        "errors": len(error_details),
         "duplicates": duplicate_count,
         "error_details": error_details,
+        "message": f"Import hoàn tất: {len(saved_records)}/{total_read} bản ghi thành công."
     }
+
+    print(f"\n===== [DEBUG IMPORT EXCEL] =====")
+    print(f"Tên file import: {file.filename}")
+    print(f"Số dòng đọc được (totalRows): {total_read}")
+    print(f"Số dòng hợp lệ (successRows): {len(saved_records)} | Lỗi (errorRows): {len(error_details)} | Trùng: {duplicate_count}")
+    print(f"Storage đang ghi: PostgreSQL / Master Storage")
+    print(f"Số bản ghi sau khi lưu: {len(existing)}")
+    print(f"Response JSON: {res_dict}")
+    print(f"=================================\n")
+
+    return res_dict
 # =====================================================================
 # LOGIN LOGS — CRUD APIs & GOOGLE SHEETS INTEGRATION
 # =====================================================================

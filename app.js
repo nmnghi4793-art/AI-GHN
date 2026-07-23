@@ -7212,19 +7212,31 @@ async function saveXeDaily() {
     }
 
     try {
-        const resp = await authPost(`${API}/xe-van-hanh/records`, { records }, { status: 'error', message: 'Network error' });
+        const token = getApiToken();
+        const res = await fetch(`${API}/xe-van-hanh/records`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ records })
+        });
 
-        if (resp.status === 'ok') {
-            showToast(`✅ Đã lưu ghi nhận ${resp.saved} xe vận hành daily.`, 'success');
+        if (res.ok) {
+            const data = await res.json();
+            const savedCount = data.saved || (data.record ? 1 : records.length);
+            showToast(`✅ Đã lưu ghi nhận ${savedCount} xe vận hành daily.`, 'success');
             // Reset form
             const c = document.getElementById('xe-daily-rows-container');
             if (c) c.innerHTML = '';
             xeDailyRowCount = 0;
             addXeDailyRow();
-            // Reload history
+            // Reload history & cards
             await loadXeDailyRecords();
         } else {
-            showToast(`❌ Lỗi: ${resp.message || 'Không thể lưu.'}`, 'error');
+            const errData = await res.json().catch(() => ({}));
+            const msg = errData.detail || errData.message || 'Không thể lưu ghi nhận.';
+            showToast(`❌ Lỗi: ${msg}`, 'error');
         }
     } catch (err) {
         console.error('[XE DAILY] Save error:', err);
