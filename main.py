@@ -441,23 +441,43 @@ async def logout(authorization: str = Header(None)):
     return {"status": "ok"}
 
 def require_api_token(authorization: str = Header(None)):
-    """Override: kiểm tra session token từ _ACTIVE_SESSIONS (nếu API_SECRET_TOKEN không cấu hình)."""
+    """Xác thực: chấp nhận session token từ /api/auth/login HOẶC static API_SECRET_TOKEN.
+    
+    Thứ tự ưu tiên:
+    1. Session token hợp lệ từ _ACTIVE_SESSIONS (do /api/auth/login tạo ra)
+    2. Static API token (_API_TOKEN từ env) dành cho scripts/automation
+    3. Nếu không cấu hình _API_TOKEN: tự đăng ký session (hỗ trợ Railway restart)
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization[len("Bearer "):].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    now = time.time()
+
+    # Ưu tiên 1: Session token từ /api/auth/login (luôn kiểm tra trước, kể cả khi _API_TOKEN được cấu hình)
+    if token in _ACTIVE_SESSIONS:
+        age = now - _ACTIVE_SESSIONS[token]
+        if age <= SESSION_TTL:
+            _ACTIVE_SESSIONS[token] = now  # Gia hạn TTL
+            return  # ✅ Session hợp lệ
+        else:
+            del _ACTIVE_SESSIONS[token]  # Session hết hạn — xóa
+            print(f"[AUTH] Session expired after {age:.0f}s for token ...{token[-6:]}")
+
+    # Ưu tiên 2: Static API token (dùng cho scripts/automation, không phải web login)
     if _API_TOKEN:
-        # Mode prod: dùng static API token
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        token = authorization[len("Bearer "):]
-        if not secrets.compare_digest(token, _API_TOKEN):
-            raise HTTPException(status_code=403, detail="Forbidden")
-    else:
-        # Mode session: kiểm tra session token
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        token = authorization[len("Bearer "):].strip()
-        if not token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        # Gia hạn session & tự động đăng ký lại token nếu container vừa restart/redeploy
-        _ACTIVE_SESSIONS[token] = time.time()
+        if secrets.compare_digest(token, _API_TOKEN):
+            return  # ✅ Static API token hợp lệ
+        print(f"[AUTH] Invalid token: not in sessions and does not match API_SECRET_TOKEN")
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Ưu tiên 3: Không cấu hình _API_TOKEN → session mode — tự đăng ký
+    # (Hỗ trợ Railway container restart: _ACTIVE_SESSIONS in-memory bị xóa sau deploy)
+    _ACTIVE_SESSIONS[token] = now
+    print(f"[AUTH] Auto-registered session token (Railway session-mode) ...{token[-6:]}")
+
 
 # ---- DATA GTC ----
 @app.get("/api/kpi/gtc", dependencies=[Depends(require_api_token)])

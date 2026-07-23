@@ -95,16 +95,22 @@ function showToast(message, type = 'info') {
 const SESSION_KEY = 'ghn_session_token';
 
 function getApiToken() {
-    return sessionStorage.getItem(SESSION_KEY) || '';
+    // Đọc từ localStorage trước (bền vũng qua reload), fallback sessionStorage
+    return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || '';
 }
 
 function setApiToken(token) {
-    sessionStorage.setItem(SESSION_KEY, token);
+    // Lưu vào localStorage để bền vững qua reload trang
+    localStorage.setItem(SESSION_KEY, token);
+    sessionStorage.setItem(SESSION_KEY, token);  // Compat
+    console.log('[AUTH] Token saved to localStorage');
 }
 
 function clearApiToken() {
+    localStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem('ghn_logged_in');
+    // ghn_logged_in trong localStorage sẽ được xóa ở nơi gọi clearApiToken
 }
 
 /**
@@ -4811,7 +4817,11 @@ let allowedKhosList = []; // Danh sách kho tải từ API để validate thông
 
 async function initLogin() {
     const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
-    const isProfileCompleted = sessionStorage.getItem('ghn_profile_completed') === 'true';
+    // Đọc ghn_profile_completed từ localStorage (bền vững qua reload) hoặc sessionStorage (compat)
+    const isProfileCompleted = localStorage.getItem('ghn_profile_completed') === 'true' ||
+                               sessionStorage.getItem('ghn_profile_completed') === 'true';
+    const token = getApiToken();
+    console.log('[AUTH] Restoring session - logged_in:', isAlreadyLoggedIn, 'profile_completed:', isProfileCompleted, 'has_token:', !!token);
     
     const loginWrapper = document.getElementById('login-wrapper');
     const profileWrapper = document.getElementById('profile-wrapper');
@@ -4828,6 +4838,7 @@ async function initLogin() {
         
         // Nếu đã hoàn thành thông tin cá nhân, hoặc file HTML cũ chưa cập nhật các thẻ profile -> cho vào thẳng dashboard
         if (isProfileCompleted || !hasProfileElements) {
+            console.log('[AUTH] Session valid, redirect target: Dashboard');
             if (profileWrapper) profileWrapper.style.display = 'none';
             if (appContainer) appContainer.style.display = 'flex';
             // Khởi chạy dashboard
@@ -4837,6 +4848,7 @@ async function initLogin() {
             checkAdminAccess();
             setupLogout();
         } else {
+            console.log('[AUTH] Session valid, redirect target: Profile form');
             if (appContainer) appContainer.style.display = 'none';
             if (profileWrapper) profileWrapper.style.display = 'flex';
             setupProfileForm();
@@ -4895,10 +4907,11 @@ async function handleLoginSubmit() {
             if (json.token) {
                 setApiToken(json.token);
                 localStorage.setItem('ghn_logged_in', 'true');
-                console.log('[DEBUG LOGIN] Token saved to sessionStorage');
+                console.log('[AUTH] Login success');
+                console.log('[AUTH] Token saved');
             }
             if (loginError) loginError.style.display = 'none';
-            console.log('[DEBUG LOGIN] Redirecting to Dashboard...');
+            console.log('[AUTH] Redirect target: checking profile status via initLogin()');
             initLogin();
         } else {
             let errDetail = 'Tài khoản hoặc mật khẩu không đúng';
@@ -4989,18 +5002,25 @@ async function setupProfileForm() {
         // Load danh sách kho để hiển thị autocomplete
         try {
             const token = getApiToken();
+            console.log('[AUTH] Profile form: loading warehouse list, has_token:', !!token);
             const resp = await fetch(`${API}/xe-van-hanh/meta`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (resp.status === 401 || resp.status === 403) {
-                // Token hết hạn -> Buộc logout để đăng nhập lại
-                console.warn('[PROFILE] Auth token expired, redirecting to login page');
-                clearApiToken();
-                localStorage.removeItem('ghn_logged_in');
-                window.location.reload();
-                return;
-            }
-            if (resp.ok) {
+                // KHÔNG logout — chỉ bỏ qua danh sách kho, tiếp tục hiển thị form
+                // (Lỗi 401/403 ở meta API không đồng nghĩa token vô hiệu — backend fix đã xử lý)
+                console.warn('[AUTH] Profile meta API returned', resp.status, '- continuing without warehouse autocomplete. Token:', token ? 'present' : 'MISSING');
+                // Nếu token thực sự thiếu thì mới redirect
+                if (!token) {
+                    console.warn('[AUTH] Redirected back to login because: token is empty after login');
+                    clearApiToken();
+                    localStorage.removeItem('ghn_logged_in');
+                    localStorage.removeItem('ghn_profile_completed');
+                    window.location.reload();
+                    return;
+                }
+                // Token có nhưng API trả lỗi -> tiếp tục mà không có autocomplete kho
+            } else if (resp.ok) {
                 const data = await resp.json();
                 if (data && data.kho_list) {
                     allowedKhosList = data.kho_list;
@@ -5075,7 +5095,10 @@ async function setupProfileForm() {
                 localStorage.setItem('ghn_id_ghn', idVal);
                 localStorage.setItem('ghn_ho_ten', nameVal);
                 localStorage.setItem('ghn_kho_phong', khoVal);
+                // Lưu vào localStorage để bền vững qua reload, sessionStorage cho compat
+                localStorage.setItem('ghn_profile_completed', 'true');
                 sessionStorage.setItem('ghn_profile_completed', 'true');
+                console.log('[AUTH] Profile status: completed, saved to localStorage');
             };
 
             try {
