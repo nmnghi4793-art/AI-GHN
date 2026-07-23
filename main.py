@@ -3900,34 +3900,112 @@ async def force_dashboard_sync():
 import odo_monitor
 import odo_scheduler
 
-@app.get("/api/odo-monitor/status", dependencies=[Depends(require_api_token)])
-def get_odo_monitor_status(date: str = None, force: bool = False):
-    """API trả về thống kê và bảng chi tiết ODO xe từng kho."""
-    res = odo_monitor.calculate_odo_status(target_date=date, force_refresh=force)
+def _build_odo_api_response(res):
     summary = res.get("summary", {})
     details = res.get("details", [])
+
+    reported_khos_count = sum(1 for d in details if d.get("actual_odo", 0) > 0)
+    completed_khos_count = summary.get("du_khos", 0)
+    missing_khos_count = summary.get("thieu_khos", 0)
+    total_xe_thieu = summary.get("total_xe_thieu", 0)
+    total_xe_thua = summary.get("total_xe_thua", 0)
+
+    mapped_rows = []
+    for item in details:
+        actual_cnt = item.get("actual_odo", 0)
+        expected_cnt = item.get("expected_odo", 0)
+        raw_st = item.get("status", "THIEU")
+        diff_val = item.get("diff", 0)
+
+        if actual_cnt == 0:
+            status_text = "Chưa báo"
+        elif raw_st in ["DU", "Đủ"]:
+            status_text = "Đủ"
+        elif raw_st in ["THUA", "Thừa"]:
+            status_text = "Thừa"
+        else:
+            status_text = "Thiếu"
+
+        kho_full = item.get("kho", "")
+        kho_short = kho_full.replace("Kho Giao Hàng Nặng - ", "").strip()
+
+        row_obj = {
+            **item,
+            "warehouseId": kho_full,
+            "warehouseName": kho_short,
+            "kho": kho_full,
+            "standardVehicles": item.get("tong_xe", 0),
+            "tong_xe": item.get("tong_xe", 0),
+            "extraVehicles": item.get("xe_tc", 0),
+            "xe_tc": item.get("xe_tc", 0),
+            "offVehicles": item.get("xe_off", 0),
+            "xe_off": item.get("xe_off", 0),
+            "expectedVehicles": expected_cnt,
+            "expected_odo": expected_cnt,
+            "expectedOdo": expected_cnt,
+            "reportedVehicles": actual_cnt,
+            "actual_odo": actual_cnt,
+            "actualOdo": actual_cnt,
+            "missingVehicles": diff_val if status_text in ["Thiếu", "Chưa báo"] else 0,
+            "extraReportedVehicles": diff_val if status_text == "Thừa" else 0,
+            "status": status_text,
+            "raw_status": raw_st,
+            "lastUpdated": summary.get("target_date") or item.get("ngay") or "23/07/2026"
+        }
+        mapped_rows.append(row_obj)
 
     alias_summary = {
         **summary,
         "totalWarehouses": summary.get("total_khos", 25),
-        "completedWarehouses": summary.get("du_khos", 0),
-        "missingWarehouses": summary.get("thieu_khos", 0),
-        "missingVehicles": summary.get("total_xe_thieu", 0),
-        "extraVehicles": summary.get("total_xe_thua", 0),
+        "total_khos": summary.get("total_khos", 25),
+        "reportedWarehouses": reported_khos_count,
+        "reported_khos": reported_khos_count,
+        "completedWarehouses": completed_khos_count,
+        "completed_khos": completed_khos_count,
+        "du_khos": completed_khos_count,
+        "missingWarehouses": missing_khos_count,
+        "missing_khos": missing_khos_count,
+        "thieu_khos": missing_khos_count,
+        "missingVehicles": total_xe_thieu,
+        "total_xe_thieu": total_xe_thieu,
+        "extraVehicles": total_xe_thua,
+        "total_xe_thua": total_xe_thua,
     }
 
+    print(f"\n===== [ODO MONITOR RESPONSE API] =====")
+    print(f"totalWarehouses: {alias_summary['totalWarehouses']}")
+    print(f"reportedWarehouses: {alias_summary['reportedWarehouses']}")
+    print(f"completedWarehouses: {alias_summary['completedWarehouses']}")
+    print(f"missingWarehouses: {alias_summary['missingWarehouses']}")
+    print(f"totalMappedRows: {len(mapped_rows)}")
+    print(f"Sample Row 0: {mapped_rows[0] if mapped_rows else {}}")
+    print(f"======================================\n")
+
     return {
+        "success": True,
+        "status": "ok",
+        "totalWarehouses": alias_summary["totalWarehouses"],
+        "reportedWarehouses": alias_summary["reportedWarehouses"],
+        "completedWarehouses": alias_summary["completedWarehouses"],
+        "missingWarehouses": alias_summary["missingWarehouses"],
         "summary": alias_summary,
-        "details": details,
-        "rows": details,
+        "details": mapped_rows,
+        "rows": mapped_rows,
         "alertHistory": odo_scheduler.load_logs(),
         "lastUpdated": summary.get("last_updated", None)
     }
 
+@app.get("/api/odo-monitor/status", dependencies=[Depends(require_api_token)])
+def get_odo_monitor_status(date: str = None, force: bool = False):
+    """API trả về thống kê và bảng chi tiết ODO xe từng kho."""
+    res = odo_monitor.calculate_odo_status(target_date=date, force_refresh=force)
+    return _build_odo_api_response(res)
+
 @app.post("/api/odo-monitor/refresh", dependencies=[Depends(require_api_token)])
 def refresh_odo_monitor_status(date: str = None):
     """API làm mới cache và tính toán lại ODO."""
-    return odo_monitor.calculate_odo_status(target_date=date, force_refresh=True)
+    res = odo_monitor.calculate_odo_status(target_date=date, force_refresh=True)
+    return _build_odo_api_response(res)
 
 @app.get("/api/odo-monitor/logs", dependencies=[Depends(require_api_token)])
 def get_odo_monitor_logs():

@@ -8562,15 +8562,11 @@ async function loadOdoMonitorData(forceRefresh = false) {
     const dateInput = document.getElementById('odo-date-picker');
     let dateVal = '';
     if (dateInput && dateInput.value) {
-        const parts = dateInput.value.split('-');
-        if (parts.length === 3) {
-            dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
+        dateVal = dateInput.value; // e.g. 2026-07-23
     }
 
-    const targetDateLabel = dateVal || '23/07/2026';
-    const endpoint = forceRefresh ? '/odo-monitor/refresh' : '/odo-monitor/status';
-    const url = `${API}${endpoint}${dateVal ? '?date=' + encodeURIComponent(dateVal) : ''}`;
+    const endpoint = forceRefresh ? '/api/odo-monitor/refresh' : '/api/odo-monitor/status';
+    const url = `${endpoint}${dateVal ? '?date=' + encodeURIComponent(dateVal) : ''}`;
     console.log(`[ODO FRONTEND LOG] Requesting API URL: ${url}`);
     
     const tbody = document.getElementById('tbody-odo-monitor');
@@ -8585,7 +8581,12 @@ async function loadOdoMonitorData(forceRefresh = false) {
         const rows = (res && (res.details || res.rows)) ? (res.details || res.rows) : [];
         const summary = (res && res.summary) ? res.summary : null;
 
-        console.log(`[ODO FRONTEND LOG] Rows count: ${rows.length} | Master Warehouses: 25`);
+        console.log(`[ODO FRONTEND LOG] Received rows count: ${rows.length} | Master Warehouses: 25`);
+        if (rows.length > 0) {
+            console.log('[ODO FRONTEND LOG] First row received:', rows[0]);
+            console.log('[ODO FRONTEND LOG] Reported vehicles of first 5 warehouses:', rows.slice(0, 5).map(r => `${r.warehouseName || r.kho}: reported=${r.reportedVehicles ?? r.actual_odo}`));
+            console.log(`[ODO FRONTEND LOG] Summary: completedWarehouses=${summary ? (summary.completedWarehouses ?? summary.du_khos) : 'N/A'}, reportedWarehouses=${summary ? (summary.reportedWarehouses ?? summary.reported_khos) : 'N/A'}`);
+        }
 
         if (summary && rows.length > 0) {
             currentOdoData = { summary, details: rows };
@@ -8596,11 +8597,11 @@ async function loadOdoMonitorData(forceRefresh = false) {
             }
         } else {
             console.warn('[ODO FRONTEND LOG] API returned empty summary/rows, rendering fallback layout.');
-            renderFallbackOdoState(targetDateLabel, `Chưa có dữ liệu ODO ngày ${targetDateLabel}.`);
+            renderFallbackOdoState(dateVal || 'Hôm nay', `Chưa có dữ liệu ODO ngày ${dateVal || 'Hôm nay'}.`);
         }
     } catch (e) {
         console.error('[ODO FRONTEND LOG] Error loading ODO data:', e);
-        renderFallbackOdoState(targetDateLabel, "Không tải được dữ liệu ODO. Vui lòng bấm Làm mới.");
+        renderFallbackOdoState('Hôm nay', "Không tải được dữ liệu ODO. Vui lòng bấm Làm mới.");
     }
 
     loadOdoMonitorLogs();
@@ -8609,10 +8610,15 @@ async function loadOdoMonitorData(forceRefresh = false) {
 
 function renderFallbackOdoState(targetDateLabel, messageText) {
     const defaultSummary = {
+        totalWarehouses: 25,
         total_khos: 25,
+        completedWarehouses: 0,
         du_khos: 0,
+        missingWarehouses: 25,
         thieu_khos: 25,
-        total_xe_thieu: 49,
+        missingVehicles: 0,
+        total_xe_thieu: 0,
+        extraVehicles: 0,
         total_xe_thua: 0,
         last_updated: new Date().toLocaleTimeString('vi-VN') + ' ' + targetDateLabel
     };
@@ -8643,22 +8649,27 @@ function renderOdoMonitorCards(summary, details) {
     const xeOffEl = document.getElementById('odo-val-xe-off');
     const updatedEl = document.getElementById('odo-last-updated');
 
+    const totalKhos = summary.totalWarehouses ?? summary.total_khos ?? 25;
+    const duKhos = summary.completedWarehouses ?? summary.completed_khos ?? summary.du_khos ?? 0;
+    const thieuKhos = summary.missingWarehouses ?? summary.missing_khos ?? summary.thieu_khos ?? 0;
+    const xeThieu = summary.missingVehicles ?? summary.total_xe_thieu ?? 0;
+
     let totalTc = 0;
     let totalOff = 0;
-    if (details) {
+    if (details && Array.isArray(details)) {
         details.forEach(it => {
-            totalTc += (it.xe_tc || 0);
-            totalOff += (it.xe_off || 0);
+            totalTc += (it.extraVehicles ?? it.xe_tc ?? 0);
+            totalOff += (it.offVehicles ?? it.xe_off ?? 0);
         });
     }
 
-    if (tongKhoEl) tongKhoEl.textContent = summary.total_khos || 25;
-    if (duEl) duEl.textContent = `${summary.du_khos}/${summary.total_khos || 25} kho`;
-    if (thieuEl) thieuEl.textContent = `${summary.thieu_khos}/${summary.total_khos || 25} kho`;
-    if (xeThieuEl) xeThieuEl.textContent = `${summary.total_xe_thieu} xe`;
+    if (tongKhoEl) tongKhoEl.textContent = totalKhos;
+    if (duEl) duEl.textContent = `${duKhos}/${totalKhos} kho`;
+    if (thieuEl) thieuEl.textContent = `${thieuKhos}/${totalKhos} kho`;
+    if (xeThieuEl) xeThieuEl.textContent = `${xeThieu} xe`;
     if (xeTcEl) xeTcEl.textContent = `${totalTc} xe`;
     if (xeOffEl) xeOffEl.textContent = `${totalOff} xe`;
-    if (updatedEl) updatedEl.textContent = `Cập nhật lần cuối: ${summary.last_updated || '--'}`;
+    if (updatedEl) updatedEl.textContent = `Cập nhật lần cuối: ${summary.last_updated || summary.lastUpdated || '--'}`;
 }
 
 function filterOdoByStatus(status) {
@@ -8683,19 +8694,22 @@ function renderOdoTable() {
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     let filtered = currentOdoData.details.filter(item => {
-        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim().toLowerCase();
-        const fullName = item.kho.toLowerCase();
-        const matchesSearch = !query || shortName.includes(query) || fullName.includes(query);
+        const kName = (item.warehouseName || item.kho || '').replace('Kho Giao Hàng Nặng - ', '').trim().toLowerCase();
+        const fullName = (item.kho || '').toLowerCase();
+        const matchesSearch = !query || kName.includes(query) || fullName.includes(query);
+
+        const repV = item.reportedVehicles ?? item.actual_odo ?? item.actualOdo ?? 0;
+        const statusStr = String(item.status || item.raw_status || '').toUpperCase();
 
         let matchesFilter = true;
         if (currentOdoFilter === 'DU') {
-            matchesFilter = (item.status === 'DU');
+            matchesFilter = (statusStr === 'DU' || statusStr === 'ĐỦ' || statusStr === 'ĐU');
         } else if (currentOdoFilter === 'THIEU') {
-            matchesFilter = (item.status === 'THIEU' && item.actual_odo > 0);
+            matchesFilter = ((statusStr === 'THIEU' || statusStr === 'THIẾU') && repV > 0);
         } else if (currentOdoFilter === 'CHUABAO') {
-            matchesFilter = (item.expected_odo > 0 && item.actual_odo === 0);
+            matchesFilter = (repV === 0);
         } else if (currentOdoFilter === 'THUA') {
-            matchesFilter = (item.status === 'THUA');
+            matchesFilter = (statusStr === 'THUA' || statusStr === 'THỪA');
         }
 
         return matchesSearch && matchesFilter;
@@ -8708,49 +8722,56 @@ function renderOdoTable() {
 
     let html = '';
     filtered.forEach((item, idx) => {
+        const kName = item.warehouseName || (item.kho || '').replace('Kho Giao Hàng Nặng - ', '').trim();
+        const stdV = item.standardVehicles ?? item.tong_xe ?? 0;
+        const tcV = item.extraVehicles ?? item.xe_tc ?? 0;
+        const offV = item.offVehicles ?? item.xe_off ?? 0;
+        const expV = item.expectedVehicles ?? item.expected_odo ?? item.expectedOdo ?? 0;
+        const repV = item.reportedVehicles ?? item.actual_odo ?? item.actualOdo ?? 0;
+        const diffV = item.missingVehicles ?? item.diff ?? 0;
+        const statusStr = String(item.status || item.raw_status || '').toUpperCase();
+
         let badgeHtml = '';
         let diffColor = 'var(--text)';
         let diffText = '0';
         let thuaText = '0';
 
-        if (item.expected_odo > 0 && item.actual_odo === 0) {
+        if (repV === 0) {
             badgeHtml = '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-circle-xmark"></i> Chưa báo</span>';
             diffColor = '#ef4444';
-            diffText = `-${item.expected_odo}`;
-        } else if (item.status === 'DU') {
+            diffText = `-${expV}`;
+        } else if (statusStr === 'DU' || statusStr === 'ĐỦ' || statusStr === 'ĐU') {
             badgeHtml = '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-circle-check"></i> Đủ</span>';
             diffText = '0';
-        } else if (item.status === 'THIEU') {
+        } else if (statusStr === 'THIEU' || statusStr === 'THIẾU') {
             badgeHtml = '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-triangle-exclamation"></i> Thiếu</span>';
             diffColor = '#f59e0b';
-            diffText = `-${item.diff}`;
-        } else if (item.status === 'THUA') {
+            diffText = `-${diffV}`;
+        } else if (statusStr === 'THUA' || statusStr === 'THỪA') {
             badgeHtml = '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:4px"><i class="fa-solid fa-square-plus"></i> Thừa</span>';
-            thuaText = `+${item.diff}`;
+            thuaText = `+${item.extraReportedVehicles || item.diff || 0}`;
         }
 
-        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim();
-
         html += `
-        <tr onclick="openOdoKhoModal('${escapeHtml(item.kho)}')" style="cursor:pointer;transition:background 0.2s" class="hover-row">
+        <tr onclick="openOdoKhoModal('${escapeHtml(item.kho || item.warehouseId)}')" style="cursor:pointer;transition:background 0.2s" class="hover-row">
             <td style="text-align:center;color:var(--text3);font-size:0.82rem">${idx + 1}</td>
             <td style="font-weight:600;color:var(--text1)">
                 <div style="display:flex;align-items:center;gap:6px">
                     <i class="fa-solid fa-warehouse" style="color:#06b6d4;font-size:0.85rem"></i>
-                    <span>${escapeHtml(shortName)}</span>
+                    <span>${escapeHtml(kName)}</span>
                 </div>
             </td>
-            <td style="text-align:center;font-weight:500">${item.tong_xe}</td>
-            <td style="text-align:center;color:${item.xe_tc > 0 ? '#3b82f6' : 'var(--text3)'};font-weight:${item.xe_tc > 0 ? '700' : 'normal'}">${item.xe_tc}</td>
-            <td style="text-align:center;color:${item.xe_off > 0 ? '#f97316' : 'var(--text3)'};font-weight:${item.xe_off > 0 ? '700' : 'normal'}">${item.xe_off}</td>
-            <td style="text-align:center;font-weight:700;color:#06b6d4">${item.expected_odo}</td>
-            <td style="text-align:center;font-weight:700;color:var(--text1)">${item.actual_odo}</td>
+            <td style="text-align:center;font-weight:500">${stdV}</td>
+            <td style="text-align:center;color:${tcV > 0 ? '#3b82f6' : 'var(--text3)'};font-weight:${tcV > 0 ? '700' : 'normal'}">${tcV}</td>
+            <td style="text-align:center;color:${offV > 0 ? '#f97316' : 'var(--text3)'};font-weight:${offV > 0 ? '700' : 'normal'}">${offV}</td>
+            <td style="text-align:center;font-weight:700;color:#06b6d4">${expV}</td>
+            <td style="text-align:center;font-weight:700;color:var(--text1)">${repV}</td>
             <td style="text-align:center;font-weight:700;color:${diffColor}">${diffText}</td>
             <td style="text-align:center;font-weight:700;color:#3b82f6">${thuaText}</td>
             <td style="text-align:center">${badgeHtml}</td>
-            <td style="text-align:center;font-size:0.8rem;color:var(--text3)">${escapeHtml(item.ngay)}</td>
+            <td style="text-align:center;font-size:0.8rem;color:var(--text3)">${escapeHtml(item.lastUpdated || item.ngay || '')}</td>
             <td style="text-align:center" onclick="event.stopPropagation()">
-                <button onclick="openOdoKhoModal('${escapeHtml(item.kho)}')" class="btn" style="padding:4px 10px;font-size:0.78rem;background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.3);border-radius:6px;cursor:pointer;font-weight:600">
+                <button onclick="openOdoKhoModal('${escapeHtml(item.kho || item.warehouseId)}')" class="btn" style="padding:4px 10px;font-size:0.78rem;background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.3);border-radius:6px;cursor:pointer;font-weight:600">
                     <i class="fa-solid fa-eye"></i> Chi tiết
                 </button>
             </td>
