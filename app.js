@@ -7224,15 +7224,21 @@ async function saveXeDaily() {
 
         if (res.ok) {
             const data = await res.json();
-            const savedCount = data.saved || (data.record ? 1 : records.length);
-            showToast(`✅ Đã lưu ghi nhận ${savedCount} xe vận hành daily.`, 'success');
-            // Reset form
-            const c = document.getElementById('xe-daily-rows-container');
-            if (c) c.innerHTML = '';
-            xeDailyRowCount = 0;
-            addXeDailyRow();
-            // Reload history & cards with reset filters
-            await loadXeDailyRecords(true);
+            if (data.success && (data.savedCount > 0 || data.saved > 0)) {
+                const savedCount = data.savedCount || data.saved || 1;
+                const totalRecs = data.totalRecords || '';
+                showToast(`✅ Đã lưu ghi nhận ${savedCount} xe vận hành daily.${totalRecs ? ' Tổng: ' + totalRecs + ' bản ghi.' : ''}`, 'success');
+                // Reset form
+                const c = document.getElementById('xe-daily-rows-container');
+                if (c) c.innerHTML = '';
+                xeDailyRowCount = 0;
+                addXeDailyRow();
+                // Reload history & cards with reset filters
+                await loadXeDailyRecords(true);
+            } else {
+                const msg = data.message || 'Không thể lưu ghi nhận.';
+                showToast(`❌ Lỗi: ${msg}`, 'error');
+            }
         } else {
             const errData = await res.json().catch(() => ({}));
             const msg = errData.detail || errData.message || 'Không thể lưu ghi nhận.';

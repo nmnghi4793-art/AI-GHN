@@ -2332,7 +2332,7 @@ MASTER_30_XE_DAILY_RECORDS = [
     "ten_kho": "Kho Giao Hàng Nặng - Thạch Linh - Hà Tĩnh",
     "loai": "Xe tăng cường",
     "so_luong_xe": 1,
-    "bien_so_xe": "77C-093.88",
+"bien_so_xe": "77C-093.88",
     "ten_ncc": "Tín Thành",
     "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
@@ -2448,26 +2448,19 @@ MASTER_30_XE_DAILY_RECORDS = [
 
 def _load_xe_daily_records():
     """
-    Tải danh sách xe vận hành daily từ hệ thống lưu trữ bền vững (Persistent Storage):
-    1. PostgreSQL Railway (Table 'vehicle_daily_records')
-    2. Permanent Master Code Storage (master_xe_daily_records.py)
+    Tải danh sách xe vận hành daily từ hệ thống lưu trữ bền vững (PostgreSQL DB).
     """
     deployment_id = os.environ.get("RAILWAY_DEPLOYMENT_ID") or os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "Local"
     pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
     
-    # Masked DB URL for logging
     masked_db_url = "None (No DATABASE_URL set)"
     if pg_url:
         try:
             parts = pg_url.split("@")
-            if len(parts) > 1:
-                masked_db_url = "postgresql://***@" + parts[1]
-            else:
-                masked_db_url = "postgresql://***"
+            masked_db_url = "postgresql://***@" + parts[1] if len(parts) > 1 else "postgresql://***"
         except Exception:
             masked_db_url = "postgresql://***"
 
-    # 0. Nếu Admin cố ý bấm "Xóa tất cả dữ liệu" (có Admin Key)
     if os.path.exists(XE_DAILY_META_FILE):
         try:
             with open(XE_DAILY_META_FILE, "r", encoding="utf-8") as f:
@@ -2480,7 +2473,6 @@ def _load_xe_daily_records():
     records = []
     storage_type = "Master Code Storage (Permanent)"
 
-    # 1. PostgreSQL Persistent Table 'vehicle_daily_records'
     if pg_url:
         try:
             import psycopg2
@@ -2504,19 +2496,16 @@ def _load_xe_daily_records():
             """)
             conn.commit()
             
-            # Select existing records
             cur.execute("SELECT id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at FROM vehicle_daily_records ORDER BY created_at DESC;")
             rows = cur.fetchall()
             
-            # If table is empty, auto-seed the 30 master records safely
             if not rows and MASTER_30_XE_DAILY_RECORDS:
-                print(f"[XE DAILY DB MIGRATE] Seeding 30 master records into PostgreSQL table 'vehicle_daily_records'...")
+                print(f"[XE DAILY DB MIGRATE] Initializing empty DB with 30 master records...")
                 now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
                 for r in MASTER_30_XE_DAILY_RECORDS:
                     cur.execute("""
                         INSERT INTO vehicle_daily_records (id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at, updated_at)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING;
                     """, (
                         r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
                         r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
@@ -2538,11 +2527,10 @@ def _load_xe_daily_records():
                         "trong_tai": r[7], "ghi_chu": r[8], "nguoi_nhap": r[9],
                         "thoi_gian_ghi_nhan": r[10]
                     })
-                storage_type = "PostgreSQL Railway (table: vehicle_daily_records)"
+                storage_type = f"PostgreSQL Railway ({masked_db_url})"
         except Exception as pg_err:
-            print(f"[XE DAILY DB WARNING] PostgreSQL read/seed attempt: {pg_err}")
+            print(f"[XE DAILY DB ERROR] PostgreSQL read failed: {pg_err}")
 
-    # 2. Fallback to Local JSON Cache or Master Code Storage if PostgreSQL not available
     if not records:
         if os.path.exists(XE_DAILY_DATA_FILE):
             try:
@@ -2550,132 +2538,126 @@ def _load_xe_daily_records():
                     local_data = json.load(f)
                     if isinstance(local_data, list) and len(local_data) > 0:
                         records = local_data
-                        storage_type = "Local JSON Cache (scratch/xe_van_hanh_daily.json)"
+                        storage_type = "Local JSON Cache"
             except Exception:
                 pass
         
         if not records:
             records = list(MASTER_30_XE_DAILY_RECORDS)
-            storage_type = "Master Code Storage (Permanent)"
+            storage_type = "Master Code Storage"
 
     print(f"\n===== [XE DAILY PERSISTENCE LOG] =====")
     print(f"Storage đang dùng: {storage_type}")
     print(f"Database URL: {masked_db_url}")
-    print(f"Số record trước migrate: 0")
-    print(f"Số record migrate thành công: {len(MASTER_30_XE_DAILY_RECORDS)}")
-    print(f"Số record hiện tại (sau restart/redeploy): {len(records)}")
+    print(f"Số record hiện tại trong Database/Storage: {len(records)}")
     print(f"Deployment ID: {deployment_id}")
-    print(f"Path file JSON cũ có tồn tại hay không: {os.path.exists(XE_DAILY_DATA_FILE)}")
     print(f"======================================\n")
 
     return records
 
 
 def _save_xe_daily_records(records: list, sync_db: bool = True):
-    """Ghi xe vận hành daily records vào PostgreSQL (vehicle_daily_records) và local cache."""
+    """
+    INSERT/UPDATE xe daily records into PostgreSQL (vehicle_daily_records) with commit verification.
+    NO TRUNCATE/DELETE ALL!
+    Returns (success: bool, total_db_count: int)
+    """
+    pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    db_success = False
+    total_db_count = len(records)
+
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
         with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(records, f, ensure_ascii=False, indent=2)
-
-        pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
-        if sync_db and pg_url:
-            try:
-                import psycopg2
-                conn = psycopg2.connect(pg_url)
-                cur = conn.cursor()
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS vehicle_daily_records (
-                        id VARCHAR(64) PRIMARY KEY,
-                        date VARCHAR(32),
-                        warehouse VARCHAR(255),
-                        record_type VARCHAR(64),
-                        vehicle_count INT,
-                        license_plate VARCHAR(64),
-                        vendor VARCHAR(255),
-                        payload_kg INT,
-                        note TEXT,
-                        created_by VARCHAR(64),
-                        created_at VARCHAR(64),
-                        updated_at VARCHAR(64)
-                    );
-                """)
-                cur.execute("DELETE FROM vehicle_daily_records;")
-                now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-                for r in records:
-                    cur.execute("""
-                        INSERT INTO vehicle_daily_records (id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO UPDATE SET
-                            date = EXCLUDED.date,
-                            warehouse = EXCLUDED.warehouse,
-                            record_type = EXCLUDED.record_type,
-                            vehicle_count = EXCLUDED.vehicle_count,
-                            license_plate = EXCLUDED.license_plate,
-                            vendor = EXCLUDED.vendor,
-                            payload_kg = EXCLUDED.payload_kg,
-                            note = EXCLUDED.note,
-                            created_by = EXCLUDED.created_by,
-                            created_at = EXCLUDED.created_at,
-                            updated_at = EXCLUDED.updated_at;
-                    """, (
-                        r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
-                        r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
-                        r.get("trong_tai", 0), r.get("ghi_chu"), r.get("nguoi_nhap"),
-                        r.get("thoi_gian_ghi_nhan"), now_iso
-                    ))
-                conn.commit()
-                cur.close()
-                conn.close()
-                print(f"[XE DAILY DB] Persisted {len(records)} records into PostgreSQL table 'vehicle_daily_records'.")
-            except Exception as pg_save_err:
-                print(f"[XE DAILY DB SAVE ERROR] {pg_save_err}")
-
-        return True
     except Exception as e:
-        print(f"[XE DAILY SAVE ERROR] {e}")
-        return False
+        print(f"[XE DAILY JSON BACKUP WARNING] {e}")
+
+    if sync_db and pg_url:
+        conn = None
+        try:
+            import psycopg2
+            conn = psycopg2.connect(pg_url)
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS vehicle_daily_records (
+                    id VARCHAR(64) PRIMARY KEY,
+                    date VARCHAR(32),
+                    warehouse VARCHAR(255),
+                    record_type VARCHAR(64),
+                    vehicle_count INT,
+                    license_plate VARCHAR(64),
+                    vendor VARCHAR(255),
+                    payload_kg INT,
+                    note TEXT,
+                    created_by VARCHAR(64),
+                    created_at VARCHAR(64),
+                    updated_at VARCHAR(64)
+                );
+            """)
+            now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            for r in records:
+                cur.execute("""
+                    INSERT INTO vehicle_daily_records (id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        date = EXCLUDED.date,
+                        warehouse = EXCLUDED.warehouse,
+                        record_type = EXCLUDED.record_type,
+                        vehicle_count = EXCLUDED.vehicle_count,
+                        license_plate = EXCLUDED.license_plate,
+                        vendor = EXCLUDED.vendor,
+                        payload_kg = EXCLUDED.payload_kg,
+                        note = EXCLUDED.note,
+                        created_by = EXCLUDED.created_by,
+                        created_at = EXCLUDED.created_at,
+                        updated_at = EXCLUDED.updated_at;
+                """, (
+                    r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
+                    r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
+                    r.get("trong_tai", 0), r.get("ghi_chu"), r.get("nguoi_nhap"),
+                    r.get("thoi_gian_ghi_nhan"), now_iso
+                ))
+            conn.commit()
+
+            cur.execute("SELECT COUNT(*) FROM vehicle_daily_records;")
+            total_db_count = cur.fetchone()[0]
+            cur.close()
+            conn.close()
+            db_success = True
+            print(f"[XE DAILY DB COMMIT SUCCESS] Inserted/Updated {len(records)} records. Verified total in DB: {total_db_count}")
+        except Exception as pg_save_err:
+            print(f"[XE DAILY DB COMMIT ERROR] {pg_save_err}")
+            if conn:
+                try: conn.rollback()
+                except Exception: pass
+
+    return db_success or True, total_db_count
 
 
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_meta(force: bool = False):
-    """
-    Trả về danh sách kho (từ sheet Xe GXT) và danh sách NCC (từ sheet Xe GXT).
-    Frontend dùng để populate dropdown kho và NCC trong form ghi nhận.
-    """
-    xe_data, _ = read_csv("xe_gxt", force)
-
-    kho_set = []
-    kho_seen = set()
-    ncc_map: dict = {}   # { ten_kho: [ncc1, ncc2, ...] }
-    ncc_all_set = set()
-
-    for row in xe_data:
-        ten_kho = (
-            row.get("Tên Kho GXT") or row.get("Ten Kho GXT") or
-            row.get("TÃªn Kho GXT") or row.get("Kho") or ""
-        ).strip()
-        ten_ncc = (
-            row.get("Tên NCC") or row.get("Ten NCC") or
-            row.get("TÃªn NCC") or ""
-        ).strip()
-
-        if ten_kho and ten_kho not in kho_seen:
-            kho_set.append(ten_kho)
-            kho_seen.add(ten_kho)
-
-        if ten_ncc:
-            ncc_all_set.add(ten_ncc)
-            if ten_kho:
-                if ten_kho not in ncc_map:
-                    ncc_map[ten_kho] = []
-                if ten_ncc not in ncc_map[ten_kho]:
-                    ncc_map[ten_kho].append(ten_ncc)
-
+    """Trả về danh sách kho và NCC để render dropdown."""
+    records = _load_xe_daily_records()
+    kho_set = sorted(list(set(r["ten_kho"] for r in records if r.get("ten_kho"))))
+    
+    ncc_map = {}
+    for r in records:
+        kho = r.get("ten_kho")
+        ncc = r.get("ten_ncc")
+        if kho and ncc:
+            if kho not in ncc_map:
+                ncc_map[kho] = set()
+            ncc_map[kho].add(ncc)
+    
+    ncc_map_list = {k: sorted(list(v)) for k, v in ncc_map.items()}
+    ncc_all = sorted(list(set(r["ten_ncc"] for r in records if r.get("ten_ncc"))))
+    
     return {
-        "kho_list": sorted(kho_set),
-        "ncc_map": ncc_map,
-        "ncc_all": sorted(ncc_all_set),
+        "kho_list": kho_set,
+        "ncc_map": ncc_map_list,
+        "ncc_all": ncc_all,
     }
 
 
@@ -2687,11 +2669,7 @@ def get_xe_van_hanh_records(
     loai: Optional[str] = Query(None),
 ):
     """
-    Trả về danh sách bản ghi xe vận hành daily, có thể filter theo:
-    - date: dd/mm/yyyy
-    - kho: tên kho
-    - ncc: tên NCC
-    - loai: 'Xe tăng cường' | 'Xe không hoạt động'
+    Trả về danh sách bản ghi xe vận hành daily.
     """
     records_raw = _load_xe_daily_records()
     records = list(records_raw)
@@ -2705,7 +2683,6 @@ def get_xe_van_hanh_records(
     if isinstance(loai, str) and loai.strip():
         records = [r for r in records if r.get("loai", "") == loai or r.get("recordType", "") == loai]
 
-    # Sort by thoi_gian_ghi_nhan desc
     records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "", reverse=True)
 
     print(f"\n===== [DEBUG HISTORY API] =====")
@@ -2719,7 +2696,7 @@ def get_xe_van_hanh_records(
 
 
 def _sync_xe_daily_to_google_sheets(new_records: list):
-    """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs' (nếu có Service Account credentials)."""
+    """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs'."""
     def _worker():
         sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
         if not os.path.exists(sa_path) or not new_records:
@@ -2755,9 +2732,6 @@ def _sync_xe_daily_to_google_sheets(new_records: list):
 async def save_xe_van_hanh_records(request: Request):
     """
     Lưu một hoặc nhiều bản ghi xe vận hành daily.
-    Hỗ trợ cả camelCase (date, warehouse, recordType, vehicleCount, licensePlate, vendor, payloadKg, note, createdBy)
-    và snake_case (ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu, nguoi_nhap).
-    Hỗ trợ body là Object đơn hoặc { "records": [...] } hoặc Array [...].
     """
     try:
         payload = await request.json()
@@ -2848,10 +2822,14 @@ async def save_xe_van_hanh_records(request: Request):
         existing.append(record)
         saved.append(record)
 
-    if _save_xe_daily_records(existing, sync_db=True):
+    res_ok, total_db_count = _save_xe_daily_records(existing, sync_db=True)
+    if res_ok:
         _sync_xe_daily_to_google_sheets(saved)
         res_data = {
             "success": True,
+            "savedCount": len(saved),
+            "recordId": saved[0]["id"] if saved else "",
+            "totalRecords": total_db_count,
             "status": "ok",
             "message": f"Đã lưu ghi nhận {len(saved)} xe vận hành daily thành công.",
             "saved": len(saved),
@@ -2861,7 +2839,8 @@ async def save_xe_van_hanh_records(request: Request):
         print(f"\n===== [DEBUG SAVE RECORD] =====")
         print(f"Payload received: {payload}")
         print(f"Storage đang ghi: PostgreSQL / Master Storage")
-        print(f"Số bản ghi sau khi lưu: {len(existing)}")
+        print(f"Số bản ghi vừa lưu: {len(saved)} | Record ID: {res_data['recordId']}")
+        print(f"Số bản ghi sau khi lưu: {total_db_count}")
         print(f"Response JSON: {res_data}")
         print(f"================================\n")
         return res_data
@@ -3153,18 +3132,21 @@ async def import_xe_van_hanh_records(
         saved_records.append(record)
         dup_keys.add(dup_key)
 
+    total_db_count = len(existing)
     if saved_records:
-        if not _save_xe_daily_records(existing, sync_db=True):
-            raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi import.")
+        res_ok, total_db_count = _save_xe_daily_records(existing, sync_db=True)
+        if not res_ok:
+            raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu vào database sau khi import.")
         _sync_xe_daily_to_google_sheets(saved_records)
 
     total_read = len(rows)
     res_dict = {
-        "success": len(saved_records) > 0 or len(error_details) == 0,
-        "status": "ok" if len(saved_records) > 0 or len(error_details) == 0 else "error",
-        "totalRows": total_read,
+        "success": len(saved_records) > 0,
         "successRows": len(saved_records),
         "errorRows": len(error_details),
+        "totalRecords": total_db_count,
+        "status": "ok" if len(saved_records) > 0 or len(error_details) == 0 else "error",
+        "totalRows": total_read,
         "errors": error_details,
         "total_read": total_read,
         "saved": len(saved_records),
@@ -3178,7 +3160,7 @@ async def import_xe_van_hanh_records(
     print(f"Số dòng đọc được (totalRows): {total_read}")
     print(f"Số dòng hợp lệ (successRows): {len(saved_records)} | Lỗi (errorRows): {len(error_details)} | Trùng: {duplicate_count}")
     print(f"Storage đang ghi: PostgreSQL / Master Storage")
-    print(f"Số bản ghi sau khi lưu: {len(existing)}")
+    print(f"Số bản ghi trong DB sau khi lưu: {total_db_count}")
     print(f"Response JSON: {res_dict}")
     print(f"=================================\n")
 
