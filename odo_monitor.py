@@ -4,6 +4,7 @@ import time
 import ssl
 import json
 import secrets
+import re
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 
@@ -113,50 +114,78 @@ def _normalize_date_str(raw_date: str) -> str:
     """Wrapper cho parse_odo_date."""
     return parse_odo_date(raw_date)
 
+import unicodedata
+
+def remove_vietnamese_accents(input_str: str) -> str:
+    if not input_str:
+        return ""
+    nfkd_form = unicodedata.normalize('NFKD', str(input_str))
+    no_accents = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    return no_accents.replace('đ', 'd').replace('Đ', 'D')
+
+def normalize_warehouse_name(name: str) -> str:
+    """
+    Chuẩn hóa tên kho theo 8 bước:
+    1. Convert Unicode
+    2. Remove dấu tiếng Việt
+    3. Lowercase
+    4. Trim
+    5. Remove prefix 'Kho Giao Hàng Nặng -' hoặc 'Kho '
+    6. Replace nhiều space thành 1
+    7. Replace ' - ' -> '-'
+    8. Return normalized string.
+    """
+    if not name:
+        return ""
+    s = remove_vietnamese_accents(name).lower()
+    s = re.sub(r'^kho\s+giao\s+hang\s+nang\s*[\-\:]*\s*', '', s)
+    s = re.sub(r'^kho\s+', '', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    s = re.sub(r'\s*\-\s*', '-', s)
+    return s.strip()
+
+WAREHOUSE_ALIASES = {
+    "thang loi-kontum": "thang loi-kon tum",
+    "kontum": "thang loi-kon tum",
+    "la gi-binh thuan": "lagi-binh thuan",
+    "lagi": "lagi-binh thuan",
+    "buon ma thuot": "buon ma thuot-dak lak",
+    "bmt": "buon ma thuot-dak lak",
+    "dong tho-thanh hoa": "dong tho-thanh hoa"
+}
+
 def _match_master_kho(kho_input: str, master_khos: list) -> str:
-    """Khớp tên kho viết tắt hoặc tên thô với danh sách Kho chuẩn."""
+    """
+    Khớp tên kho thô với danh sách 25 Kho chuẩn thông qua normalize_warehouse_name & Alias.
+    """
     if not kho_input:
         return ""
-    k_clean = str(kho_input).strip().lower()
 
+    input_norm = normalize_warehouse_name(kho_input)
+    if not input_norm:
+        return ""
+
+    # 1. Exact match on normalized string
     for mk in master_khos:
-        if k_clean == mk.lower().strip():
+        mk_norm = normalize_warehouse_name(mk)
+        if input_norm == mk_norm:
             return mk
 
-    keywords = {
-        "nha trang": "Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa",
-        "đà nẵng": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
-        "liên chiểu": "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
-        "hòa xuân": "Kho Giao Hàng Nặng - Hòa Xuân - Đà Nẵng",
-        "huế": "Kho Giao Hàng Nặng - Hương Thủy - Huế",
-        "vinh": "Kho Giao Hàng Nặng - Vinh - Nghệ An",
-        "gia lai": "Kho Giao Hàng Nặng - Pleiku - Gia Lai",
-        "pleiku": "Kho Giao Hàng Nặng - Pleiku - Gia Lai",
-        "quy nhơn": "Kho Giao Hàng Nặng - Quy Nhơn - Bình Định",
-        "hoài nhơn": "Kho Giao Hàng Nặng - Hoài Nhơn - Bình Định",
-        "buôn ma thuột": "Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắc Lắk",
-        "cam ranh": "Kho Giao Hàng Nặng - Cam Ranh - Khánh Hòa",
-        "phan thiết": "Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận",
-        "hội an": "Kho Giao Hàng Nặng - Hội An - Quảng Nam",
-        "tam kỳ": "Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam",
-        "đông hà": "Kho Giao Hàng Nặng - Đông Hà - Quảng Trị",
-        "đồng hới": "Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình",
-    }
-
-    for kw, target_kho in keywords.items():
-        if kw in k_clean:
-            for mk in master_khos:
-                if target_kho.lower() in mk.lower():
-                    return mk
-            return target_kho
-
-    for mk in master_khos:
-        mk_clean = mk.lower().replace("kho giao hàng nặng -", "").strip()
-        parts = [p.strip() for p in mk_clean.split("-")]
-        for p in parts:
-            if p and p in k_clean:
+    # 2. Alias match
+    alias_target = WAREHOUSE_ALIASES.get(input_norm)
+    if alias_target:
+        for mk in master_khos:
+            if alias_target == normalize_warehouse_name(mk):
                 return mk
-    return ""  # Không thuộc 25 kho master -> Loại bỏ
+
+    # 3. Substring / partial match fallback
+    for mk in master_khos:
+        mk_norm = normalize_warehouse_name(mk)
+        if mk_norm and (mk_norm in input_norm or input_norm in mk_norm):
+            return mk
+
+    print(f"[ODO UNMATCHED WAREHOUSE] Raw: '{kho_input}' | Normalized: '{input_norm}'")
+    return ""
 
 def get_master_kho_totals() -> dict:
     """
@@ -251,6 +280,8 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
         sample_matched_rows = []
         matched_23_july_count = 0
 
+        logged_raw_warehouses = set()
+
         for idx, r in enumerate(rows[1:], start=2):
             if not r or not any(r) or len(r) < 7:
                 continue
@@ -261,6 +292,14 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
             date_norm = parse_odo_date(col_g)
             kho_norm = _match_master_kho(raw_kho, master_khos)
             clean_plate = re.sub(r'[^A-Z0-9]', '', str(raw_bien).upper()) if raw_bien else ""
+
+            if raw_kho and raw_kho not in logged_raw_warehouses:
+                logged_raw_warehouses.add(raw_kho)
+                norm_str = normalize_warehouse_name(raw_kho)
+                if kho_norm:
+                    print(f"[ODO MATCH LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> Matched Dashboard: '{kho_norm}'")
+                else:
+                    print(f"[ODO UNMATCHED LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> UNMATCHED!")
 
             if date_norm == "23/07/2026":
                 matched_23_july_count += 1
