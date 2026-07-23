@@ -3707,22 +3707,23 @@ function showSection(name) {
     }
 }
 
-// ---- EVENT LISTENERS ----
-document.querySelectorAll('.nav-item[data-section]').forEach(item => {
-    item.addEventListener('click', e => { e.preventDefault(); showSection(item.dataset.section); });
+// ---- EVENT LISTENERS (CRASH-PROOF EVENT DELEGATION & SAFE CHAINING) ----
+document.addEventListener('click', e => {
+    const navItem = e.target.closest('.nav-item[data-section], .view-all[data-section]');
+    if (navItem) {
+        e.preventDefault();
+        const sec = navItem.dataset.section;
+        if (sec) showSection(sec);
+    }
 });
 
-document.querySelectorAll('.view-all[data-section]').forEach(link => {
-    link.addEventListener('click', e => { e.preventDefault(); showSection(e.currentTarget.dataset.section); });
-});
-
-document.getElementById('refresh-btn').addEventListener('click', () => {
+document.getElementById('refresh-btn')?.addEventListener('click', () => {
     loadDashboardFromCache(true);
 });
 
-document.getElementById('sidebar-toggle').addEventListener('click', () => {
+document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
     const sb = document.getElementById('sidebar');
-    sb.style.width = sb.style.width === '56px' ? '240px' : '56px';
+    if (sb) sb.style.width = sb.style.width === '56px' ? '240px' : '56px';
 });
 
 // Theme Toggle Logic
@@ -3786,35 +3787,35 @@ function updateChartTheme(theme) {
     });
 }
 
-// Filters
-document.getElementById('filter-kho-gtc').addEventListener('input', e => renderGtcSection(e.target.value));
+// Filters (Safe optional chaining & fallback defaults)
+document.getElementById('filter-kho-gtc')?.addEventListener('input', e => renderGtcSection(e.target.value));
 document.getElementById('filter-kho-gtc-select')?.addEventListener('change', () => renderGtcSection());
 
-document.getElementById('filter-kho-backlog').addEventListener('input', e =>
-    renderBacklogSection(e.target.value, document.getElementById('filter-luong').value));
-document.getElementById('filter-luong').addEventListener('change', e =>
-    renderBacklogSection(document.getElementById('filter-kho-backlog').value, e.target.value));
-document.getElementById('filter-b2b').addEventListener('input', e =>
-    renderB2bSection(e.target.value, document.getElementById('filter-priority').value, document.getElementById('filter-b2b-client').value, document.getElementById('filter-b2b-type').value));
-document.getElementById('filter-priority').addEventListener('change', e =>
-    renderB2bSection(document.getElementById('filter-b2b').value, e.target.value, document.getElementById('filter-b2b-client').value, document.getElementById('filter-b2b-type').value));
-document.getElementById('filter-b2b-client').addEventListener('change', e =>
-    renderB2bSection(document.getElementById('filter-b2b').value, document.getElementById('filter-priority').value, e.target.value, document.getElementById('filter-b2b-type').value));
-document.getElementById('filter-b2b-type').addEventListener('change', e =>
-    renderB2bSection(document.getElementById('filter-b2b').value, document.getElementById('filter-priority').value, document.getElementById('filter-b2b-client').value, e.target.value));
-document.getElementById('filter-personnel').addEventListener('input', e =>
-    renderPersonnelSection(e.target.value, document.getElementById('filter-position').value));
-document.getElementById('filter-position').addEventListener('change', e =>
-    renderPersonnelSection(document.getElementById('filter-personnel').value, e.target.value));
+document.getElementById('filter-kho-backlog')?.addEventListener('input', e =>
+    renderBacklogSection(e.target.value, document.getElementById('filter-luong')?.value || 'all'));
+document.getElementById('filter-luong')?.addEventListener('change', e =>
+    renderBacklogSection(document.getElementById('filter-kho-backlog')?.value || '', e.target.value));
+document.getElementById('filter-b2b')?.addEventListener('input', e =>
+    renderB2bSection(e.target.value, document.getElementById('filter-priority')?.value || 'all', document.getElementById('filter-b2b-client')?.value || 'all', document.getElementById('filter-b2b-type')?.value || 'all'));
+document.getElementById('filter-priority')?.addEventListener('change', e =>
+    renderB2bSection(document.getElementById('filter-b2b')?.value || '', e.target.value, document.getElementById('filter-b2b-client')?.value || 'all', document.getElementById('filter-b2b-type')?.value || 'all'));
+document.getElementById('filter-b2b-client')?.addEventListener('change', e =>
+    renderB2bSection(document.getElementById('filter-b2b')?.value || '', document.getElementById('filter-priority')?.value || 'all', e.target.value, document.getElementById('filter-b2b-type')?.value || 'all'));
+document.getElementById('filter-b2b-type')?.addEventListener('change', e =>
+    renderB2bSection(document.getElementById('filter-b2b')?.value || '', document.getElementById('filter-priority')?.value || 'all', document.getElementById('filter-b2b-client')?.value || 'all', e.target.value));
+document.getElementById('filter-personnel')?.addEventListener('input', e =>
+    renderPersonnelSection(e.target.value, document.getElementById('filter-position')?.value || 'all'));
+document.getElementById('filter-position')?.addEventListener('change', e =>
+    renderPersonnelSection(document.getElementById('filter-personnel')?.value || '', e.target.value));
 
 // Warning Filters
-document.getElementById('filter-kho-warnings').addEventListener('input', e =>
-    renderWarningsSection(e.target.value, document.getElementById('filter-status-warnings').value));
-document.getElementById('filter-status-warnings').addEventListener('change', e =>
-    renderWarningsSection(document.getElementById('filter-kho-warnings').value, e.target.value));
+document.getElementById('filter-kho-warnings')?.addEventListener('input', e =>
+    renderWarningsSection(e.target.value, document.getElementById('filter-status-warnings')?.value || 'all'));
+document.getElementById('filter-status-warnings')?.addEventListener('change', e =>
+    renderWarningsSection(document.getElementById('filter-kho-warnings')?.value || '', e.target.value));
 
 // Return Filters
-document.getElementById('filter-client-returns').addEventListener('input', e =>
+document.getElementById('filter-client-returns')?.addEventListener('input', e =>
     renderReturnsSection(e.target.value));
 
 // Xe GXT Filters
