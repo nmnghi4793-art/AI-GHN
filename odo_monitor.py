@@ -209,11 +209,11 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
     """
     Đọc dữ liệu báo ODO từ Google Sheet.
     Spreadsheet ID: 1xi9wAxHZktDROLcZHxQF5dvp6grzfB1mSkVw5gpWUeo.
-    Tự động chọn tab 'THÁNG X' (ví dụ 'THÁNG 7').
-    Range đọc: 'THÁNG X'!A:H (Đọc toàn bộ các dòng, không giới hạn A1:Z5000).
+    Tự động thử Google Sheets API v4 (Service Account file/env).
+    Nếu thiếu Service Account JSON trên Server (như Railway), tự động Fallback sang Public CSV Export.
 
     Mapping cột chính CHUẨN:
-    Col G (index 6) = Ngày xe chạy / Ngày ghi nhận ODO (CHÍNH XÁC KHÔNG DÙNG COL A DẤU THỜI GIAN)
+    Col G (index 6) = Ngày xe chạy / Ngày ghi nhận ODO
     Col F (index 5) = Kho giao (Warehouse Name)
     Col H (index 7) = Biển kiểm soát (License Plate)
 
@@ -224,123 +224,124 @@ def fetch_google_sheet_odo_data(force_refresh: bool = False) -> dict:
     if not force_refresh and (now - _ODO_CACHE["timestamp"] < CACHE_TTL_SECONDS) and _ODO_CACHE["data"]:
         return _ODO_CACHE["data"]
 
-    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
-    if not os.path.exists(sa_path):
-        print(f"[ODO MONITOR] Service Account json missing at {sa_path}")
-        return _ODO_CACHE.get("data", {})
-
+    rows = []
+    # 1. Thử đọc qua Google Sheets API v4
     try:
         ssl._create_default_https_context = ssl._create_unverified_context
         from google.oauth2.service_account import Credentials
         from googleapiclient.discovery import build
 
-        creds = Credentials.from_service_account_file(
-            sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"]
-        )
-        service = build("sheets", "v4", credentials=creds)
+        creds = None
+        sa_env = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or os.environ.get("SERVICE_ACCOUNT_JSON")
+        if sa_env:
+            try:
+                sa_info = json.loads(sa_env)
+                creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+            except Exception:
+                pass
 
-        meta = service.spreadsheets().get(spreadsheetId=ODO_SHEET_ID).execute()
-        sheet_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
+        if not creds:
+            sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+            if os.path.exists(sa_path):
+                creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
 
-        now_month = datetime.now().month
-        target_tab = None
-        for title in sheet_titles:
-            t_upper = title.strip().upper()
-            if f"THÁNG {now_month}" in t_upper or f"THANG {now_month}" in t_upper:
-                target_tab = title
-                break
+        if creds:
+            service = build("sheets", "v4", credentials=creds)
+            meta = service.spreadsheets().get(spreadsheetId=ODO_SHEET_ID).execute()
+            sheet_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
+            now_month = datetime.now().month
+            target_tab = None
+            for title in sheet_titles:
+                t_upper = title.strip().upper()
+                if f"THÁNG {now_month}" in t_upper or f"THANG {now_month}" in t_upper:
+                    target_tab = title
+                    break
+            if not target_tab:
+                month_tabs = [t for t in sheet_titles if "THÁNG" in t.upper() or "THANG" in t.upper()]
+                target_tab = month_tabs[-1] if month_tabs else sheet_titles[0]
 
-        if not target_tab:
-            month_tabs = [t for t in sheet_titles if "THÁNG" in t.upper() or "THANG" in t.upper()]
-            target_tab = month_tabs[-1] if month_tabs else sheet_titles[0]
-
-        print(f"\n===== [ODO MONITOR FETCH COLUMN G - API V4] =====")
-        print(f"Spreadsheet ID: {ODO_SHEET_ID}")
-        print(f"Sheet Name (Tab): '{target_tab}'")
-        print(f"Reading Range: '{target_tab}'!A:H")
-        
-        res = service.spreadsheets().values().get(
-            spreadsheetId=ODO_SHEET_ID, range=f"'{target_tab}'!A:H"
-        ).execute()
-        rows = res.get("values", [])
-
-        total_read_rows = len(rows)
-        print(f"[BACKEND LOG] Tổng số dòng đọc được từ Sheet: {total_read_rows}")
-
-        if not rows or len(rows) < 2:
-            print("[ODO MONITOR WARNING] Sheet rỗng hoặc chỉ có 1 dòng tiêu đề.")
-            return {}
-
-        master_khos = list(get_master_kho_totals().keys())
-
-        # (date_str, master_kho_name) -> Set of normalized license plates
-        unique_plates_map = defaultdict(set)
-        import re
-
-        sample_matched_rows = []
-        matched_23_july_count = 0
-
-        logged_raw_warehouses = set()
-
-        for idx, r in enumerate(rows[1:], start=2):
-            if not r or not any(r) or len(r) < 7:
-                continue
-            col_g = r[6].strip() if len(r) > 6 else ""
-            raw_kho = r[5].strip() if len(r) > 5 else ""
-            raw_bien = r[7].strip() if len(r) > 7 else ""
-
-            date_norm = parse_odo_date(col_g)
-            kho_norm = _match_master_kho(raw_kho, master_khos)
-            clean_plate = re.sub(r'[^A-Z0-9]', '', str(raw_bien).upper()) if raw_bien else ""
-
-            if raw_kho and raw_kho not in logged_raw_warehouses:
-                logged_raw_warehouses.add(raw_kho)
-                norm_str = normalize_warehouse_name(raw_kho)
-                if kho_norm:
-                    print(f"[ODO MATCH LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> Matched Dashboard: '{kho_norm}'")
-                else:
-                    print(f"[ODO UNMATCHED LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> UNMATCHED!")
-
-            if date_norm == "23/07/2026":
-                matched_23_july_count += 1
-                if len(sample_matched_rows) < 5:
-                    sample_matched_rows.append(f"  Row {idx}: Ngày={col_g} | Kho={raw_kho} | Biển={raw_bien}")
-
-            if date_norm and kho_norm and clean_plate:
-                unique_plates_map[(date_norm, kho_norm)].add(clean_plate)
-
-        counts = {k: len(v) for k, v in unique_plates_map.items()}
-
-        _ODO_CACHE["timestamp"] = now
-        _ODO_CACHE["data"] = counts
-
-        # Print mandatory backend logs for date 23/07/2026
-        july_23_khos = {k[1]: len(v) for k, v in unique_plates_map.items() if k[0] == "23/07/2026"}
-        
-        print(f"[BACKEND LOG] Số dòng có cột G đúng 23/07/2026: {matched_23_july_count}")
-        print(f"[BACKEND LOG] Số kho có báo theo cột G ngày 23/07/2026: {len(july_23_khos)}")
-        print(f"[BACKEND LOG] 5 dòng mẫu đúng ngày 23/07/2026 theo Cột G:")
-        for sm in sample_matched_rows:
-            print(sm)
-        print(f"[BACKEND LOG] Unique license plates per kho (Cột G = 23/07/2026):")
-        for k_name, p_cnt in sorted(july_23_khos.items()):
-            print(f"  - {k_name}: {p_cnt} xe unique")
-        print(f"======================================\n")
-
-        try:
-            cache_file_col_g = os.path.join(BASE_DIR, "scratch", "odo_cache_col_g.json")
-            os.makedirs(os.path.dirname(cache_file_col_g), exist_ok=True)
-            serializable = {f"{k[0]}|||{k[1]}": v for k, v in counts.items()}
-            with open(cache_file_col_g, "w", encoding="utf-8") as f:
-                json.dump({"timestamp": now, "cache_key": "odo:column-g", "counts": serializable}, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-
-        return counts
-
+            res = service.spreadsheets().values().get(
+                spreadsheetId=ODO_SHEET_ID, range=f"'{target_tab}'!A:H"
+            ).execute()
+            rows = res.get("values", [])
+            print(f"[ODO BACKEND API V4] Đã đọc thành công {len(rows)} dòng từ Tab '{target_tab}'")
     except Exception as e:
-        print(f"[ODO MONITOR ERROR] Failed to fetch ODO sheet: {e}")
+        print(f"[ODO BACKEND API V4 WARNING] Không thể đọc qua API v4: {e}")
+
+    # 2. Fallback đọc qua CSV Export nếu API v4 chưa lấy được dữ liệu
+    if not rows:
+        try:
+            import urllib.request, csv, io
+            csv_url = f"https://docs.google.com/spreadsheets/d/{ODO_SHEET_ID}/export?format=csv&gid=1289692694"
+            print(f"[ODO BACKEND CSV FALLBACK] Đang đọc qua Public CSV Export: {csv_url}")
+            req = urllib.request.Request(csv_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req) as resp:
+                content = resp.read().decode('utf-8')
+                reader = csv.reader(io.StringIO(content))
+                rows = list(reader)
+                print(f"[ODO BACKEND CSV FALLBACK] Đã đọc thành công {len(rows)} dòng từ Public CSV Export!")
+        except Exception as e_csv:
+            print(f"[ODO BACKEND ERROR] Cả API v4 và CSV Fallback đều thất bại: {e_csv}")
+
+    if not rows or len(rows) < 2:
+        print("[ODO MONITOR WARNING] Sheet rỗng hoặc chỉ có 1 dòng tiêu đề.")
         return _ODO_CACHE.get("data", {})
+
+    master_khos = list(get_master_kho_totals().keys())
+
+    # (date_str, master_kho_name) -> Set of normalized license plates
+    unique_plates_map = defaultdict(set)
+    sample_matched_rows = []
+    matched_23_july_count = 0
+
+    logged_raw_warehouses = set()
+
+    for idx, r in enumerate(rows[1:], start=2):
+        if not r or not any(r) or len(r) < 7:
+            continue
+        col_g = r[6].strip() if len(r) > 6 else ""
+        raw_kho = r[5].strip() if len(r) > 5 else ""
+        raw_bien = r[7].strip() if len(r) > 7 else ""
+
+        date_norm = parse_odo_date(col_g)
+        kho_norm = _match_master_kho(raw_kho, master_khos)
+        clean_plate = re.sub(r'[^A-Z0-9]', '', str(raw_bien).upper()) if raw_bien else ""
+
+        if raw_kho and raw_kho not in logged_raw_warehouses:
+            logged_raw_warehouses.add(raw_kho)
+            norm_str = normalize_warehouse_name(raw_kho)
+            if kho_norm:
+                print(f"[ODO MATCH LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> Matched Dashboard: '{kho_norm}'")
+            else:
+                print(f"[ODO UNMATCHED LOG] Raw: '{raw_kho}' -> Normalized: '{norm_str}' -> UNMATCHED!")
+
+        if date_norm == "23/07/2026":
+            matched_23_july_count += 1
+            if len(sample_matched_rows) < 5:
+                sample_matched_rows.append(f"  Row {idx}: Ngày={col_g} | Kho={raw_kho} | Biển={raw_bien}")
+
+        if date_norm and kho_norm and clean_plate:
+            unique_plates_map[(date_norm, kho_norm)].add(clean_plate)
+
+    counts = {k: len(v) for k, v in unique_plates_map.items()}
+
+    _ODO_CACHE["timestamp"] = now
+    _ODO_CACHE["data"] = counts
+
+    # Print mandatory backend logs for date 23/07/2026
+    july_23_khos = {k[1]: len(v) for k, v in unique_plates_map.items() if k[0] == "23/07/2026"}
+    
+    print(f"[BACKEND LOG] Số dòng có cột G đúng 23/07/2026: {matched_23_july_count}")
+    print(f"[BACKEND LOG] Số kho có báo theo cột G ngày 23/07/2026: {len(july_23_khos)}")
+    print(f"[BACKEND LOG] 5 dòng mẫu đúng ngày 23/07/2026 theo Cột G:")
+    for sm in sample_matched_rows:
+        print(sm)
+    print(f"[BACKEND LOG] Unique license plates per kho (Cột G = 23/07/2026):")
+    for k_name, p_cnt in sorted(july_23_khos.items()):
+        print(f"  - {k_name}: {p_cnt} xe unique")
+    print(f"======================================\n")
+
+    return counts
 
 def get_xe_daily_breakdown(date_str: str) -> tuple:
     """
