@@ -872,7 +872,7 @@ function renderBacklogOverviewTable() {
     const tbody = document.getElementById('tbody-backlog-overview');
     if (!tbody) return;
     const khoMap = {};
-    state.backlogData.forEach(r => {
+    (state.backlogData || []).forEach(r => {
         const k = shortKho(r['kho_giao'] || r['Kho'] || '--');
         khoMap[k] = (khoMap[k] || 0) + 1;
     });
@@ -893,7 +893,7 @@ function renderB2bOverviewTable() {
     const tbody = document.getElementById('tbody-b2b-overview');
     if (!tbody) return;
     const khoMap = {};
-    state.b2bData.forEach(r => {
+    (state.b2bData || []).forEach(r => {
         if (r['Mức độ ưu tiên'] === '1: trong hôm nay') {
             const k = shortKho(r['Kho hiện tại'] || '--');
             khoMap[k] = (khoMap[k] || 0) + 1;
@@ -917,7 +917,7 @@ function renderCriticalWarningsOverview() {
     if (!tbody) return;
 
     // Lọc và chuẩn bị dữ liệu
-    const processedData = state.warningsData.map(r => {
+    const processedData = (state.warningsData || []).map(r => {
         const getV = (keys, defaultVal = 0) => {
             for (const k of keys) {
                 if (r[k] !== undefined && r[k] !== null && r[k] !== '') return r[k];
@@ -8018,11 +8018,10 @@ function renderLoginLogsTable(records) {
             <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(r.kho_phong_ban || '--')}</td>
             <td style="text-align:center;font-weight:700">${r.so_lan_trong_ngay || 1}</td>
             <td>${loaiBadge}</td>
-            <td style="font-family:monospace;font-size:0.82rem;color:var(--text3)">${escapeHtml(r.ip || '--')}</td>
-            <td style="font-size:0.75rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.user_agent || '')}">${escapeHtml(r.user_agent || '--')}</td>
+        <td style="font-family:monospace;font-size:0.82rem;color:var(--text3)">${escapeHtml(r.ip || '--')}</td>
         </tr>`;
     }).join('');
-    
+
     if (records.length > window.loginLogsTableLimit) {
         html += `<tr><td colspan="10" style="text-align:center;padding:12px;"><button class="btn btn-secondary btn-sm" onclick="window.loginLogsTableLimit += 100; renderLoginLogsTable(allLoginLogsData);" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;"><i class="fa-solid fa-angles-down"></i> Xem thêm (${records.length - window.loginLogsTableLimit} dòng còn lại)</button></td></tr>`;
     }
@@ -8127,7 +8126,6 @@ function filterLoginLogs() {
 
     renderLoginLogsTable(filtered);
 }
-
 function exportLoginLogsExcel() {
     if (typeof XLSX === 'undefined') {
         showToast('❌ Thư viện SheetJS chưa được tải.', 'error');
@@ -8192,81 +8190,13 @@ window.addEventListener('error', function(event) {
 const sectionLoadingStates = {};
 
 async function ensureSectionData(name, force = false) {
-    const query = force ? '?force=true' : '';
-    if (sectionLoadingStates[name]) return;
-
-    let endpoints = [];
-    let needsLoad = false;
-
-    if (name === 'overview') {
-        endpoints = [
-            { key: 'overview', url: `/api/dashboard/overview${query}` },
-            { key: 'warningsData', url: `/api/warnings${query}` }
-        ];
-        if (force || !state.overview || Object.keys(state.overview).length === 0) needsLoad = true;
-    } else if (name === 'gtc') {
-        endpoints = [
-            { key: 'gtcData', url: `/api/kpi/gtc${query}` },
-            { key: 'nangSuatData', url: `/api/nang-suat${query}` }
-        ];
-        if (force || !state.gtcData || state.gtcData.length === 0) needsLoad = true;
-    } else if (name === 'returns') {
-        endpoints = [
-            { key: 'returnsData', url: `/api/returns${query}` },
-            { key: 'returnsByClientData', url: `/api/returns/by-client${query}` }
-        ];
-        if (force || !state.returnsData || state.returnsData.length === 0) needsLoad = true;
-    } else if (name === 'dontao') {
-        endpoints = [
-            { key: 'donTaoData', url: `/api/don-tao${query}` }
-        ];
-        if (force || !state.donTaoData || state.donTaoData.length === 0) needsLoad = true;
-    } else if (name === 'backlog') {
-        endpoints = [
-            { key: 'backlogData', url: `/api/backlog/critical${query}` },
-            { key: 'b2bData', url: `/api/backlog/b2b${query}` }
-        ];
-        if (force || !state.backlogData || state.backlogData.length === 0) needsLoad = true;
-    } else if (name === 'personnel') {
-        endpoints = [
-            { key: 'personnelData', url: `/api/personnel${query}` }
-        ];
-        if (force || !state.personnelData || state.personnelData.length === 0) needsLoad = true;
-    } else if (name === 'khoxe' || name === 'b2b-map') {
-        endpoints = [
-            { key: 'xeGxtData', url: `/api/xe-gxt${query}` },
-            { key: 'xeSuCoData', url: `/api/xe-su-co${query}` },
-            { key: 'khoGxtData', url: `/api/kho-gxt${query}` }
-        ];
-        if (force || !state.khoGxtData || state.khoGxtData.length === 0) needsLoad = true;
-    } else if (name === 'gtc-b2b-prio') {
-        endpoints = [
-            { key: 'gtcB2bData', url: `/api/kpi/gtc-b2b${query}` },
-            { key: 'donB2bData', url: `/api/kpi/don-b2b${query}` }
-        ];
-        if (force || !state.gtcB2bData || state.gtcB2bData.length === 0) needsLoad = true;
-    } else if (name === 'cbr') {
-        endpoints = [
-            { key: 'warningsData', url: `/api/warnings${query}` },
-            { key: 'gtcData', url: `/api/kpi/gtc${query}` },
-            { key: 'backlogData', url: `/api/backlog/critical${query}` },
-            { key: 'donTaoData', url: `/api/don-tao${query}` },
-            { key: 'khoGxtData', url: `/api/kho-gxt${query}` },
-            { key: 'nangSuatData', url: `/api/nang-suat${query}` }
-        ];
-        if (force || 
-            !state.warningsData || state.warningsData.length === 0 || 
-            !state.gtcData || state.gtcData.length === 0 || 
-            !state.donTaoData || state.donTaoData.length === 0 ||
-            !state.backlogData || state.backlogData.length === 0
-        ) needsLoad = true;
-    } else if (name === 'odo-monitor') {
-        loadOdoMonitorData(force);
-        renderSection(name);
-        return;
+    console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
+    hideSectionSkeleton(name);
+    if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
+        await loadDashboardFromCache(force);
     }
-
-async function ensureSectionData(name, force = false) {
+    renderSection(name);
+}
     console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
     hideSectionSkeleton(name);
     if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
