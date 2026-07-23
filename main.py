@@ -3637,21 +3637,39 @@ def serve_utf8(filepath: str, media_type: str):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
-        return Response(content=content, media_type=f"{media_type}; charset=utf-8")
+        return Response(
+            content=content,
+            media_type=f"{media_type}; charset=utf-8",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"}
+        )
     except Exception as e:
         print(f"[SERVE ERROR] Failed to read {filepath} as utf-8: {e}")
-        return FileResponse(filepath, media_type=media_type)
+        return FileResponse(
+            filepath,
+            media_type=media_type,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate, max-age=0"}
+        )
 
 @app.get("/app.js")
 def read_js():
-    js_path = os.path.join(FRONTEND_DIR, "app.js")
-    target = js_path if os.path.exists(js_path) else os.path.join(BASE_DIR, "app.js")
+    js_frontend = os.path.join(BASE_DIR, "frontend", "app.js")
+    js_base = os.path.join(BASE_DIR, "app.js")
+    target = js_base
+    if os.path.exists(js_frontend) and os.path.exists(js_base):
+        target = js_frontend if os.path.getmtime(js_frontend) >= os.path.getmtime(js_base) else js_base
+    elif os.path.exists(js_frontend):
+        target = js_frontend
     return serve_utf8(target, "application/javascript")
 
 @app.get("/styles.css")
 def read_css():
-    css_path = os.path.join(FRONTEND_DIR, "styles.css")
-    target = css_path if os.path.exists(css_path) else os.path.join(BASE_DIR, "styles.css")
+    css_frontend = os.path.join(BASE_DIR, "frontend", "styles.css")
+    css_base = os.path.join(BASE_DIR, "styles.css")
+    target = css_base
+    if os.path.exists(css_frontend) and os.path.exists(css_base):
+        target = css_frontend if os.path.getmtime(css_frontend) >= os.path.getmtime(css_base) else css_base
+    elif os.path.exists(css_frontend):
+        target = css_frontend
     return serve_utf8(target, "text/css")
 
 @app.get("/ghn_logo.png")
@@ -3663,16 +3681,15 @@ def read_logo():
 
 @app.get("/")
 def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    target = index_path if os.path.exists(index_path) else os.path.join(BASE_DIR, "index.html")
+    index_frontend = os.path.join(BASE_DIR, "frontend", "index.html")
+    index_base = os.path.join(BASE_DIR, "index.html")
+    target = index_base
+    if os.path.exists(index_frontend) and os.path.exists(index_base):
+        target = index_frontend if os.path.getmtime(index_frontend) >= os.path.getmtime(index_base) else index_base
+    elif os.path.exists(index_frontend):
+        target = index_frontend
     if os.path.exists(target):
-        try:
-            with open(target, 'r', encoding='utf-8') as f:
-                content = f.read()
-            return HTMLResponse(content=content)
-        except Exception:
-            return FileResponse(target)
-    # Không trả về thông tin nhạy cảm về server
+        return serve_utf8(target, "text/html")
     return HTMLResponse(content="<h1>Service Unavailable</h1>", status_code=503)
 
 

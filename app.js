@@ -428,17 +428,20 @@ function renderAll() {
 }
 
 function updateMeta() {
-    const now = new Date();
-    document.getElementById('last-update-time').textContent =
-        'Cập nhật: ' + now.toLocaleTimeString('vi-VN');
-    document.getElementById('current-date').textContent =
-        now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    try {
+        const now = new Date();
+        const updateEl = document.getElementById('last-update-time');
+        if (updateEl) updateEl.textContent = 'Cập nhật: ' + now.toLocaleTimeString('vi-VN');
+        const dateEl = document.getElementById('current-date');
+        if (dateEl) dateEl.textContent = now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch(e) {}
 }
 
 // ---- OVERVIEW CARDS ----
 function renderOverviewCards() {
-    const ov = state.overview;
-    document.getElementById('val-gtc').textContent = (ov.avg_gtc || 0) + '%';
+    const ov = state.overview || {};
+    const valGtc = document.getElementById('val-gtc');
+    if (valGtc) valGtc.textContent = (ov.avg_gtc || 0) + '%';
     const ontimeEl = document.getElementById('val-ontime');
     if (ontimeEl) {
         if (ov.avg_ontime === "Không sử dụng dữ liệu Ontime") {
