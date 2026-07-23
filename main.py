@@ -2488,67 +2488,122 @@ MASTER_30_XE_DAILY_RECORDS = [
 def _load_xe_daily_records(force: bool = False):
     """
     GOOGLE SHEET IS THE SOLE SOURCE OF TRUTH.
-    Đọc dữ liệu xe vận hành daily trực tiếp từ Google Sheet tab 'Xe Off/Tăng Cường'.
-    Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk (GID: 25066123).
+    Đọc dữ liệu xe vận hành daily trực tiếp từ Google Sheet tab 'Xe Off/Tăng Cường' bằng Google Sheets API v4.
+    Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk
+    Range: 'Xe Off/Tăng Cường'!A2:J
     """
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
+    creds = None
+
+    if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+        try:
+            sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            sa_email = sa_info.get("client_email", sa_email)
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly", "https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GOOGLE SHEET READ ERROR] Lỗi parse GOOGLE_SERVICE_ACCOUNT_JSON: {e}")
+    elif os.path.exists(sa_path):
+        try:
+            with open(sa_path, "r", encoding="utf-8") as f:
+                sa_info = json.load(f)
+                sa_email = sa_info.get("client_email", sa_email)
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly", "https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GOOGLE SHEET READ ERROR] Lỗi đọc file Service Account: {e}")
+
     records = []
-    try:
-        url = "https://docs.google.com/spreadsheets/d/1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk/export?format=csv&gid=25066123"
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            content = response.read().decode('utf-8')
-            reader = csv.DictReader(io.StringIO(content))
-            for idx, row in enumerate(reader):
-                if not row or not any(row.values()):
+    total_read_rows = 0
+    valid_rows = 0
+    error_rows = 0
+
+    if creds:
+        try:
+            from googleapiclient.discovery import build
+            service = build("sheets", "v4", credentials=creds)
+
+            SPREADSHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+            SHEET_NAME = "Xe Off/Tăng Cường"
+            RANGE_NAME = f"'{SHEET_NAME}'!A2:J"
+
+            res = service.spreadsheets().values().get(
+                spreadsheetId=SPREADSHEET_ID,
+                range=RANGE_NAME
+            ).execute()
+
+            rows = res.get("values", [])
+            total_read_rows = len(rows)
+
+            def _get_val(r, idx, default=""):
+                if idx < len(r) and r[idx] is not None:
+                    return str(r[idx]).strip()
+                return default
+
+            for idx, r in enumerate(rows):
+                if not r or not any(r):
                     continue
-                # Standardized column reading
-                ngay = str(row.get("Ngày") or row.get("ngay") or "").strip()
-                ten_kho = str(row.get("Tên Kho") or row.get("Tên kho") or row.get("ten_kho") or "").strip()
-                loai = str(row.get("Loại ghi nhận") or row.get("loai") or "").strip()
+
+                raw_ngay = _get_val(r, 0, "").lstrip("'")
+                raw_kho = _get_val(r, 1, "")
+                raw_loai = _get_val(r, 2, "")
+                raw_sl = _get_val(r, 3, "1")
+                raw_bien = _get_val(r, 4, "")
+                raw_ncc = _get_val(r, 5, "")
+                raw_tt = _get_val(r, 6, "0")
+                raw_user = _get_val(r, 7, "Manager")
+                raw_time = _get_val(r, 8, "")
+                raw_id = _get_val(r, 9, f"rec_{idx+1}")
+
                 try:
-                    so_luong_xe = int(row.get("Số lượng xe") or row.get("SL xe") or row.get("so_luong_xe") or 1)
+                    sl_xe = int(raw_sl) if raw_sl.isdigit() else 1
                 except Exception:
-                    so_luong_xe = 1
-                bien_so_xe = str(row.get("Biển số xe") or row.get("bien_so_xe") or "").strip()
-                ten_ncc = str(row.get("Tên NCC") or row.get("ten_ncc") or "").strip()
+                    sl_xe = 1
+
                 try:
-                    trong_tai = int(str(row.get("Trọng tải") or row.get("trong_tai") or 0).replace(",", "").strip())
+                    trong_tai = int(raw_tt.replace(",", "")) if raw_tt.replace(",", "").isdigit() else 0
                 except Exception:
                     trong_tai = 0
-                nguoi_nhap = str(row.get("Người nhập") or row.get("nguoi_nhap") or "Manager").strip()
-                thoi_gian_ghi_nhan = str(row.get("Thời gian ghi nhận") or row.get("thoi_gian_ghi_nhan") or "").strip()
-                rec_id = str(row.get("Record ID") or row.get("Thao tác") or row.get("id") or f"gs_{idx+1}").strip()
 
-                if ngay or ten_kho or bien_so_xe:
+                if raw_ngay or raw_kho or raw_bien:
+                    valid_rows += 1
                     records.append({
-                        "id": rec_id,
-                        "recordId": rec_id,
-                        "ngay": ngay,
-                        "date": ngay,
-                        "ten_kho": ten_kho,
-                        "warehouseName": ten_kho,
-                        "loai": loai,
-                        "recordType": loai,
-                        "so_luong_xe": so_luong_xe,
-                        "vehicleCount": so_luong_xe,
-                        "bien_so_xe": bien_so_xe,
-                        "licensePlate": bien_so_xe,
-                        "ten_ncc": ten_ncc,
-                        "vendorName": ten_ncc,
+                        "id": raw_id,
+                        "recordId": raw_id,
+                        "ngay": raw_ngay,
+                        "date": raw_ngay,
+                        "ten_kho": raw_kho,
+                        "warehouseName": raw_kho,
+                        "loai": raw_loai,
+                        "recordType": raw_loai,
+                        "so_luong_xe": sl_xe,
+                        "vehicleCount": sl_xe,
+                        "bien_so_xe": raw_bien,
+                        "licensePlate": raw_bien,
+                        "ten_ncc": raw_ncc,
+                        "vendorName": raw_ncc,
                         "trong_tai": trong_tai,
                         "payloadKg": trong_tai,
-                        "nguoi_nhap": nguoi_nhap,
-                        "createdBy": nguoi_nhap,
-                        "thoi_gian_ghi_nhan": thoi_gian_ghi_nhan,
-                        "createdAt": thoi_gian_ghi_nhan
+                        "nguoi_nhap": raw_user,
+                        "createdBy": raw_user,
+                        "thoi_gian_ghi_nhan": raw_time,
+                        "createdAt": raw_time
                     })
-    except Exception as e:
-        print(f"[GOOGLE SHEET READ ERROR] Xe Off/Tăng Cường: {e}")
+                else:
+                    error_rows += 1
 
-    print(f"\n===== [GOOGLE SHEET SOURCE OF TRUTH] =====")
+        except Exception as err:
+            print(f"[GOOGLE SHEET READ ERROR API v4]: {err}")
+    else:
+        print(f"[GOOGLE SHEET READ ERROR]: Không khởi tạo được credentials cho Service Account ({sa_email})")
+
+    print(f"\n===== [GOOGLE SHEET SOURCE OF TRUTH API V4] =====")
     print(f"Spreadsheet: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk | Tab: 'Xe Off/Tăng Cường'")
-    print(f"Số bản ghi vừa đọc từ Google Sheet: {len(records)}")
-    print(f"==========================================\n")
+    print(f"Range: 'Xe Off/Tăng Cường'!A2:J")
+    print(f"Tổng số dòng đọc được từ Google Sheet API v4: {total_read_rows}")
+    print(f"Số bản ghi hợp lệ: {valid_rows} | Số bản ghi bỏ qua/lỗi: {error_rows}")
+    print(f"=================================================\n")
 
     return records
 
@@ -2816,14 +2871,35 @@ def get_xe_van_hanh_records(
 
     records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "", reverse=True)
 
+    extra_count = sum(r.get("so_luong_xe", 1) for r in records if r.get("loai") == "Xe tăng cường")
+    off_count = sum(r.get("so_luong_xe", 1) for r in records if r.get("loai") == "Xe không hoạt động")
+    wh_count = len(set(r.get("ten_kho") for r in records if r.get("ten_kho")))
+    vendor_count = len(set(r.get("ten_ncc") for r in records if r.get("ten_ncc")))
+
+    summary = {
+        "extraVehicles": extra_count,
+        "offVehicles": off_count,
+        "warehouses": wh_count,
+        "vendors": vendor_count
+    }
+
     print(f"\n===== [DEBUG HISTORY API] =====")
     print(f"Endpoint: GET /api/vehicle-daily/records")
     print(f"Filters: date='{date if isinstance(date, str) else ''}', kho='{kho if isinstance(kho, str) else ''}', ncc='{ncc if isinstance(ncc, str) else ''}', loai='{loai if isinstance(loai, str) else ''}'")
-    print(f"Tổng số record trong storage: {len(records_raw)}")
+    print(f"Tổng số record trong Google Sheet: {len(records_raw)}")
     print(f"Số record trả về frontend sau filter: {len(records)}")
+    print(f"Summary: {summary}")
     print(f"===============================\n")
 
-    return {"data": records, "total": len(records)}
+    return {
+        "success": True,
+        "status": "ok",
+        "totalRecords": len(records),
+        "total": len(records),
+        "records": records,
+        "data": records,
+        "summary": summary
+    }
 
 
 @app.post("/api/vehicle-daily/save", dependencies=[Depends(require_api_token)])

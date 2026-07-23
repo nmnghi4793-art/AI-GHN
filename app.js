@@ -7513,19 +7513,19 @@ async function loadXeDailyRecords(resetFilters = false) {
 
         let resp = await authFetch(relUrl, null).catch(() => null);
         if (!resp) {
-            resp = await authFetch(`${API}/xe-van-hanh/records` + (params.length ? '?' + params.join('&') : ''), { data: [], total: 0 });
+            resp = await authFetch(`${API}/xe-van-hanh/records` + (params.length ? '?' + params.join('&') : ''), { records: [], total: 0 });
         }
-        const recs = (resp && Array.isArray(resp.data)) ? resp.data : (Array.isArray(resp) ? resp : []);
+        const recs = (resp && Array.isArray(resp.records)) ? resp.records : ((resp && Array.isArray(resp.data)) ? resp.data : (Array.isArray(resp) ? resp : []));
         
-        console.log(`[DEBUG HISTORY FRONTEND] Endpoint: GET ${url} | Record count received: ${recs.length}`);
+        console.log(`[DEBUG HISTORY FRONTEND] Endpoint: GET ${relUrl} | Record count received: ${recs.length}`);
         
         state.xeDailyRecords = recs;
         renderXeDailyHistoryTable(state.xeDailyRecords);
-        updateXeDailyCards();
+        updateXeDailyCards(resp && resp.summary ? resp.summary : null);
         _populateFilterDropdowns();
     } catch (err) {
         console.error('[XE DAILY] Load records error:', err);
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--red)">Lỗi khi tải dữ liệu. Vui lòng thử lại.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:#ef4444"><i class="fa-solid fa-triangle-exclamation"></i> Lỗi khi tải dữ liệu. Vui lòng thử lại.</td></tr>`;
     }
 }
 
@@ -7608,28 +7608,41 @@ function filterXeDailyTable() {
 }
 
 // ---- Update overview cards ----
-function updateXeDailyCards() {
+function updateXeDailyCards(summaryObj = null) {
     const dateFilter = document.getElementById('xed-filter-date')?.value || '';
     const dayRecords = state.xeDailyRecords || [];
 
-    // Nếu chọn 1 ngày cụ thể thì lọc theo ngày đó; nếu chọn "Tất cả ngày" (rỗng) thì lấy tất cả bản ghi
-    const targetRecords = dateFilter
-        ? dayRecords.filter(r => r.ngay === dateFilter)
-        : dayRecords;
+    let tangCuong = 0;
+    let offXe = 0;
+    let khoCount = 0;
+    let nccCount = 0;
 
-    const tangCuong  = targetRecords.filter(r => r.loai === 'Xe tăng cường').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
-    const offXe      = targetRecords.filter(r => r.loai === 'Xe không hoạt động').reduce((s, r) => s + (r.so_luong_xe || 1), 0);
-    const khoSet     = new Set(targetRecords.map(r => r.ten_kho).filter(Boolean));
-    const nccSet     = new Set(targetRecords.map(r => r.ten_ncc).filter(Boolean));
+    if (!dateFilter && summaryObj) {
+        tangCuong = summaryObj.extraVehicles || 0;
+        offXe = summaryObj.offVehicles || 0;
+        khoCount = summaryObj.warehouses || 0;
+        nccCount = summaryObj.vendors || 0;
+    } else {
+        const targetRecords = dateFilter
+            ? dayRecords.filter(r => (r.ngay === dateFilter || r.date === dateFilter))
+            : dayRecords;
+
+        tangCuong  = targetRecords.filter(r => (r.loai === 'Xe tăng cường' || r.recordType === 'Xe tăng cường')).reduce((s, r) => s + (parseInt(r.so_luong_xe || r.vehicleCount || 1)), 0);
+        offXe      = targetRecords.filter(r => (r.loai === 'Xe không hoạt động' || r.recordType === 'Xe không hoạt động')).reduce((s, r) => s + (parseInt(r.so_luong_xe || r.vehicleCount || 1)), 0);
+        const khoSet = new Set(targetRecords.map(r => r.ten_kho || r.warehouseName).filter(Boolean));
+        const nccSet = new Set(targetRecords.map(r => r.ten_ncc || r.vendorName).filter(Boolean));
+        khoCount = khoSet.size;
+        nccCount = nccSet.size;
+    }
 
     const setVal = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = val;
+        if (el) el.textContent = String(val);
     };
-    setVal('xed-val-tang-cuong', tangCuong || '0');
-    setVal('xed-val-off', offXe || '0');
-    setVal('xed-val-kho', khoSet.size || '0');
-    setVal('xed-val-ncc', nccSet.size || '0');
+    setVal('xed-val-tang-cuong', tangCuong);
+    setVal('xed-val-off', offXe);
+    setVal('xed-val-kho', khoCount);
+    setVal('xed-val-ncc', nccCount);
 }
 
 // ---- Populate filter dropdowns ----
