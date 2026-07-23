@@ -2484,194 +2484,124 @@ MASTER_30_XE_DAILY_RECORDS = [
 ]
 
 
-def _load_xe_daily_records():
+def _load_xe_daily_records(force: bool = False):
     """
-    Tải danh sách xe vận hành daily từ hệ thống lưu trữ bền vững (PostgreSQL DB).
+    GOOGLE SHEET IS THE SOLE SOURCE OF TRUTH.
+    Đọc dữ liệu xe vận hành daily trực tiếp từ Google Sheet tab 'Xe Off/Tăng Cường'.
+    Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk (GID: 25066123).
     """
-    deployment_id = os.environ.get("RAILWAY_DEPLOYMENT_ID") or os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "Local"
-    pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
-    
-    masked_db_url = "None (No DATABASE_URL set)"
-    if pg_url:
-        try:
-            parts = pg_url.split("@")
-            masked_db_url = "postgresql://***@" + parts[1] if len(parts) > 1 else "postgresql://***"
-        except Exception:
-            masked_db_url = "postgresql://***"
-
-    if os.path.exists(XE_DAILY_META_FILE):
-        try:
-            with open(XE_DAILY_META_FILE, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-                if meta.get("user_cleared") is True:
-                    return []
-        except Exception:
-            pass
-
     records = []
-    storage_type = "Master Code Storage (Permanent)"
+    try:
+        url = "https://docs.google.com/spreadsheets/d/1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk/export?format=csv&gid=25066123"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            content = response.read().decode('utf-8')
+            reader = csv.DictReader(io.StringIO(content))
+            for idx, row in enumerate(reader):
+                if not row or not any(row.values()):
+                    continue
+                ngay = str(row.get("Ngày") or row.get("ngay") or "").strip()
+                ten_kho = str(row.get("Tên kho") or row.get("Tên Kho") or row.get("ten_kho") or "").strip()
+                id_kho = str(row.get("ID kho") or row.get("id_kho") or "").strip()
+                loai = str(row.get("Loại ghi nhận") or row.get("loai") or "").strip()
+                try:
+                    so_luong_xe = int(row.get("Số lượng xe") or row.get("SL xe") or row.get("so_luong_xe") or 1)
+                except Exception:
+                    so_luong_xe = 1
+                bien_so_xe = str(row.get("Biển số xe") or row.get("bien_so_xe") or "").strip()
+                ten_ncc = str(row.get("Tên NCC") or row.get("ten_ncc") or "").strip()
+                try:
+                    trong_tai = int(str(row.get("Trọng tải") or row.get("trong_tai") or 0).replace(",", "").strip())
+                except Exception:
+                    trong_tai = 0
+                nguoi_nhap = str(row.get("Người nhập") or row.get("nguoi_nhap") or "Manager").strip()
+                thoi_gian_ghi_nhan = str(row.get("Thời gian ghi nhận") or row.get("thoi_gian_ghi_nhan") or "").strip()
 
-    if pg_url:
-        try:
-            import psycopg2
-            conn = psycopg2.connect(pg_url)
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS vehicle_daily_records (
-                    id VARCHAR(64) PRIMARY KEY,
-                    date VARCHAR(32),
-                    warehouse VARCHAR(255),
-                    record_type VARCHAR(64),
-                    vehicle_count INT,
-                    license_plate VARCHAR(64),
-                    vendor VARCHAR(255),
-                    payload_kg INT,
-                    note TEXT,
-                    created_by VARCHAR(64),
-                    created_at VARCHAR(64),
-                    updated_at VARCHAR(64)
-                );
-            """)
-            conn.commit()
-            
-            cur.execute("SELECT id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at FROM vehicle_daily_records ORDER BY created_at DESC;")
-            rows = cur.fetchall()
-            
-            if not rows and MASTER_30_XE_DAILY_RECORDS:
-                print(f"[XE DAILY DB MIGRATE] Initializing empty DB with 30 master records...")
-                now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-                for r in MASTER_30_XE_DAILY_RECORDS:
-                    cur.execute("""
-                        INSERT INTO vehicle_daily_records (id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
-                        r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
-                        r.get("trong_tai", 0), r.get("ghi_chu"), r.get("nguoi_nhap"),
-                        r.get("thoi_gian_ghi_nhan"), now_iso
-                    ))
-                conn.commit()
-                cur.execute("SELECT id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at FROM vehicle_daily_records ORDER BY created_at DESC;")
-                rows = cur.fetchall()
-
-            cur.close()
-            conn.close()
-            
-            if rows:
-                for r in rows:
+                if ngay or ten_kho or bien_so_xe:
                     records.append({
-                        "id": r[0], "ngay": r[1], "ten_kho": r[2], "loai": r[3],
-                        "so_luong_xe": r[4], "bien_so_xe": r[5], "ten_ncc": r[6],
-                        "trong_tai": r[7], "ghi_chu": r[8], "nguoi_nhap": r[9],
-                        "thoi_gian_ghi_nhan": r[10]
+                        "id": f"gs_{idx+1}",
+                        "ngay": ngay,
+                        "ten_kho": ten_kho,
+                        "id_kho": id_kho,
+                        "loai": loai,
+                        "so_luong_xe": so_luong_xe,
+                        "bien_so_xe": bien_so_xe,
+                        "ten_ncc": ten_ncc,
+                        "trong_tai": trong_tai,
+                        "nguoi_nhap": nguoi_nhap,
+                        "thoi_gian_ghi_nhan": thoi_gian_ghi_nhan
                     })
-                storage_type = f"PostgreSQL Railway ({masked_db_url})"
-        except Exception as pg_err:
-            print(f"[XE DAILY DB ERROR] PostgreSQL read failed: {pg_err}")
+    except Exception as e:
+        print(f"[GOOGLE SHEET READ ERROR] Xe Off/Tăng Cường: {e}")
 
-    if not records:
-        if os.path.exists(XE_DAILY_DATA_FILE):
-            try:
-                with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
-                    local_data = json.load(f)
-                    if isinstance(local_data, list) and len(local_data) > 0:
-                        records = local_data
-                        storage_type = "Local JSON Cache"
-            except Exception:
-                pass
-        
-        if not records:
-            records = list(MASTER_30_XE_DAILY_RECORDS)
-            storage_type = "Master Code Storage"
-
-    print(f"\n===== [XE DAILY PERSISTENCE LOG] =====")
-    print(f"Storage đang dùng: {storage_type}")
-    print(f"Database URL: {masked_db_url}")
-    print(f"Số record hiện tại trong Database/Storage: {len(records)}")
-    print(f"Deployment ID: {deployment_id}")
-    print(f"======================================\n")
+    print(f"\n===== [GOOGLE SHEET SOURCE OF TRUTH] =====")
+    print(f"Spreadsheet: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk | Tab: 'Xe Off/Tăng Cường'")
+    print(f"Số bản ghi vừa đọc từ Google Sheet: {len(records)}")
+    print(f"==========================================\n")
 
     return records
 
 
 def _save_xe_daily_records(records: list, sync_db: bool = True):
     """
-    INSERT/UPDATE xe daily records into PostgreSQL (vehicle_daily_records) with commit verification.
-    NO TRUNCATE/DELETE ALL!
-    Returns (success: bool, total_db_count: int)
+    Ghi / Append trực tiếp dữ liệu mới vào Google Sheet tab 'Xe Off/Tăng Cường'.
+    Google Sheet là DATABASE CHÍNH duy nhất.
     """
-    pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
-    db_success = False
-    total_db_count = len(records)
+    if not records:
+        return True, 0
+
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    creds = None
+    if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+        try:
+            sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GOOGLE SHEET AUTH ERROR from env]: {e}")
+    elif os.path.exists(sa_path):
+        try:
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GOOGLE SHEET AUTH ERROR from file]: {e}")
+
+    if not creds:
+        print("[GOOGLE SHEET WARNING] Service account credentials not available.")
+        return True, len(records)
 
     try:
-        os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
-        with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(records, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[XE DAILY JSON BACKUP WARNING] {e}")
+        from googleapiclient.discovery import build
+        service = build("sheets", "v4", credentials=creds)
 
-    if sync_db and pg_url:
-        conn = None
-        try:
-            import psycopg2
-            conn = psycopg2.connect(pg_url)
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS vehicle_daily_records (
-                    id VARCHAR(64) PRIMARY KEY,
-                    date VARCHAR(32),
-                    warehouse VARCHAR(255),
-                    record_type VARCHAR(64),
-                    vehicle_count INT,
-                    license_plate VARCHAR(64),
-                    vendor VARCHAR(255),
-                    payload_kg INT,
-                    note TEXT,
-                    created_by VARCHAR(64),
-                    created_at VARCHAR(64),
-                    updated_at VARCHAR(64)
-                );
-            """)
-            now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        rows_to_append = []
+        for r in records:
+            rows_to_append.append([
+                str(r.get("ngay") or r.get("date") or "").strip(),
+                str(r.get("ten_kho") or r.get("warehouse") or "").strip(),
+                str(r.get("id_kho") or r.get("warehouseId") or r.get("id") or "").strip(),
+                str(r.get("loai") or r.get("recordType") or "").strip(),
+                str(r.get("so_luong_xe") or r.get("vehicleCount") or 1),
+                str(r.get("bien_so_xe") or r.get("licensePlate") or "").strip(),
+                str(r.get("ten_ncc") or r.get("vendor") or "").strip(),
+                str(r.get("trong_tai") or r.get("payloadKg") or 0),
+                str(r.get("nguoi_nhap") or r.get("createdBy") or "Manager").strip(),
+                str(r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "").strip()
+            ])
 
-            for r in records:
-                cur.execute("""
-                    INSERT INTO vehicle_daily_records (id, date, warehouse, record_type, vehicle_count, license_plate, vendor, payload_kg, note, created_by, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO UPDATE SET
-                        date = EXCLUDED.date,
-                        warehouse = EXCLUDED.warehouse,
-                        record_type = EXCLUDED.record_type,
-                        vehicle_count = EXCLUDED.vehicle_count,
-                        license_plate = EXCLUDED.license_plate,
-                        vendor = EXCLUDED.vendor,
-                        payload_kg = EXCLUDED.payload_kg,
-                        note = EXCLUDED.note,
-                        created_by = EXCLUDED.created_by,
-                        created_at = EXCLUDED.created_at,
-                        updated_at = EXCLUDED.updated_at;
-                """, (
-                    r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
-                    r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
-                    r.get("trong_tai", 0), r.get("ghi_chu"), r.get("nguoi_nhap"),
-                    r.get("thoi_gian_ghi_nhan"), now_iso
-                ))
-            conn.commit()
+        res = service.spreadsheets().values().append(
+            spreadsheetId="1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk",
+            range="'Xe Off/Tăng Cường'!A1",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={"values": rows_to_append}
+        ).execute()
 
-            cur.execute("SELECT COUNT(*) FROM vehicle_daily_records;")
-            total_db_count = cur.fetchone()[0]
-            cur.close()
-            conn.close()
-            db_success = True
-            print(f"[XE DAILY DB COMMIT SUCCESS] Inserted/Updated {len(records)} records. Verified total in DB: {total_db_count}")
-        except Exception as pg_save_err:
-            print(f"[XE DAILY DB COMMIT ERROR] {pg_save_err}")
-            if conn:
-                try: conn.rollback()
-                except Exception: pass
-
-    return db_success or True, total_db_count
+        print(f"[GOOGLE SHEET APPEND SUCCESS] Appended {len(rows_to_append)} rows to tab 'Xe Off/Tăng Cường'. Response: {res}")
+        return True, len(records)
+    except Exception as err:
+        print(f"[GOOGLE SHEET APPEND ERROR]: {err}")
+        return True, len(records)
 
 
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
