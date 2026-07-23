@@ -196,7 +196,7 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     # 4. Gửi báo cáo ODO
     msg_report = telegram_odo.build_odo_report_message(multi_date_statuses, slot_hour=slot_hour)
     if msg_report:
-        sent_any = await telegram_odo.send_telegram_message(msg_report)
+        sent_any, _ = await telegram_odo.send_telegram_message(msg_report)
 
     next_time_str = get_next_run_time()
     log.info(f"7. Telegram send result: {'SUCCESS (200 OK)' if sent_any else 'COMPLETED / LOGGED'}")
@@ -205,6 +205,76 @@ async def check_and_notify_odo(slot_name: str = "MANUAL", force_refresh: bool = 
     # 5. Lưu log đối soát
     record_check_logs(today_status, sent_telegram=sent_any, slot_name=slot_name)
     return today_status
+
+async def send_manual_odo_telegram_report(target_date: str = None) -> dict:
+    """
+    Gửi báo cáo ODO THỦ CÔNG cho DUY NHẤT ngày target_date vào nhóm Telegram -1002712779761.
+    Không gộp ngày khác, không lấy ngày hiện tại nếu được truyền ngày cụ thể.
+    """
+    if target_date:
+        target_date = odo_monitor.parse_odo_date(target_date)
+
+    status_obj = odo_monitor.calculate_odo_status(target_date=target_date, force_refresh=True)
+    summary = status_obj["summary"]
+    actual_date = summary.get("target_date") or target_date or "23/07/2026"
+
+    details = status_obj["details"]
+    du_khos = [d for d in details if d["status"] == "DU"]
+    thieu_khos = [d for d in details if d["status"] == "THIEU" or (d["expected_odo"] > 0 and d["actual_odo"] == 0)]
+    thua_khos = [d for d in details if d["status"] == "THUA"]
+
+    vn_now = get_vn_datetime()
+    now_str = vn_now.strftime("%H:%M:%S %d/%m/%Y")
+
+    msg = f"📊 *BÁO CÁO ODO THỦ CÔNG - NGÀY {actual_date}*\n"
+    msg += f"⏰ *Thời gian gửi*: {now_str}\n"
+    msg += f"🏢 *Tổng số kho*: {summary['total_khos']} kho GXT Miền Trung\n"
+    msg += f"🟢 *Kho đã đủ ODO*: {len(du_khos)}/{summary['total_khos']} kho\n"
+    msg += f"🔴 *Kho thiếu/chưa báo ODO*: {summary['thieu_khos']} kho ({summary['total_xe_thieu']} xe)\n"
+    if summary['total_xe_thua'] > 0:
+        msg += f"🔵 *Kho báo thừa ODO*: {len(thua_khos)} kho ({summary['total_xe_thua']} xe)\n"
+    msg += "\n"
+
+    if thieu_khos:
+        msg += "❌ *DANH SÁCH KHO THIẾU / CHƯA BÁO ODO*:\n"
+        for item in thieu_khos:
+            short_name = item["kho"].replace("Kho Giao Hàng Nặng - ", "").replace("Kho Giao Hàng Nặng -", "").strip()
+            if item["actual_odo"] == 0:
+                msg += f"• *{short_name}*: Chưa báo ODO (Cần: {item['expected_odo']} xe)\n"
+            else:
+                msg += f"• *{short_name}*: Đã báo {item['actual_odo']}/{item['expected_odo']} (Thiếu {item['diff']} xe)\n"
+        msg += "\n"
+
+    if thua_khos:
+        msg += "➕ *DANH SÁCH KHO BÁO THỪA ODO*:\n"
+        for item in thua_khos:
+            short_name = item["kho"].replace("Kho Giao Hàng Nặng - ", "").replace("Kho Giao Hàng Nặng -", "").strip()
+            msg += f"• *{short_name}*: Đã báo {item['actual_odo']}/{item['expected_odo']} (Thừa {item['diff']} xe)\n"
+        msg += "\n"
+
+    if len(du_khos) == summary['total_khos']:
+        msg += "🎉 *TẤT CẢ 25 KHO ĐÃ HOÀN THÀNH BÁO ODO ĐẦY ĐỦ!*\n"
+
+    msg += "_Nguồn: GHN Dashboard - Xe Vận Hành Daily_"
+
+    sent_success, msg_detail = await telegram_odo.send_telegram_message(msg)
+
+    record_check_logs(status_obj, sent_telegram=sent_success, slot_name=f"MANUAL_WEB_{actual_date}")
+
+    if sent_success:
+        return {
+            "status": "ok",
+            "message": f"Đã gửi báo cáo ODO ngày {actual_date} vào nhóm Telegram -1002712779761 thành công!",
+            "summary": summary,
+            "target_date": actual_date
+        }
+    else:
+        return {
+            "status": "error",
+            "message": f"Lỗi khi gửi Telegram ngày {actual_date}: {msg_detail}",
+            "summary": summary,
+            "target_date": actual_date
+        }
 
 async def process_telegram_command(command: str, chat_id: str) -> str:
     """

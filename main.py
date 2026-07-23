@@ -4035,10 +4035,10 @@ def get_odo_monitor_logs():
     return {"status": "ok", "logs": logs}
 
 @app.post("/api/odo-monitor/send-telegram", dependencies=[Depends(require_api_token)])
-async def trigger_odo_telegram_send():
-    """API gửi ngay báo cáo ODO vào nhóm Telegram -1002712779761."""
-    res = await odo_scheduler.check_and_notify_odo(slot_name="MANUAL_WEB_TRIGGER", force_refresh=True)
-    return {"status": "ok", "message": "Đã gửi báo cáo ODO vào nhóm Telegram thành công!", "summary": res.get("summary", {})}
+async def trigger_odo_telegram_send(date: Optional[str] = Query(None)):
+    """API gửi ngay báo cáo ODO của ngày được chọn vào nhóm Telegram -1002712779761."""
+    res = await odo_scheduler.send_manual_odo_telegram_report(target_date=date)
+    return res
 
 @app.get("/api/odo-monitor/detail", dependencies=[Depends(require_api_token)])
 def get_odo_kho_detail(kho: str, date: str = None):

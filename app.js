@@ -8959,13 +8959,21 @@ function closeOdoKhoModal() {
 
 async function sendOdoTelegramNow() {
     try {
-        showToast('⏳ Đang phát tin báo cáo ODO sang Telegram group -1002712779761...', 'info');
-        const res = await authFetch(`${API}/odo-monitor/send-telegram`, {}, 'POST');
+        const dateInput = document.getElementById('odo-date-picker');
+        let dateVal = '';
+        if (dateInput && dateInput.value) {
+            const parts = dateInput.value.split('-');
+            if (parts.length === 3) dateVal = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        showToast(`⏳ Đang phát tin báo cáo ODO ${dateVal ? 'ngày ' + dateVal : ''} sang Telegram group -1002712779761...`, 'info');
+        const url = `${API}/odo-monitor/send-telegram${dateVal ? '?date=' + encodeURIComponent(dateVal) : ''}`;
+        const res = await authFetch(url, {}, 'POST');
         if (res && res.status === 'ok') {
-            showToast('✅ Đã gửi báo cáo ODO vào nhóm Telegram thành công!', 'success');
+            showToast(`✅ ${res.message || 'Đã gửi báo cáo ODO vào nhóm Telegram thành công!'}`, 'success');
             loadOdoMonitorLogs();
         } else {
-            showToast('❌ Lỗi khi gửi tin Telegram. Vui lòng kiểm tra log.', 'error');
+            showToast(`❌ ${res?.message || 'Lỗi khi gửi tin Telegram. Vui lòng kiểm tra log.'}`, 'error');
         }
     } catch (e) {
         console.error('Error triggering telegram send:', e);

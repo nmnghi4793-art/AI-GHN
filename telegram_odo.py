@@ -31,18 +31,18 @@ def get_vn_datetime() -> datetime:
     except Exception:
         return datetime.utcnow() + timedelta(hours=7)
 
-async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
+async def send_telegram_message(text: str, target_chat_id: str = None) -> tuple:
     """
     Helper gửi message Telegram.
-    Chỉ gửi vào đúng Chat Group -1002712779761.
+    Chỉ gửi vào đúng Chat Group -1002712779761 qua Bot @ODOMienTrung_Bot (ODO_BOT_TOKEN).
+    Returns: (success: bool, detail_message: str)
     """
-    chat_id = ODO_CHAT_ID  # Khóa cứng chat_id -1002712779761
+    chat_id = target_chat_id or ODO_CHAT_ID  # Chat ID -1002712779761
     token = get_odo_bot_token()
 
     if not token:
         print("[TELEGRAM ODO] Skipping send: BOT TOKEN missing.")
-        print(f"[TELEGRAM ODO PREVIEW]\n{text}\n")
-        return False
+        return False, "Chưa cấu hình biến môi trường ODO_BOT_TOKEN trên Railway cho @ODOMienTrung_Bot."
 
     vn_now = get_vn_datetime()
     print(f"[TELEGRAM ODO LOG] [{vn_now.strftime('%H:%M:%S %d/%m/%Y')}] Sending message to target chat_id={chat_id}...")
@@ -59,9 +59,8 @@ async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
             res = await client.post(url, json=payload)
             if res.status_code == 200:
                 print(f"[TELEGRAM ODO SUCCESS] Sent message to chat_id={chat_id} (HTTP 200 OK)")
-                return True
+                return True, "Gửi tin nhắn Telegram thành công!"
             else:
-                print(f"[TELEGRAM ODO WARNING] Markdown send returned HTTP {res.status_code}. Retrying plain text...")
                 payload_plain = {
                     "chat_id": chat_id,
                     "text": text.replace("*", "").replace("`", "").replace("_", ""),
@@ -70,13 +69,18 @@ async def send_telegram_message(text: str, target_chat_id: str = None) -> bool:
                 res2 = await client.post(url, json=payload_plain)
                 if res2.status_code == 200:
                     print(f"[TELEGRAM ODO SUCCESS] Sent fallback plain text message to chat_id={chat_id} (HTTP 200 OK)")
-                    return True
+                    return True, "Gửi tin nhắn Telegram (Plain text) thành công!"
                 else:
-                    print(f"[TELEGRAM ODO ERROR] Telegram API returned status {res2.status_code}: {res2.text}")
-                    return False
+                    err_text = res2.text
+                    print(f"[TELEGRAM ODO ERROR] Telegram API returned status {res2.status_code}: {err_text}")
+                    if "chat not found" in err_text.lower():
+                        return False, "Bot chưa nằm trong nhóm ID -1002712779761. Vui lòng thêm @ODOMienTrung_Bot vào nhóm hoặc nhập Token của @ODOMienTrung_Bot vào biến ODO_BOT_TOKEN trên Railway!"
+                    elif "unauthorized" in err_text.lower():
+                        return False, "Token Bot Telegram không hợp lệ. Vui lòng nhập đúng Token của @ODOMienTrung_Bot vào biến ODO_BOT_TOKEN trên Railway!"
+                    return False, f"Telegram API báo lỗi HTTP {res2.status_code}: {err_text}"
     except Exception as e:
         print(f"[TELEGRAM ODO ERROR] Failed to send telegram message: {e}")
-        return False
+        return False, f"Ngoại lệ kết nối Telegram: {e}"
 
 def build_xe_van_hanh_message(target_date: str) -> str:
     """Xây dựng tin nhắn 🚚 XE VẬN HÀNH (Xe OFF & Xe tăng cường) dành cho mốc 18:00."""
