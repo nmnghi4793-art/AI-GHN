@@ -2059,43 +2059,133 @@ def _generate_initial_xe_daily_records():
 XE_DAILY_META_FILE = os.path.join(BASE_DIR, "scratch", "xe_daily_meta.json")
 
 def _load_xe_daily_records():
-    """Load xe vận hành daily records từ JSON file chính hoặc backup."""
-    try:
-        os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
+    """
+    Tải danh sách xe vận hành daily từ hệ thống lưu trữ đa tầng (Multi-Layer Persistent Storage):
+    1. PostgreSQL (nếu có DATABASE_URL / POSTGRES_URL trên Railway)
+    2. Local JSON file chính (scratch/xe_van_hanh_daily.json)
+    3. Backup JSON file cố định (scratch/xe_van_hanh_daily_backup.json - Chứa 30 bản ghi khôi phục)
+    4. Google Sheets (Tab 'Xe Daily Logs')
+    """
+    deployment_id = os.environ.get("RAILWAY_DEPLOYMENT_ID") or os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "Local"
+    pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    
+    # 0. Nếu Admin cố ý bấm "Xóa tất cả dữ liệu" (có Admin Key)
+    if os.path.exists(XE_DAILY_META_FILE):
+        try:
+            with open(XE_DAILY_META_FILE, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                if meta.get("user_cleared") is True:
+                    # Kiểm tra nếu sau khi xóa user có nhập mới hay không
+                    if os.path.exists(XE_DAILY_DATA_FILE):
+                        with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f_d:
+                            d = json.load(f_d)
+                            if isinstance(d, list) and len(d) > 0:
+                                return d
+                    return []
+        except Exception:
+            pass
 
-        # 0. Nếu người dùng (Admin) đã từng bấm Xóa Toàn Bộ -> Giữ nguyên danh sách hiện tại (kể cả rỗng)
-        if os.path.exists(XE_DAILY_META_FILE):
-            try:
-                with open(XE_DAILY_META_FILE, "r", encoding="utf-8") as f:
-                    meta = json.load(f)
-                    if meta.get("user_cleared") is True:
-                        if os.path.exists(XE_DAILY_DATA_FILE):
-                            with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
-                                data = json.load(f)
-                                if isinstance(data, list):
-                                    return data
-                        return []
-            except Exception:
-                pass
+    records = []
 
-        # 1. Thử load từ file chính
-        if os.path.exists(XE_DAILY_DATA_FILE):
+    # 1. PostgreSQL Persistent Table
+    if pg_url:
+        try:
+            import psycopg2
+            conn = psycopg2.connect(pg_url)
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS xe_van_hanh_daily_records (
+                    id VARCHAR(64) PRIMARY KEY,
+                    ngay VARCHAR(32),
+                    ten_kho VARCHAR(255),
+                    loai VARCHAR(64),
+                    so_luong_xe INT,
+                    bien_so_xe VARCHAR(64),
+                    ten_ncc VARCHAR(255),
+                    trong_tai INT,
+                    ghi_chu TEXT,
+                    nguoi_nhap VARCHAR(64),
+                    thoi_gian_ghi_nhan VARCHAR(64)
+                );
+            """)
+            conn.commit()
+            cur.execute("SELECT id, ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu, nguoi_nhap, thoi_gian_ghi_nhan FROM xe_van_hanh_daily_records ORDER BY thoi_gian_ghi_nhan DESC;")
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            if rows:
+                for r in rows:
+                    records.append({
+                        "id": r[0], "ngay": r[1], "ten_kho": r[2], "loai": r[3],
+                        "so_luong_xe": r[4], "bien_so_xe": r[5], "ten_ncc": r[6],
+                        "trong_tai": r[7], "ghi_chu": r[8], "nguoi_nhap": r[9],
+                        "thoi_gian_ghi_nhan": r[10]
+                    })
+                print(f"[XE DAILY PERSISTENCE] Loaded {len(records)} records from PostgreSQL on Railway ({deployment_id}).")
+                _save_xe_daily_records(records, sync_db=False)
+                return records
+        except Exception as pg_err:
+            print(f"[XE DAILY DB WARNING] PostgreSQL read attempt: {pg_err}")
+
+    # 2. Local JSON file chính
+    if os.path.exists(XE_DAILY_DATA_FILE):
+        try:
             with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
-                    return data
+                if isinstance(data, list) and len(data) > 0:
+                    records = data
+                    print(f"[XE DAILY PERSISTENCE] Loaded {len(records)} records from local JSON file.")
+        except Exception:
+            pass
 
-        # 2. Thử khôi phục từ file backup nếu file chính chưa tồn tại
-        if os.path.exists(XE_DAILY_BACKUP_FILE):
+    # 3. Backup JSON file cố định
+    if not records and os.path.exists(XE_DAILY_BACKUP_FILE):
+        try:
             with open(XE_DAILY_BACKUP_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
-                    return data
+                if isinstance(data, list) and len(data) > 0:
+                    records = data
+                    print(f"[XE DAILY RECOVERY] Recovered {len(records)} master records from backup JSON file.")
+        except Exception:
+            pass
 
-    except Exception as e:
-        print(f"[XE DAILY] Error loading records: {e}")
+    # 4. Google Sheets Tab 'Xe Daily Logs'
+    if not records:
+        try:
+            sheet_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Xe%20Daily%20Logs"
+            req = urllib.request.Request(sheet_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                content = resp.read().decode('utf-8')
+                reader = csv.DictReader(io.StringIO(content))
+                sheet_rows = list(reader)
+                if sheet_rows:
+                    for r in sheet_rows:
+                        rec_id = (r.get("ID") or r.get("id") or "").strip()
+                        if rec_id:
+                            records.append({
+                                "id": rec_id,
+                                "ngay": (r.get("Ngày") or r.get("ngay") or "").strip(),
+                                "ten_kho": (r.get("Tên Kho") or r.get("ten_kho") or "").strip(),
+                                "loai": (r.get("Loại") or r.get("loai") or "").strip(),
+                                "so_luong_xe": int(r.get("Số lượng xe") or r.get("so_luong_xe") or 1),
+                                "bien_so_xe": (r.get("Biển số xe") or r.get("bien_so_xe") or "").strip(),
+                                "ten_ncc": (r.get("Tên NCC") or r.get("ten_ncc") or "").strip(),
+                                "trong_tai": int(r.get("Trọng tải") or r.get("trong_tai") or 0),
+                                "ghi_chu": (r.get("Ghi chú") or r.get("ghi_chu") or "").strip(),
+                                "nguoi_nhap": (r.get("Người nhập") or r.get("nguoi_nhap") or "Manager").strip(),
+                                "thoi_gian_ghi_nhan": (r.get("Thời gian ghi nhận") or r.get("thoi_gian_ghi_nhan") or "").strip()
+                            })
+                    if records:
+                        print(f"[XE DAILY RECOVERY] Recovered {len(records)} records from Google Sheets tab 'Xe Daily Logs'.")
+        except Exception as sheet_err:
+            print(f"[XE DAILY SHEET WARNING] Could not fetch Google Sheets logs: {sheet_err}")
 
-    return []
+    if records:
+        _save_xe_daily_records(records, sync_db=True)
+
+    print(f"[XE DAILY STATUS] Storage: Multi-Layer Persistent | Active records: {len(records)} | Deployment ID: {deployment_id}")
+    return records
+
 
 def _sync_xe_daily_to_google_sheets(new_records: list):
     """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs'."""
@@ -2158,8 +2248,9 @@ def _sync_xe_daily_to_google_sheets(new_records: list):
 
     threading.Thread(target=_worker, daemon=True).start()
 
-def _save_xe_daily_records(records: list):
-    """Ghi xe vận hành daily records vào cả JSON file chính và backup file."""
+
+def _save_xe_daily_records(records: list, sync_db: bool = True):
+    """Ghi xe vận hành daily records vào file JSON chính, file Backup, PostgreSQL và Google Sheets."""
     try:
         os.makedirs(os.path.dirname(XE_DAILY_DATA_FILE), exist_ok=True)
         with open(XE_DAILY_DATA_FILE, "w", encoding="utf-8") as f:
@@ -2167,9 +2258,60 @@ def _save_xe_daily_records(records: list):
         if records:
             with open(XE_DAILY_BACKUP_FILE, "w", encoding="utf-8") as f_bk:
                 json.dump(records, f_bk, ensure_ascii=False, indent=2)
+
+        pg_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+        if sync_db and pg_url:
+            try:
+                import psycopg2
+                conn = psycopg2.connect(pg_url)
+                cur = conn.cursor()
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS xe_van_hanh_daily_records (
+                        id VARCHAR(64) PRIMARY KEY,
+                        ngay VARCHAR(32),
+                        ten_kho VARCHAR(255),
+                        loai VARCHAR(64),
+                        so_luong_xe INT,
+                        bien_so_xe VARCHAR(64),
+                        ten_ncc VARCHAR(255),
+                        trong_tai INT,
+                        ghi_chu TEXT,
+                        nguoi_nhap VARCHAR(64),
+                        thoi_gian_ghi_nhan VARCHAR(64)
+                    );
+                """)
+                cur.execute("DELETE FROM xe_van_hanh_daily_records;")
+                for r in records:
+                    cur.execute("""
+                        INSERT INTO xe_van_hanh_daily_records (id, ngay, ten_kho, loai, so_luong_xe, bien_so_xe, ten_ncc, trong_tai, ghi_chu, nguoi_nhap, thoi_gian_ghi_nhan)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            ngay = EXCLUDED.ngay,
+                            ten_kho = EXCLUDED.ten_kho,
+                            loai = EXCLUDED.loai,
+                            so_luong_xe = EXCLUDED.so_luong_xe,
+                            bien_so_xe = EXCLUDED.bien_so_xe,
+                            ten_ncc = EXCLUDED.ten_ncc,
+                            trong_tai = EXCLUDED.trong_tai,
+                            ghi_chu = EXCLUDED.ghi_chu,
+                            nguoi_nhap = EXCLUDED.nguoi_nhap,
+                            thoi_gian_ghi_nhan = EXCLUDED.thoi_gian_ghi_nhan;
+                    """, (
+                        r.get("id"), r.get("ngay"), r.get("ten_kho"), r.get("loai"),
+                        r.get("so_luong_xe", 1), r.get("bien_so_xe"), r.get("ten_ncc"),
+                        r.get("trong_tai", 0), r.get("ghi_chu"), r.get("nguoi_nhap"),
+                        r.get("thoi_gian_ghi_nhan")
+                    ))
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"[XE DAILY DB] Persisted {len(records)} records into PostgreSQL.")
+            except Exception as pg_save_err:
+                print(f"[XE DAILY DB SAVE ERROR] {pg_save_err}")
+
         return True
     except Exception as e:
-        print(f"[XE DAILY] Error saving records: {e}")
+        print(f"[XE DAILY SAVE ERROR] {e}")
         return False
 
 
