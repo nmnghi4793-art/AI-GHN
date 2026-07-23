@@ -2638,26 +2638,81 @@ def _save_xe_daily_records(records: list, sync_db: bool = True):
 
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_meta(force: bool = False):
-    """Trả về danh sách kho và NCC để render dropdown."""
+    """
+    Trả về danh sách 25 kho GXT Miền Trung đầy đủ từ get_kho_gxt(),
+    kèm mapping ID kho -> Tên kho đầy đủ và Tỉnh, cùng danh sách NCC.
+    """
+    kho_gxt_res = get_kho_gxt(force=force)
+    kho_data = kho_gxt_res.get("data", []) if isinstance(kho_gxt_res, dict) else []
+
+    warehouses = []
+    seen_ids = set()
+
+    for item in kho_data:
+        raw_id = str(item.get("id_kho") or item.get("id") or "").strip()
+        raw_name = str(item.get("ten_kho") or "").strip()
+        tinh = str(item.get("tinh") or "").strip()
+        
+        if not raw_id:
+            continue
+
+        if "." in raw_id:
+            raw_id = raw_id.split(".")[0]
+
+        if raw_id in seen_ids:
+            continue
+        seen_ids.add(raw_id)
+
+        clean_name = raw_name.replace("Kho Giao Hàng Nặng", "").strip(" -")
+        if tinh and not clean_name.endswith(tinh) and tinh not in clean_name:
+            full_label = f"Kho Giao Hàng Nặng - {clean_name} - {tinh}"
+        elif clean_name.startswith("Kho Giao Hàng Nặng"):
+            full_label = clean_name
+        else:
+            full_label = f"Kho Giao Hàng Nặng - {clean_name}"
+
+        warehouses.append({
+            "id": raw_id,
+            "id_kho": raw_id,
+            "name": full_label,
+            "short_name": clean_name,
+            "tinh": tinh,
+            "label": full_label
+        })
+
+    warehouses = sorted(warehouses, key=lambda w: w["name"])
+    kho_list = [w["name"] for w in warehouses]
+
+    xe_gxt_data, _ = read_csv("xe_gxt", force=force)
     records = _load_xe_daily_records()
-    kho_set = sorted(list(set(r["ten_kho"] for r in records if r.get("ten_kho"))))
-    
-    ncc_map = {}
+
+    ncc_set = set()
+    for r in xe_gxt_data:
+        ncc = str(r.get("Tên NCC") or r.get("Ten NCC") or r.get("NCC") or "").strip()
+        if ncc:
+            ncc_set.add(ncc)
+
     for r in records:
-        kho = r.get("ten_kho")
-        ncc = r.get("ten_ncc")
-        if kho and ncc:
-            if kho not in ncc_map:
-                ncc_map[kho] = set()
-            ncc_map[kho].add(ncc)
-    
-    ncc_map_list = {k: sorted(list(v)) for k, v in ncc_map.items()}
-    ncc_all = sorted(list(set(r["ten_ncc"] for r in records if r.get("ten_ncc"))))
-    
+        ncc = str(r.get("ten_ncc") or r.get("vendor") or "").strip()
+        if ncc:
+            ncc_set.add(ncc)
+
+    if not ncc_set:
+        ncc_set = {"An Logistics", "Bảo Châu Phát", "Giao Hàng Nặng", "Mạnh Cường", "Tín Thành", "Thần Đèn", "Việt Nhật"}
+
+    ncc_all = sorted(list(ncc_set))
+
+    print(f"\n===== [DEBUG XE DAILY META] =====")
+    print(f"Tổng số kho GXT Miền Trung load được: {len(warehouses)}")
+    print(f"Danh sách {len(warehouses)} ID kho: {[w['id'] for w in warehouses]}")
+    print(f"Tổng số NCC load được: {len(ncc_all)}")
+    print(f"==================================\n")
+
     return {
-        "kho_list": kho_set,
-        "ncc_map": ncc_map_list,
+        "warehouses": warehouses,
+        "kho_list": kho_list,
         "ncc_all": ncc_all,
+        "total_warehouses": len(warehouses)
     }
 
 

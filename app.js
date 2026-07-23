@@ -6991,17 +6991,29 @@ function renderXeDailySection() {
 }
 
 // ---- Load kho/NCC metadata ----
+// ---- Isolated Form Row State ----
+let xeDailyRowState = {};
+let xeDailyRowCount = 0;
+
+// ---- Load kho/NCC metadata ----
 async function loadXeDailyMeta() {
     try {
-        const result = await authFetch(`${API}/xe-van-hanh/meta`, { kho_list: [], ncc_map: {}, ncc_all: [] });
+        const result = await authFetch(`${API}/xe-van-hanh/meta`, { warehouses: [], kho_list: [], ncc_all: [] });
         state.xeDailyMeta = result;
         xeDailyMetaLoaded = true;
-        console.log(`[XE DAILY] Meta loaded: ${result.kho_list?.length || 0} kho, ${result.ncc_all?.length || 0} NCC`);
-        // Refresh all existing rows' dropdowns
+        
+        const warehouses = result.warehouses || [];
+        console.log(`\n===== [DEBUG FRONTEND KHO META] =====`);
+        console.log(`Tổng số kho GXT load được: ${result.total_warehouses || warehouses.length}`);
+        console.log(`Danh sách ${warehouses.length} ID kho:`, warehouses.map(w => w.id));
+        console.log(`Tổng số NCC load được: ${result.ncc_all?.length || 0}`);
+        console.log(`=====================================\n`);
+
+        // Refresh existing rows' dropdowns
         document.querySelectorAll('.xe-daily-row').forEach(row => {
             const rowId = row.dataset.rowId;
             _populateKhoDropdown(rowId);
-            _populateNccDropdown(rowId, '');
+            _populateNccDropdown(rowId);
         });
         // Populate filter dropdowns
         _populateFilterDropdowns();
@@ -7013,25 +7025,71 @@ async function loadXeDailyMeta() {
 function _populateKhoDropdown(rowId) {
     const sel = document.getElementById(`xed-kho-${rowId}`);
     if (!sel) return;
-    const khoList = state.xeDailyMeta?.kho_list || [];
-    const currentVal = sel.value;
-    sel.innerHTML = '<option value="">-- Chọn kho --</option>' +
-        khoList.map(k => `<option value="${escapeHtml(k)}"${currentVal === k ? ' selected' : ''}>${escapeHtml(k)}</option>`).join('');
+    const warehouses = state.xeDailyMeta?.warehouses || [];
+    const currentWarehouseId = xeDailyRowState[rowId]?.warehouseId || sel.value || '';
+
+    sel.innerHTML = '<option value="">-- Chọn kho (25 kho GXT) --</option>' +
+        warehouses.map(w => `<option value="${w.id}"${currentWarehouseId === w.id ? ' selected' : ''}>${escapeHtml(w.name)}</option>`).join('');
 }
 
-function _populateNccDropdown(rowId, selectedKho) {
+function _populateNccDropdown(rowId) {
     const sel = document.getElementById(`xed-ncc-${rowId}`);
     if (!sel) return;
-    const meta = state.xeDailyMeta || { ncc_map: {}, ncc_all: [] };
-    const currentVal = sel.value;
-    let nccList = [];
-    if (selectedKho && meta.ncc_map?.[selectedKho]?.length > 0) {
-        nccList = meta.ncc_map[selectedKho];
-    } else {
-        nccList = meta.ncc_all || [];
-    }
+    const nccList = state.xeDailyMeta?.ncc_all || [];
+    const currentVendorName = xeDailyRowState[rowId]?.vendorName || sel.value || '';
+
     sel.innerHTML = '<option value="">-- Chọn NCC --</option>' +
-        nccList.map(n => `<option value="${escapeHtml(n)}"${currentVal === n ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+        nccList.map(n => `<option value="${escapeHtml(n)}"${currentVendorName === n ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+}
+
+// Field change handler — updates only the targeted rowId state without options[selectedIndex] lookup
+function onXedFieldChange(rowId, fieldName, value) {
+    if (!xeDailyRowState[rowId]) {
+        xeDailyRowState[rowId] = {
+            rowId: rowId,
+            date: _getTodayVN(),
+            warehouseId: '', warehouseName: '',
+            recordType: '', vehicleCount: 1, licensePlate: '',
+            vendorId: '', vendorName: '', payloadKg: 0, note: ''
+        };
+    }
+
+    const prevState = { ...xeDailyRowState[rowId] };
+    let updatedState = { ...prevState };
+
+    if (fieldName === 'warehouseId') {
+        const warehouses = state.xeDailyMeta?.warehouses || [];
+        // Use Array.find by ID — NO options[selectedIndex]!
+        const selectedWarehouse = warehouses.find(w => w.id === value);
+        
+        updatedState.warehouseId = value;
+        updatedState.warehouseName = selectedWarehouse ? selectedWarehouse.name : '';
+
+        console.log(`[DEBUG FORM ROW] Row ID: ${rowId}`);
+        console.log(`[DEBUG FORM ROW] Kho được chọn (ID): ${value} -> Tên kho: "${updatedState.warehouseName}"`);
+        console.log(`[DEBUG FORM ROW] NCC trước khi chọn kho: "${prevState.vendorName}"`);
+        console.log(`[DEBUG FORM ROW] NCC sau khi chọn kho: "${updatedState.vendorName}" (Giữ nguyên, không tự đổi)`);
+    } else if (fieldName === 'vendorName') {
+        const vVal = (value || '').trim();
+        updatedState.vendorId = vVal;
+        updatedState.vendorName = vVal;
+    } else if (fieldName === 'recordType') {
+        updatedState.recordType = value;
+    } else if (fieldName === 'vehicleCount') {
+        updatedState.vehicleCount = parseInt(value) || 1;
+    } else if (fieldName === 'licensePlate') {
+        updatedState.licensePlate = (value || '').toUpperCase().trim();
+    } else if (fieldName === 'payloadKg') {
+        updatedState.payloadKg = parseInt(value) || 0;
+        updateTrongTaiHint(rowId, updatedState.payloadKg);
+    } else if (fieldName === 'date') {
+        updatedState.date = value;
+    }
+
+    xeDailyRowState[rowId] = updatedState;
+
+    console.log(`[DEBUG FORM ROW STATE] Row ID: ${rowId} | State BEFORE:`, prevState);
+    console.log(`[DEBUG FORM ROW STATE] Row ID: ${rowId} | State AFTER:`, xeDailyRowState[rowId]);
 }
 
 // ---- Add a form row ----
@@ -7040,9 +7098,24 @@ function addXeDailyRow() {
     if (!container) return;
 
     xeDailyRowCount++;
-    const rowId = `r${xeDailyRowCount}`;
+    const rowId = `r_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const today = _getTodayVN();
     const days = _getDaysFromStart();
+
+    // Isolated state for this new row
+    xeDailyRowState[rowId] = {
+        rowId: rowId,
+        date: today,
+        warehouseId: '',
+        warehouseName: '',
+        recordType: '',
+        vehicleCount: 1,
+        licensePlate: '',
+        vendorId: '',
+        vendorName: '',
+        payloadKg: 0,
+        note: ''
+    };
 
     const rowEl = document.createElement('div');
     rowEl.className = 'xe-daily-row';
@@ -7050,7 +7123,7 @@ function addXeDailyRow() {
 
     rowEl.innerHTML = `
         <div class="xe-daily-row-header">
-            <span><i class="fa-solid fa-truck-moving"></i> Dòng xe ${xeDailyRowCount}</span>
+            <span><i class="fa-solid fa-truck-moving"></i> Dòng xe ${container.children.length + 1}</span>
             <button class="xe-daily-row-delete" onclick="removeXeDailyRow('${rowId}')" title="Xóa dòng này">
                 <i class="fa-solid fa-trash-can"></i> Xóa
             </button>
@@ -7058,19 +7131,19 @@ function addXeDailyRow() {
         <div class="xe-daily-grid">
             <div class="xe-daily-field">
                 <label for="xed-ngay-${rowId}">Ngày <span class="req">*</span></label>
-                <select id="xed-ngay-${rowId}">
+                <select id="xed-ngay-${rowId}" onchange="onXedFieldChange('${rowId}', 'date', this.value)">
                     ${days.map(d => `<option value="${d}"${d === today ? ' selected' : ''}>${d}</option>`).join('')}
                 </select>
             </div>
             <div class="xe-daily-field">
                 <label for="xed-kho-${rowId}">Tên kho <span class="req">*</span></label>
-                <select id="xed-kho-${rowId}" onchange="onXedKhoChange('${rowId}')">
-                    <option value="">-- Chọn kho --</option>
+                <select id="xed-kho-${rowId}" onchange="onXedFieldChange('${rowId}', 'warehouseId', this.value)">
+                    <option value="">-- Chọn kho (25 kho GXT) --</option>
                 </select>
             </div>
             <div class="xe-daily-field">
                 <label for="xed-loai-${rowId}">Loại ghi nhận <span class="req">*</span></label>
-                <select id="xed-loai-${rowId}">
+                <select id="xed-loai-${rowId}" onchange="onXedFieldChange('${rowId}', 'recordType', this.value)">
                     <option value="">-- Chọn loại --</option>
                     <option value="Xe tăng cường">🟢 Xe tăng cường</option>
                     <option value="Xe không hoạt động">🔴 Xe không hoạt động</option>
@@ -7078,7 +7151,7 @@ function addXeDailyRow() {
             </div>
             <div class="xe-daily-field">
                 <label for="xed-sl-${rowId}">Số lượng xe <span class="req">*</span></label>
-                <select id="xed-sl-${rowId}">
+                <select id="xed-sl-${rowId}" onchange="onXedFieldChange('${rowId}', 'vehicleCount', this.value)">
                     <option value="1">1 xe</option>
                     <option value="2">2 xe</option>
                     <option value="3">3 xe</option>
@@ -7088,18 +7161,18 @@ function addXeDailyRow() {
             </div>
             <div class="xe-daily-field" style="grid-column: span 2;">
                 <label for="xed-bien-${rowId}">Biển số xe <span class="req">*</span></label>
-                <input type="text" id="xed-bien-${rowId}" placeholder="VD: 50H-806.25" autocomplete="off">
+                <input type="text" id="xed-bien-${rowId}" placeholder="VD: 50H-806.25" autocomplete="off" oninput="onXedFieldChange('${rowId}', 'licensePlate', this.value)">
             </div>
             <div class="xe-daily-field">
                 <label for="xed-ncc-${rowId}">Tên NCC <span class="req">*</span></label>
-                <select id="xed-ncc-${rowId}">
+                <select id="xed-ncc-${rowId}" onchange="onXedFieldChange('${rowId}', 'vendorName', this.value)">
                     <option value="">-- Chọn NCC --</option>
                 </select>
             </div>
             <div class="xe-daily-field">
                 <label for="xed-tt-${rowId}">Trọng tải (kg) <span class="req">*</span></label>
                 <input type="number" id="xed-tt-${rowId}" placeholder="VD: 1400, 1900, 2500" min="0" step="100"
-                    oninput="updateTrongTaiHint('${rowId}')">
+                    oninput="onXedFieldChange('${rowId}', 'payloadKg', this.value)">
                 <span class="trong-tai-hint" id="xed-tt-hint-${rowId}"></span>
             </div>
         </div>
@@ -7107,25 +7180,15 @@ function addXeDailyRow() {
 
     container.appendChild(rowEl);
 
-    // Populate kho dropdown
     _populateKhoDropdown(rowId);
-    _populateNccDropdown(rowId, '');
-}
-
-// Called when kho is changed — update NCC dropdown
-function onXedKhoChange(rowId) {
-    const khoSel = document.getElementById(`xed-kho-${rowId}`);
-    if (khoSel) {
-        _populateNccDropdown(rowId, khoSel.value);
-    }
+    _populateNccDropdown(rowId);
 }
 
 // Update trong-tai hint label
-function updateTrongTaiHint(rowId) {
-    const inp = document.getElementById(`xed-tt-${rowId}`);
+function updateTrongTaiHint(rowId, val) {
     const hint = document.getElementById(`xed-tt-hint-${rowId}`);
-    if (!inp || !hint) return;
-    const label = _trongTaiLabel(inp.value);
+    if (!hint) return;
+    const label = _trongTaiLabel(val);
     hint.textContent = label ? `≈ ${label}` : '';
 }
 
@@ -7133,14 +7196,20 @@ function updateTrongTaiHint(rowId) {
 function removeXeDailyRow(rowId) {
     const container = document.getElementById('xe-daily-rows-container');
     if (!container) return;
+    if (container.children.length <= 1) {
+        showToast('Cần ít nhất 1 dòng xe trong form.', 'warning');
+        return;
+    }
     const row = container.querySelector(`.xe-daily-row[data-row-id="${rowId}"]`);
     if (row) {
-        // Don't remove if it's the only row
-        if (container.children.length <= 1) {
-            showToast('Cần ít nhất 1 dòng xe trong form.', 'warning');
-            return;
-        }
         row.remove();
+        delete xeDailyRowState[rowId];
+        console.log(`[DEBUG FORM ROW] Removed row ${rowId}. Active state rows remaining:`, Object.keys(xeDailyRowState).length);
+        // Re-label row headers cleanly
+        container.querySelectorAll('.xe-daily-row').forEach((rEl, idx) => {
+            const headerTitle = rEl.querySelector('.xe-daily-row-header span');
+            if (headerTitle) headerTitle.innerHTML = `<i class="fa-solid fa-truck-moving"></i> Dòng xe ${idx + 1}`;
+        });
     }
 }
 
@@ -7149,8 +7218,8 @@ async function saveXeDaily() {
     const container = document.getElementById('xe-daily-rows-container');
     if (!container) return;
 
-    const rows = container.querySelectorAll('.xe-daily-row');
-    if (!rows.length) {
+    const rowElements = container.querySelectorAll('.xe-daily-row');
+    if (!rowElements.length) {
         showToast('Chưa có dòng xe nào để lưu.', 'warning');
         return;
     }
@@ -7158,24 +7227,28 @@ async function saveXeDaily() {
     const records = [];
     let hasError = false;
 
-    rows.forEach(rowEl => {
+    rowElements.forEach(rowEl => {
         const rowId = rowEl.dataset.rowId;
+        const rState = xeDailyRowState[rowId];
 
         // Clear previous error state
         rowEl.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
 
-        const ngay   = document.getElementById(`xed-ngay-${rowId}`)?.value?.trim() || '';
-        const tenKho = document.getElementById(`xed-kho-${rowId}`)?.value?.trim() || '';
-        const loai   = document.getElementById(`xed-loai-${rowId}`)?.value?.trim() || '';
-        const slXe   = document.getElementById(`xed-sl-${rowId}`)?.value || '1';
-        const bien   = document.getElementById(`xed-bien-${rowId}`)?.value?.trim() || '';
-        const tenNcc = document.getElementById(`xed-ncc-${rowId}`)?.value?.trim() || '';
-        const tt     = document.getElementById(`xed-tt-${rowId}`)?.value?.trim() || '';
+        if (!rState) return;
+
+        const ngay       = rState.date || document.getElementById(`xed-ngay-${rowId}`)?.value?.trim() || '';
+        const warehouseId= rState.warehouseId || document.getElementById(`xed-kho-${rowId}`)?.value?.trim() || '';
+        const tenKho     = rState.warehouseName || '';
+        const loai       = rState.recordType || document.getElementById(`xed-loai-${rowId}`)?.value?.trim() || '';
+        const slXe       = rState.vehicleCount || parseInt(document.getElementById(`xed-sl-${rowId}`)?.value || '1');
+        const bien       = rState.licensePlate || document.getElementById(`xed-bien-${rowId}`)?.value?.trim() || '';
+        const tenNcc     = rState.vendorName || document.getElementById(`xed-ncc-${rowId}`)?.value?.trim() || '';
+        const tt         = rState.payloadKg || parseInt(document.getElementById(`xed-tt-${rowId}`)?.value || '0');
 
         let rowOk = true;
 
         if (!ngay) { rowOk = false; hasError = true; }
-        if (!tenKho) { rowOk = false; hasError = true; document.getElementById(`xed-kho-${rowId}`)?.classList.add('error'); }
+        if (!warehouseId || !tenKho) { rowOk = false; hasError = true; document.getElementById(`xed-kho-${rowId}`)?.classList.add('error'); }
         if (!loai)  { rowOk = false; hasError = true; document.getElementById(`xed-loai-${rowId}`)?.classList.add('error'); }
         if (!bien)  { rowOk = false; hasError = true; document.getElementById(`xed-bien-${rowId}`)?.classList.add('error'); }
         if (!tenNcc){ rowOk = false; hasError = true; document.getElementById(`xed-ncc-${rowId}`)?.classList.add('error'); }
@@ -7183,13 +7256,15 @@ async function saveXeDaily() {
 
         if (rowOk) {
             records.push({
-                ngay: ngay,
-                ten_kho: tenKho,
-                loai: loai,
-                so_luong_xe: parseInt(slXe) || 1,
-                bien_so_xe: bien,
-                ten_ncc: tenNcc,
-                trong_tai: parseInt(tt) || 0,
+                date: ngay,
+                warehouse: tenKho,
+                warehouseId: warehouseId,
+                recordType: loai,
+                vehicleCount: slXe,
+                licensePlate: bien,
+                vendor: tenNcc,
+                payloadKg: tt,
+                note: rState.note || ''
             });
         }
     });
@@ -7204,7 +7279,6 @@ async function saveXeDaily() {
         return;
     }
 
-    // Disable save button
     const saveBtn = document.getElementById('btn-save-xe-daily');
     if (saveBtn) {
         saveBtn.disabled = true;
@@ -7231,6 +7305,7 @@ async function saveXeDaily() {
                 // Reset form
                 const c = document.getElementById('xe-daily-rows-container');
                 if (c) c.innerHTML = '';
+                xeDailyRowState = {};
                 xeDailyRowCount = 0;
                 addXeDailyRow();
                 // Reload history & cards with reset filters
