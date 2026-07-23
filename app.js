@@ -132,8 +132,6 @@ async function apiFetch(url, opts = {}) {
     }
     return resp;
 }
-const authFetch = apiFetch;
-window.authFetch = authFetch;
 
 // GHN Brand Colors - Redefined for dark cyan neon theme
 const C_ORANGE = '#FF6600';
@@ -263,6 +261,43 @@ async function authFetch(url, fallback = null) {
         return fallback;
     }
 }
+
+function loadDashboardFromCache(force = false) {
+    console.log('[DASHBOARD LOG] loadDashboardFromCache triggered, force =', force);
+    return fetchAll(force);
+}
+window.loadDashboardFromCache = loadDashboardFromCache;
+
+function logout() {
+    console.log('[AUTH LOG] Logging out user...');
+    clearApiToken();
+    localStorage.removeItem('ghn_logged_in');
+    localStorage.removeItem('ghn_profile_completed');
+    sessionStorage.clear();
+    location.reload();
+}
+window.logout = logout;
+
+function setupLogout() {
+    console.log('[AUTH LOG] Binding logout buttons...');
+    const logoutBtns = [
+        document.getElementById('logout-btn'),
+        document.getElementById('btn-logout'),
+        document.querySelector('.user-profile')
+    ].filter(Boolean);
+    
+    logoutBtns.forEach(btn => {
+        if (!btn.dataset.bound) {
+            btn.dataset.bound = "true";
+            btn.style.cursor = "pointer";
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                logout();
+            });
+        }
+    });
+}
+window.setupLogout = setupLogout;
 
 /** authPost - POST JSON to an authenticated endpoint */
 async function authPost(url, body, fallback = null) {
@@ -8994,15 +9029,72 @@ window.closeOdoKhoModal = closeOdoKhoModal;
 window.sendOdoTelegramNow = sendOdoTelegramNow;
 window.exportOdoToExcel = exportOdoToExcel;
 
+function setupSidebarAndMenu() {
+    console.log("[APP] BINDING SIDEBAR & MENU");
+    document.addEventListener('click', (e) => {
+        const navItem = e.target.closest('.nav-item');
+        if (navItem) {
+            e.preventDefault();
+            const sec = navItem.dataset.section;
+            if (sec) showSection(sec);
+        }
+    });
+
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = "true";
+        refreshBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadDashboardFromCache(true);
+        });
+    }
+
+    setupLogout();
+    console.log("SIDEBAR READY");
+    console.log("MENU READY");
+}
+window.setupSidebarAndMenu = setupSidebarAndMenu;
+
 // AUTO-INITIALIZE DASHBOARD ON SCRIPT LOAD & DOM READY
 function initAppBootSequence() {
+    console.log("==========================================");
+    console.log("APP START - INITIALIZING DASHBOARD BOOT");
     console.log("[APP] DOM READY");
-    console.log("[APP] EVENT LISTENERS READY");
-    if (localStorage.getItem('ghn_logged_in') === 'true') {
-        try { initLogin(); } catch (e) { console.error('[APP ERR] initLogin:', e); }
-        try { loadDashboardFromCache(false); } catch (e) { console.error('[APP ERR] loadDashboardFromCache:', e); }
-    } else {
-        try { initLogin(); } catch (e) { console.error('[APP ERR] initLogin:', e); }
+    
+    try {
+        setupSidebarAndMenu();
+    } catch(e) {
+        console.error('[APP ERR] setupSidebarAndMenu:', e);
+    }
+
+    try {
+        initLogin();
+    } catch(e) {
+        console.error('[APP ERR] initLogin:', e);
+    }
+
+    try {
+        if (localStorage.getItem('ghn_logged_in') === 'true') {
+            loadDashboardFromCache(false);
+        }
+    } catch(e) {
+        console.error('[APP ERR] loadDashboardFromCache:', e);
+    } finally {
+        // ALWAYS HIDE OVERLAYS & ENABLE UI
+        const errBoundary = document.getElementById('app-error-boundary');
+        if (errBoundary) errBoundary.style.display = 'none';
+
+        const loginWrapper = document.getElementById('login-wrapper');
+        const profileWrapper = document.getElementById('profile-wrapper');
+        const appContainer = document.getElementById('app-container');
+
+        if (localStorage.getItem('ghn_logged_in') === 'true') {
+            if (loginWrapper) loginWrapper.style.display = 'none';
+            if (profileWrapper) profileWrapper.style.display = 'none';
+            if (appContainer) appContainer.style.display = 'flex';
+        }
+        console.log("DASHBOARD READY");
+        console.log("==========================================");
     }
 }
 

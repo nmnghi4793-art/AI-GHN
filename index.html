@@ -248,8 +248,10 @@
             localStorage.setItem('ghn_profile_completed', 'true');
             sessionStorage.setItem('ghn_profile_completed', 'true');
 
+            var lw = document.getElementById('login-wrapper');
             var pw = document.getElementById('profile-wrapper');
             var ac = document.getElementById('app-container');
+            if (lw) lw.style.display = 'none';
             if (pw) pw.style.display = 'none';
             if (ac) ac.style.display = 'flex';
 
