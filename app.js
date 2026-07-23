@@ -8438,8 +8438,10 @@ async function loadDashboardFromCache(force = false) {
     const updateTimeEl = document.getElementById('last-update-time');
     
     if (force) {
-        btn.classList.add('loading');
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật...';
+        if (btn) {
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật...';
+        }
         showToast('🔄 Đang đồng bộ dữ liệu mới từ Google Sheet...', 'info');
     }
     
@@ -8463,21 +8465,24 @@ async function loadDashboardFromCache(force = false) {
         });
         
         if (resp.status === 401 || resp.status === 403) {
-            clearApiToken();
-            localStorage.removeItem('ghn_logged_in');
-            window.location.reload();
+            console.warn('[CACHE 401/403] Session token error during cache fetch');
             return;
         }
         
         if (resp.ok) {
             const res = await resp.json();
+            const payload = (res && res.data) ? res.data : res;
             
             // Update state
-            state = { ...state, ...(res.data || {}) };
+            state = { ...state, ...(payload || {}) };
             
             // Update sync timestamp
-            if (updateTimeEl && res.sync_info && res.sync_info.last_sync) {
-                updateTimeEl.textContent = `Dữ liệu cập nhật lúc: ${res.sync_info.last_sync}`;
+            const lastSync = (res.sync_info && res.sync_info.last_sync) ||
+                             (payload.overview && payload.overview.last_sync) ||
+                             payload.last_sync ||
+                             new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            if (updateTimeEl) {
+                updateTimeEl.textContent = `Dữ liệu cập nhật lúc: ${lastSync}`;
             }
             
             // Re-render current active tab
@@ -8488,17 +8493,17 @@ async function loadDashboardFromCache(force = false) {
             if (force) {
                 showToast('✅ Dữ liệu đã được làm mới thành công!', 'success');
             }
-            // Populate next sync countdown
-            nextSyncTime = Date.now() + 5 * 60 * 1000;
         } else {
-            console.error('[CACHE ERROR] Failed to fetch dashboard-cache');
+            console.error('[CACHE ERROR] Failed to fetch dashboard-cache, status:', resp.status);
             if (force) showToast('⚠️ Không thể làm mới dữ liệu từ máy chủ.', 'error');
         }
     } catch (e) {
         console.error('[CACHE ERROR]', e);
         if (force) showToast('⚠️ Lỗi kết nối làm mới dữ liệu.', 'error');
     } finally {
-        if (force) {
+        // LUÔN CẬP NHẬT THỜI GIAN ĐỒNG BỘ ĐỂ TRÁNH VÒNG LẶP 1 GIÂY
+        nextSyncTime = Date.now() + 5 * 60 * 1000;
+        if (force && btn) {
             btn.classList.remove('loading');
             btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
         }
