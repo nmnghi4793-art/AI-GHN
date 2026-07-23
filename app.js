@@ -1,5 +1,5 @@
+console.log("[APP] MAIN JS LOADED - VERSION 20260723-FIX");
 const API = window.location.origin + '/api';
-console.log('[LOGIN] Script loaded, API base:', API);
 
 // ---- SECURITY UTILS ----
 /**
@@ -8914,12 +8914,21 @@ window.closeOdoKhoModal = closeOdoKhoModal;
 window.sendOdoTelegramNow = sendOdoTelegramNow;
 window.exportOdoToExcel = exportOdoToExcel;
 
-// AUTO-INITIALIZE DASHBOARD ON SCRIPT LOAD
-(function autoStartDashboard() {
-    console.log('[APP] Auto-start checking login status...');
+// AUTO-INITIALIZE DASHBOARD ON SCRIPT LOAD & DOM READY
+function initAppBootSequence() {
+    console.log("[APP] DOM READY");
+    console.log("[APP] EVENT LISTENERS READY");
     if (localStorage.getItem('ghn_logged_in') === 'true') {
-        try { initLogin(); } catch (e) {}
-        try { loadDashboardFromCache(false); } catch (e) {}
+        try { initLogin(); } catch (e) { console.error('[APP ERR] initLogin:', e); }
+        try { loadDashboardFromCache(false); } catch (e) { console.error('[APP ERR] loadDashboardFromCache:', e); }
+    } else {
+        try { initLogin(); } catch (e) { console.error('[APP ERR] initLogin:', e); }
     }
-})();
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initAppBootSequence, 1);
+} else {
+    document.addEventListener('DOMContentLoaded', initAppBootSequence);
+}
 
