@@ -4108,9 +4108,11 @@ def get_odo_kho_detail(kho: str, date: str = None):
 
 @app.on_event("startup")
 async def start_odo_scheduler_on_startup():
-    """Khởi chạy background scheduler cho module ODO Monitor."""
+    """Khởi chạy background scheduler cho module ODO Monitor và pre-warm cache Dashboard."""
     asyncio.create_task(odo_scheduler.run_odo_scheduler())
+    asyncio.create_task(sync_dashboard_cache(force=False))
     try:
         print("[ODO MODULE] Background ODO Scheduler launched successfully!")
+        print("[CACHE MODULE] Background Dashboard Sync task scheduled on startup!")
     except Exception:
         pass

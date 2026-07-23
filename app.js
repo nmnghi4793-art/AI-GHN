@@ -262,122 +262,95 @@ async function authFetch(url, fallback = null) {
     }
 }
 
-function loadDashboardFromCache(force = false) {
-    console.log('[DASHBOARD LOG] loadDashboardFromCache triggered, force =', force);
-    return fetchAll(force);
-}
-window.loadDashboardFromCache = loadDashboardFromCache;
-
-function logout() {
-    console.log('[AUTH LOG] Logging out user...');
-    clearApiToken();
-    localStorage.removeItem('ghn_logged_in');
-    localStorage.removeItem('ghn_profile_completed');
-    sessionStorage.clear();
-    location.reload();
-}
-window.logout = logout;
-
-function setupLogout() {
-    console.log('[AUTH LOG] Binding logout buttons...');
-    const logoutBtns = [
-        document.getElementById('logout-btn'),
-        document.getElementById('btn-logout'),
-        document.querySelector('.user-profile')
-    ].filter(Boolean);
-    
-    logoutBtns.forEach(btn => {
-        if (!btn.dataset.bound) {
-            btn.dataset.bound = "true";
-            btn.style.cursor = "pointer";
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                logout();
-            });
-        }
-    });
-}
-window.setupLogout = setupLogout;
-
-/** authPost - POST JSON to an authenticated endpoint */
-async function authPost(url, body, fallback = null) {
-    try {
-        const r = await fetch(url, {
-            method: 'POST',
-            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        if (r.status === 401 || r.status === 403) {
-            console.warn(`[AUTH] authPost returned ${r.status} for ${url}`);
-            return fallback;
-        }
-        return await r.json();
-    } catch (e) {
-        console.error('[authPost] Error:', e);
-        return fallback;
-    }
-}
-
 async function fetchAll(force = false) {
     const btn = document.getElementById('refresh-btn');
-    if (force) {
+    if (force && btn) {
         btn.classList.add('loading');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
     }
 
     try {
         const query = force ? '?force=true' : '';
-        const [ov, gtc, ontime, ret, bl, b2b, pers, ns, warn, retC, xegxt, xesuco, khogxt, dontao, gtcB2b, donB2b] = await Promise.all([
-            authFetch(`${API}/dashboard/overview${query}`, {}),
-            authFetch(`${API}/kpi/gtc${query}`, { data: [] }),
-            authFetch(`${API}/kpi/ontime${query}`, { data: [] }),
-            authFetch(`${API}/returns${query}`, { data: [] }),
-            authFetch(`${API}/backlog/critical${query}`, { data: [] }),
-            authFetch(`${API}/backlog/b2b${query}`, { data: [] }),
-            authFetch(`${API}/personnel${query}`, { data: [] }),
-            authFetch(`${API}/nang-suat${query}`, { data: [] }),
-            authFetch(`${API}/warnings${query}`, { data: [] }),
-            authFetch(`${API}/returns/by-client${query}`, { data: [] }),
-            authFetch(`${API}/xe-gxt${query}`, { data: [] }),
-            authFetch(`${API}/xe-su-co${query}`, { data: [] }),
-            authFetch(`${API}/kho-gxt${query}`, { data: [] }),
-            authFetch(`${API}/don-tao${query}`, { data: [] }),
-            authFetch(`${API}/kpi/gtc-b2b${query}`, { data: [] }),
-            authFetch(`${API}/kpi/don-b2b${query}`, { data: [] }),
-        ]);
+        const endpoints = [
+            `${API}/dashboard/overview${query}`,
+            `${API}/kpi/gtc${query}`,
+            `${API}/kpi/ontime${query}`,
+            `${API}/returns${query}`,
+            `${API}/backlog/critical${query}`,
+            `${API}/backlog/b2b${query}`,
+            `${API}/personnel${query}`,
+            `${API}/nang-suat${query}`,
+            `${API}/warnings${query}`,
+            `${API}/returns/by-client${query}`,
+            `${API}/xe-gxt${query}`,
+            `${API}/xe-su-co${query}`,
+            `${API}/kho-gxt${query}`,
+            `${API}/don-tao${query}`,
+            `${API}/kpi/gtc-b2b${query}`,
+            `${API}/kpi/don-b2b${query}`
+        ];
+
+        const results = await Promise.allSettled(endpoints.map(url => authFetch(url, {})));
+
+        const getVal = (res, fallback = {}) => (res.status === 'fulfilled' && res.value) ? res.value : fallback;
+        const getArr = (res) => {
+            const v = getVal(res, { data: [] });
+            return (v && Array.isArray(v.data)) ? v.data : (Array.isArray(v) ? v : []);
+        };
+
+        const ov = getVal(results[0], {});
+        const gtc = getArr(results[1]);
+        const ontime = getArr(results[2]);
+        const ret = getArr(results[3]);
+        const bl = getArr(results[4]);
+        const b2b = getArr(results[5]);
+        const pers = getArr(results[6]);
+        const ns = getArr(results[7]);
+        const warn = getArr(results[8]);
+        const retC = getArr(results[9]);
+        const xegxt = getArr(results[10]);
+        const xesuco = getArr(results[11]);
+        const khogxt = getArr(results[12]);
+        const dontao = getArr(results[13]);
+        const gtcB2b = getArr(results[14]);
+        const donB2b = getArr(results[15]);
 
         state = {
-            overview: ov || {},
-            gtcData: gtc.data || [],
-            ontimeData: ontime.data || [],
-            returnsData: ret.data || [],
-            backlogData: bl.data || [],
-            b2bData: b2b.data || [],
-            personnelData: pers.data || [],
-            nangSuatData: ns.data || [],
-            warningsData: warn.data || [],
-            returnsByClientData: retC.data || [],
-            xeGxtData: xegxt.data || [],
-            xeSuCoData: xesuco.data || [],
-            khoGxtData: khogxt.data || [],
-            donTaoData: dontao.data || [],
-            gtcB2bData: gtcB2b.data || [],
-            donB2bData: donB2b.data || []
+            ...state,
+            overview: (ov && Object.keys(ov).length > 0) ? ov : (state.overview || {}),
+            gtcData: gtc.length ? gtc : state.gtcData || [],
+            ontimeData: ontime.length ? ontime : state.ontimeData || [],
+            returnsData: ret.length ? ret : state.returnsData || [],
+            backlogData: bl.length ? bl : state.backlogData || [],
+            b2bData: b2b.length ? b2b : state.b2bData || [],
+            personnelData: pers.length ? pers : state.personnelData || [],
+            nangSuatData: ns.length ? ns : state.nangSuatData || [],
+            warningsData: warn.length ? warn : state.warningsData || [],
+            returnsByClientData: retC.length ? retC : state.returnsByClientData || [],
+            xeGxtData: xegxt.length ? xegxt : state.xeGxtData || [],
+            xeSuCoData: xesuco.length ? xesuco : state.xeSuCoData || [],
+            khoGxtData: khogxt.length ? khogxt : state.khoGxtData || [],
+            donTaoData: dontao.length ? dontao : state.donTaoData || [],
+            gtcB2bData: gtcB2b.length ? gtcB2b : state.gtcB2bData || [],
+            donB2bData: donB2b.length ? donB2b : state.donB2bData || []
         };
-        filtersPopulated = false; // Reset filters on fresh data
+        filtersPopulated = false;
 
-        // Reset countdown
         nextSyncTime = Date.now() + 5 * 60 * 1000;
         renderAll();
 
-        if (force) {
+        if (force && btn) {
             btn.classList.remove('loading');
             btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
         }
     } catch (e) {
-        console.error('Fetch error:', e);
-        if (force) {
+        console.error('FetchAll error:', e);
+        if (force && btn) {
             btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Làm mới';
+        }
+    }
+}
             btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lỗi';
         }
     }
@@ -8365,12 +8338,28 @@ function renderSection(name = 'overview') {
         try { renderPersonnelOverview(); } catch(e){}
     } else if (name === 'gtc') {
         try { renderGtcSection(); } catch(e){}
+        try { renderGtcByKhoChart(); } catch(e){}
+        try { renderGtcTopBottom(); } catch(e){}
     } else if (name === 'backlog') {
         try { renderBacklogSection(); } catch(e){}
+        try { renderBacklogByKhoChart(); } catch(e){}
     } else if (name === 'personnel') {
         try { renderPersonnelSection(); } catch(e){}
     } else if (name === 'returns') {
         try { renderReturnsSection(); } catch(e){}
+        try { renderReturnsFDChart(); } catch(e){}
+    } else if (name === 'warnings' || name === 'cbr') {
+        try { renderWarningsSection(); } catch(e){}
+        try { renderForecastSection(); } catch(e){}
+    } else if (name === 'gtc-b2b-prio' || name === 'b2b') {
+        try { renderGtcB2bPrioSection(); } catch(e){}
+        try { renderB2bSection(); } catch(e){}
+    } else if (name === 'dontao') {
+        try { renderDonTaoSection(); } catch(e){}
+    } else if (name === 'khoxe') {
+        try { renderKhoGxtSection(); } catch(e){}
+        try { renderXeGxtSection(); } catch(e){}
+        try { renderXeSuCoSection(); } catch(e){}
     } else {
         renderAll();
     }
@@ -8380,7 +8369,11 @@ window.renderSection = renderSection;
 async function ensureSectionData(name, force = false) {
     console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
     hideSectionSkeleton(name);
-    if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
+    const hasData = state && state.overview && Object.keys(state.overview).length > 0 &&
+                    ((state.gtcData && state.gtcData.length > 0) ||
+                     (state.warningsData && state.warningsData.length > 0) ||
+                     (state.donTaoData && state.donTaoData.length > 0));
+    if (!hasData || force) {
         await loadDashboardFromCache(force);
     }
     renderSection(name);
@@ -8470,86 +8463,69 @@ async function loadDashboardFromCache(force = false) {
         if (force) {
             const syncToken = getApiToken();
             const controllerSync = new AbortController();
-            const timerSync = setTimeout(() => controllerSync.abort(), 10000);
+            const timerSync = setTimeout(() => controllerSync.abort(), 15000);
             try {
                 const syncResp = await fetch(`${API}/dashboard-cache/sync`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${syncToken}` },
+                    headers: syncToken ? { 'Authorization': `Bearer ${syncToken}` } : {},
                     signal: controllerSync.signal
                 });
                 clearTimeout(timerSync);
-                if (!syncResp.ok) {
-                    console.warn('[SYNC WARNING] Force sync was rejected or busy.');
-                }
             } catch (e) {
                 clearTimeout(timerSync);
-                console.warn('[SYNC TIMEOUT / ERR]', e);
             }
         }
         
         const token = getApiToken();
         const controller = new AbortController();
-        const fetchTimer = setTimeout(() => controller.abort(), 8000); // 8-second timeout guard
+        const fetchTimer = setTimeout(() => controller.abort(), 20000); // 20s timeout guard
         
-        let resp;
+        let resp = null;
         try {
             resp = await fetch(`${API}/dashboard-cache`, {
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                 signal: controller.signal
             });
             clearTimeout(fetchTimer);
         } catch (fetchErr) {
             clearTimeout(fetchTimer);
-            console.error('[PERF LOG] Fetch /api/dashboard-cache timed out (8s) or failed:', fetchErr);
-            if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
-            if (force) showToast('⚠️ Lỗi kết nối hoặc hết thời gian tải (8s).', 'error');
+            console.error('[PERF LOG] /api/dashboard-cache timed out or failed:', fetchErr);
+            console.warn('[FALLBACK] Triggering fetchAll fallback...');
+            await fetchAll(force);
             return;
         }
 
-        const duration = Date.now() - startTime;
-        console.log(`[PERF LOG] /api/dashboard-cache response status: ${resp.status} in ${duration}ms`);
-        
-        if (resp.status === 401 || resp.status === 403) {
-            console.warn('[CACHE 401/403] Session token error during cache fetch');
-            return;
-        }
-        
-        if (resp.ok) {
+        if (resp && resp.ok) {
             const res = await resp.json();
             const payload = (res && res.data) ? res.data : res;
             
-            // Update state
-            state = { ...state, ...(payload || {}) };
-            
-            // Update sync timestamp
-            const lastSync = (res.sync_info && res.sync_info.last_sync) ||
-                             (payload.overview && payload.overview.last_sync) ||
-                             payload.last_sync ||
-                             new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-            if (updateTimeEl) {
-                updateTimeEl.textContent = `Dữ liệu cập nhật lúc: ${lastSync}`;
+            if (payload && (payload.overview || payload.gtcData || payload.warningsData)) {
+                state = { ...state, ...(payload || {}) };
+                
+                const lastSync = (res.sync_info && res.sync_info.last_sync) ||
+                                 (payload.overview && payload.overview.last_sync) ||
+                                 payload.last_sync ||
+                                 new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                if (updateTimeEl) {
+                    updateTimeEl.textContent = `Dữ liệu cập nhật lúc: ${lastSync}`;
+                }
+                
+                renderAll();
+                
+                if (force) {
+                    showToast('✅ Dữ liệu đã được làm mới thành công!', 'success');
+                }
+                return;
             }
-            
-            // Re-render current active tab
-            const activeSectionEl = document.querySelector('.section.active');
-            const activeName = activeSectionEl ? activeSectionEl.id.replace('section-', '') : 'overview';
-            renderSection(activeName);
-            
-            if (force) {
-                showToast('✅ Dữ liệu đã được làm mới thành công!', 'success');
-            }
-        } else {
-            console.error('[CACHE ERROR] Failed to fetch dashboard-cache, status:', resp.status);
-            if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
-            if (force) showToast('⚠️ Không thể làm mới dữ liệu từ máy chủ.', 'error');
         }
+        
+        console.warn('[CACHE FALLBACK] /api/dashboard-cache returned empty/invalid payload, falling back to fetchAll()...');
+        await fetchAll(force);
     } catch (e) {
-        console.error('[CACHE ERROR]', e);
-        if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
-        if (force) showToast('⚠️ Lỗi kết nối làm mới dữ liệu.', 'error');
+        console.error('[CACHE ERROR] Failed, triggering fetchAll fallback:', e);
+        await fetchAll(force);
     } finally {
         isDashboardCacheLoading = false;
-        // LUÔN CẬP NHẬT THỜI GIAN ĐỒNG BỘ ĐỂ TRÁNH VÒNG LẶP 1 GIÂY
         nextSyncTime = Date.now() + 5 * 60 * 1000;
         if (force && btn) {
             btn.classList.remove('loading');
