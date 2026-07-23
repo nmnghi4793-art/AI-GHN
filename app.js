@@ -127,12 +127,8 @@ function getAuthHeaders() {
 async function apiFetch(url, opts = {}) {
     const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
     const resp = await fetch(url, { ...opts, headers });
-    if (resp.status === 401) {
-        // Chỉ logout khi token 401 hết hiệu lực
-        clearApiToken();
-        localStorage.removeItem('ghn_logged_in');
-        window.location.reload();
-        return null;
+    if (resp.status === 401 || resp.status === 403) {
+        console.warn(`[AUTH] apiFetch returned ${resp.status} for ${url} - preserving session state`);
     }
     return resp;
 }
@@ -251,16 +247,13 @@ let nextSyncTime = Date.now() + 5 * 60 * 1000;
 let syncTimerInterval = null;
 
 /**
- * fetch có auth header + tự động logout nếu token hết hạn (401)
+ * fetch có auth header
  */
 async function authFetch(url, fallback = null) {
     try {
         const r = await fetch(url, { headers: getAuthHeaders() });
-        if (r.status === 401) {
-            // Token hết hạn → buộc đăng nhập lại
-            clearApiToken();
-            localStorage.removeItem('ghn_logged_in');
-            window.location.reload();
+        if (r.status === 401 || r.status === 403) {
+            console.warn(`[AUTH] authFetch returned ${r.status} for ${url}`);
             return fallback;
         }
         return await r.json();
@@ -277,10 +270,8 @@ async function authPost(url, body, fallback = null) {
             headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (r.status === 401) {
-            clearApiToken();
-            localStorage.removeItem('ghn_logged_in');
-            window.location.reload();
+        if (r.status === 401 || r.status === 403) {
+            console.warn(`[AUTH] authPost returned ${r.status} for ${url}`);
             return fallback;
         }
         return await r.json();
@@ -4815,54 +4806,75 @@ function renderOverloadTable() {
 // ---- LOGIN & LOGOUT SYSTEM ----
 let allowedKhosList = []; // Danh sách kho tải từ API để validate thông tin cá nhân
 
+let authLoading = false;
+
 async function initLogin() {
+    if (authLoading) {
+        console.log('[AUTH] Session restoration already in progress, skipping duplicate initLogin');
+        return;
+    }
+    authLoading = true;
+    console.log('[AUTH] restore session start');
+
     const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
-    // Đọc ghn_profile_completed từ localStorage (bền vững qua reload) hoặc sessionStorage (compat)
     const isProfileCompleted = localStorage.getItem('ghn_profile_completed') === 'true' ||
                                sessionStorage.getItem('ghn_profile_completed') === 'true';
     const token = getApiToken();
-    console.log('[AUTH] Restoring session - logged_in:', isAlreadyLoggedIn, 'profile_completed:', isProfileCompleted, 'has_token:', !!token);
-    
+
+    console.log('[AUTH] restore session result', { isAlreadyLoggedIn, isProfileCompleted, has_token: !!token });
+    console.log('[AUTH] localStorage after save', {
+        ghn_logged_in: localStorage.getItem('ghn_logged_in'),
+        ghn_profile_completed: localStorage.getItem('ghn_profile_completed'),
+        ghn_session_token: localStorage.getItem('ghn_session_token') ? 'present' : 'empty'
+    });
+    console.log('[AUTH] cookie after save', document.cookie || '(no cookies)');
+
     const loginWrapper = document.getElementById('login-wrapper');
     const profileWrapper = document.getElementById('profile-wrapper');
     const appContainer = document.getElementById('app-container');
 
-    // Kiểm tra tính tương thích của HTML: nếu thiếu các phần tử profile, coi như tự động hoàn thành để tránh trắng trang
     const hasProfileElements = document.getElementById('profile-id-ghn') && 
                                document.getElementById('profile-ho-ten') && 
                                document.getElementById('profile-kho') && 
                                document.getElementById('profile-submit-btn');
 
-    if (isAlreadyLoggedIn) {
+    if (isAlreadyLoggedIn && token) {
+        console.log('[AUTH] auth guard result', 'authenticated');
         if (loginWrapper) loginWrapper.style.display = 'none';
         
-        // Nếu đã hoàn thành thông tin cá nhân, hoặc file HTML cũ chưa cập nhật các thẻ profile -> cho vào thẳng dashboard
         if (isProfileCompleted || !hasProfileElements) {
-            console.log('[AUTH] Session valid, redirect target: Dashboard');
+            console.log('[AUTH] redirect target', 'Dashboard');
+            console.log('[AUTH] final redirect reason', 'Session valid and profile completed');
             if (profileWrapper) profileWrapper.style.display = 'none';
             if (appContainer) appContainer.style.display = 'flex';
-            // Khởi chạy dashboard
+            
             showSection('overview');
             loadDashboardFromCache(false);
             startSyncTimer();
             checkAdminAccess();
             setupLogout();
         } else {
-            console.log('[AUTH] Session valid, redirect target: Profile form');
+            console.log('[AUTH] redirect target', 'ProfileForm');
+            console.log('[AUTH] final redirect reason', 'Session valid but profile incomplete');
             if (appContainer) appContainer.style.display = 'none';
             if (profileWrapper) profileWrapper.style.display = 'flex';
             setupProfileForm();
         }
     } else {
+        console.log('[AUTH] auth guard result', 'not authenticated');
+        console.log('[AUTH] redirect target', 'Login');
+        console.log('[AUTH] final redirect reason', 'No valid session token found in storage');
         if (loginWrapper) loginWrapper.style.display = 'flex';
         if (profileWrapper) profileWrapper.style.display = 'none';
         if (appContainer) appContainer.style.display = 'none';
         setupLoginForm();
     }
+
+    authLoading = false;
 }
 
 async function handleLoginSubmit() {
-    console.log('[DEBUG LOGIN] Button clicked');
+    console.log('[AUTH] login submit');
     const submitBtn = document.getElementById('login-submit-btn');
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
@@ -4870,7 +4882,7 @@ async function handleLoginSubmit() {
     const loginErrorText = document.getElementById('login-error-text');
 
     if (!usernameInput || !passwordInput) {
-        console.error('[DEBUG LOGIN] Không tìm thấy input username hoặc password trong DOM');
+        console.error('[AUTH] Inputs not found in DOM');
         return;
     }
 
@@ -4892,26 +4904,31 @@ async function handleLoginSubmit() {
 
     try {
         const loginUrl = `${API}/auth/login`;
-        console.log('[DEBUG LOGIN] Sending login request to:', loginUrl);
+        console.log('[AUTH] Sending login request to:', loginUrl);
         const resp = await fetch(loginUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
 
-        console.log('[DEBUG LOGIN] API response status:', resp.status);
+        console.log('[AUTH] login response status', resp.status);
 
         if (resp.ok) {
             const json = await resp.json();
-            console.log('[DEBUG LOGIN] API response OK, token received:', !!json.token);
+            console.log('[AUTH] login response body', json);
             if (json.token) {
+                console.log('[AUTH] token/session received', json.token ? 'yes' : 'no');
                 setApiToken(json.token);
                 localStorage.setItem('ghn_logged_in', 'true');
-                console.log('[AUTH] Login success');
-                console.log('[AUTH] Token saved');
+                console.log('[AUTH] token/session saved');
+                console.log('[AUTH] localStorage after save', {
+                    ghn_logged_in: localStorage.getItem('ghn_logged_in'),
+                    ghn_session_token: localStorage.getItem('ghn_session_token') ? 'present' : 'empty'
+                });
+                console.log('[AUTH] cookie after save', document.cookie || '(no cookies)');
             }
             if (loginError) loginError.style.display = 'none';
-            console.log('[AUTH] Redirect target: checking profile status via initLogin()');
+            console.log('[AUTH] redirect target', 'initLogin() view switch');
             initLogin();
         } else {
             let errDetail = 'Tài khoản hoặc mật khẩu không đúng';
@@ -4919,7 +4936,7 @@ async function handleLoginSubmit() {
                 const errJson = await resp.json();
                 if (errJson.detail) errDetail = errJson.detail;
             } catch (e) {}
-            console.warn('[DEBUG LOGIN] Login failed, status:', resp.status, 'detail:', errDetail);
+            console.warn('[AUTH] login failed, status:', resp.status, 'detail:', errDetail);
             if (loginErrorText) loginErrorText.textContent = errDetail;
             if (loginError) {
                 loginError.style.display = 'flex';
@@ -4929,7 +4946,7 @@ async function handleLoginSubmit() {
             }
         }
     } catch (err) {
-        console.error('[DEBUG LOGIN] Network error khi gọi API login:', err);
+        console.error('[AUTH] Network error during login request:', err);
         if (loginErrorText) loginErrorText.textContent = 'Lỗi kết nối máy chủ đăng nhập';
         if (loginError) loginError.style.display = 'flex';
     } finally {

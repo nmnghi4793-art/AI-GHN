@@ -399,6 +399,36 @@ if not _DASH_USER or not _DASH_PASS:
 # Session token store (in-memory, đủ cho single-instance Railway)
 _ACTIVE_SESSIONS: dict = {}
 SESSION_TTL = 8 * 3600  # 8 tiếng
+SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "ghn_ops_mientrung_secret_2026")
+
+def create_session_token() -> str:
+    """Tạo stateless HMAC token chứa timestamp + signature."""
+    ts = str(int(time.time()))
+    sig = hmac.new(SECRET_KEY.encode("utf-8"), ts.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+    return f"ghn_sess_{ts}_{sig}"
+
+def verify_session_token(token: str) -> bool:
+    """Kiểm tra HMAC token stateless hợp lệ và chưa hết hạn."""
+    if not token:
+        return False
+    # 1. Kiểm tra HMAC token format
+    if token.startswith("ghn_sess_"):
+        parts = token.split("_")
+        if len(parts) == 4:
+            _, _, ts_str, sig = parts
+            try:
+                ts = int(ts_str)
+                if time.time() - ts <= SESSION_TTL:
+                    expected_sig = hmac.new(SECRET_KEY.encode("utf-8"), ts_str.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+                    if secrets.compare_digest(sig, expected_sig):
+                        return True
+            except Exception:
+                pass
+    # 2. In-memory session fallback
+    if token in _ACTIVE_SESSIONS:
+        if time.time() - _ACTIVE_SESSIONS[token] <= SESSION_TTL:
+            return True
+    return False
 
 @app.post("/api/auth/login")
 async def login(request: Request, payload: dict):
@@ -423,13 +453,12 @@ async def login(request: Request, payload: dict):
     pass_ok = secrets.compare_digest(password, target_pass) or secrets.compare_digest(password.lower(), target_pass.lower())
 
     if user_ok and pass_ok:
-        token = secrets.token_urlsafe(32)
+        token = create_session_token()
         _ACTIVE_SESSIONS[token] = time.time()
-        # Dọn session cũ
-        expired = [k for k, t in _ACTIVE_SESSIONS.items() if time.time() - t > SESSION_TTL]
-        for k in expired: del _ACTIVE_SESSIONS[k]
-        return {"token": token}
+        print(f"[AUTH] Login success for user '{username}', token issued: ...{token[-8:]}")
+        return {"token": token, "status": "ok"}
     else:
+        print(f"[AUTH] Login failed for user '{username}' from IP {client_ip}")
         raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
 
 @app.post("/api/auth/logout")
@@ -441,42 +470,31 @@ async def logout(authorization: str = Header(None)):
     return {"status": "ok"}
 
 def require_api_token(authorization: str = Header(None)):
-    """Xác thực: chấp nhận session token từ /api/auth/login HOẶC static API_SECRET_TOKEN.
-    
-    Thứ tự ưu tiên:
-    1. Session token hợp lệ từ _ACTIVE_SESSIONS (do /api/auth/login tạo ra)
-    2. Static API token (_API_TOKEN từ env) dành cho scripts/automation
-    3. Nếu không cấu hình _API_TOKEN: tự đăng ký session (hỗ trợ Railway restart)
+    """Xác thực: chấp nhận HMAC session token / in-memory session HOẶC static API_SECRET_TOKEN.
     """
     if not authorization or not authorization.startswith("Bearer "):
+        print("[AUTH] Request rejected: missing Authorization Bearer header")
         raise HTTPException(status_code=401, detail="Unauthorized")
     token = authorization[len("Bearer "):].strip()
     if not token:
+        print("[AUTH] Request rejected: empty token string")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    now = time.time()
+    # 1. Kiểm tra session token (HMAC stateless hoặc in-memory)
+    if verify_session_token(token):
+        return  # ✅ Session hợp lệ
 
-    # Ưu tiên 1: Session token từ /api/auth/login (luôn kiểm tra trước, kể cả khi _API_TOKEN được cấu hình)
-    if token in _ACTIVE_SESSIONS:
-        age = now - _ACTIVE_SESSIONS[token]
-        if age <= SESSION_TTL:
-            _ACTIVE_SESSIONS[token] = now  # Gia hạn TTL
-            return  # ✅ Session hợp lệ
-        else:
-            del _ACTIVE_SESSIONS[token]  # Session hết hạn — xóa
-            print(f"[AUTH] Session expired after {age:.0f}s for token ...{token[-6:]}")
+    # 2. Static API token (dùng cho external scripts)
+    if _API_TOKEN and secrets.compare_digest(token, _API_TOKEN):
+        return  # ✅ Static API token hợp lệ
 
-    # Ưu tiên 2: Static API token (dùng cho scripts/automation, không phải web login)
-    if _API_TOKEN:
-        if secrets.compare_digest(token, _API_TOKEN):
-            return  # ✅ Static API token hợp lệ
-        print(f"[AUTH] Invalid token: not in sessions and does not match API_SECRET_TOKEN")
-        raise HTTPException(status_code=403, detail="Forbidden")
+    # 3. Mode tự đăng ký (fallback hỗ trợ dev/testing)
+    if not _API_TOKEN and len(token) >= 16:
+        _ACTIVE_SESSIONS[token] = time.time()
+        return
 
-    # Ưu tiên 3: Không cấu hình _API_TOKEN → session mode — tự đăng ký
-    # (Hỗ trợ Railway container restart: _ACTIVE_SESSIONS in-memory bị xóa sau deploy)
-    _ACTIVE_SESSIONS[token] = now
-    print(f"[AUTH] Auto-registered session token (Railway session-mode) ...{token[-6:]}")
+    print(f"[AUTH] Request rejected: invalid token ...{token[-8:]}")
+    raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ---- DATA GTC ----
