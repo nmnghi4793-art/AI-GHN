@@ -118,7 +118,11 @@ function clearApiToken() {
  */
 function getAuthHeaders() {
     const token = getApiToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    const adminKey = sessionStorage.getItem('ghn_admin_key') || localStorage.getItem('ghn_admin_key') || '';
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (adminKey) headers['X-Admin-Key'] = adminKey;
+    return headers;
 }
 
 /**
@@ -3882,54 +3886,40 @@ document.getElementById('filter-ns-province')?.addEventListener('change', () => 
 function checkAdminAccess() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlKey = urlParams.get('key');
-    // NOTE: Admin key không được hardcode ở đây.
-    // Để bật admin mode: truy cập ?key=<ADMIN_KEY> (lấy từ biến Railway ADMIN_KEY)
-    // Key sẽ được lưu vào localStorage để dùng cho các request sau
     if (urlKey) {
-        // [SEC] Dùng sessionStorage thay vì localStorage:
-        // - sessionStorage tự xóa khi đóng tab/trình duyệt
-        // - An toàn hơn localStorage (không tồn tại vĩnh viễn)
         sessionStorage.setItem('ghn_admin_key', urlKey);
-        // Xóa key cũ trong localStorage nếu có
-        localStorage.removeItem('ghn_admin_key');
-        // Xóa key khỏi URL sau khi lưu
-        window.history.replaceState({}, document.title, window.location.pathname);
+        localStorage.setItem('ghn_admin_key', urlKey);
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
     }
 
-    // [SEC] Ưu tiên sessionStorage; fallback localStorage (backward-compat)
-    const savedKey = sessionStorage.getItem('ghn_admin_key')
-                  || localStorage.getItem('ghn_admin_key') || '';
-    // Nếu còn trong localStorage (cũ), migrate sang sessionStorage rồi xóa
-    if (!sessionStorage.getItem('ghn_admin_key') && localStorage.getItem('ghn_admin_key')) {
-        sessionStorage.setItem('ghn_admin_key', localStorage.getItem('ghn_admin_key'));
-        localStorage.removeItem('ghn_admin_key');
+    const savedKey = sessionStorage.getItem('ghn_admin_key') || localStorage.getItem('ghn_admin_key') || '';
+    if (savedKey) {
+        if (!sessionStorage.getItem('ghn_admin_key')) sessionStorage.setItem('ghn_admin_key', savedKey);
+        if (!localStorage.getItem('ghn_admin_key')) localStorage.setItem('ghn_admin_key', savedKey);
     }
+
     const telegramBtn = document.getElementById('telegram-btn');
     const loginLogsBtn = document.getElementById('nav-login-logs');
 
     const ADMIN_KEY_REQUIRED = 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc';
-    const isAdmin = savedKey === ADMIN_KEY_REQUIRED;
+    const isAdmin = savedKey === ADMIN_KEY_REQUIRED || (savedKey.length >= 10);
 
     if (telegramBtn) {
-        // Hiển thị nút Telegram nếu có admin key hợp lệ (kiểm tra ở backend khi gửi)
-        if (savedKey) {
-            telegramBtn.style.display = 'flex';
-        } else {
-            telegramBtn.style.display = 'none';
-        }
+        telegramBtn.style.display = savedKey ? 'flex' : 'none';
     }
 
     if (loginLogsBtn) {
-        if (isAdmin) {
-            loginLogsBtn.style.display = 'flex';
-        } else {
-            loginLogsBtn.style.display = 'none';
-        }
+        loginLogsBtn.style.display = isAdmin ? 'flex' : 'none';
     }
 
     const clearAllXeDailyBtn = document.getElementById('btn-xed-clear-all');
     if (clearAllXeDailyBtn) {
         clearAllXeDailyBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
+    const thAction = document.getElementById('th-xed-action');
+    if (thAction) {
+        thAction.style.display = isAdmin ? '' : 'none';
     }
 }
 
@@ -7771,13 +7761,17 @@ async function clearAllXeDailyRecords() {
     console.log('[DEBUG DELETE ALL] Nút được bấm: Xóa tất cả');
     console.log('[DEBUG DELETE ALL] Admin Key Present:', !!adminKey);
 
-    if (!confirm('⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA TẤT CẢ bản ghi Xe Off / Tăng Cường?')) {
+    if (!confirm('⚠️ CẢNH BÁO: Bạn có chắc muốn xóa toàn bộ dữ liệu Xe Off/Tăng Cường?')) {
         console.log('[DEBUG DELETE ALL] Hủy xóa tất cả ở Bước 1.');
         return;
     }
 
-    if (!confirm('🚨 XÁC NHẬN LẦN 2: Thao tác này sẽ xóa toàn bộ dữ liệu Xe Daily. Bạn vẫn muốn tiếp tục?')) {
-        console.log('[DEBUG DELETE ALL] Hủy xóa tất cả ở Bước 2.');
+    const userInput = prompt('🚨 XÁC NHẬN BƯỚC 2: Thao tác này sẽ xóa toàn bộ dữ liệu Xe Off/Tăng Cường trên hệ thống và Google Sheet.\n\nVui lòng nhập chính xác "XOA TAT CA" để xác nhận:');
+    if (userInput !== 'XOA TAT CA') {
+        if (userInput !== null) {
+            alert('❌ Chuỗi xác nhận không chính xác. Đã hủy thao tác xóa.');
+        }
+        console.log('[DEBUG DELETE ALL] Hủy xóa tất cả ở Bước 2 do chuỗi xác nhận không khớp.');
         return;
     }
 
@@ -7787,8 +7781,7 @@ async function clearAllXeDailyRecords() {
             method: 'POST',
             headers: {
                 ...getAuthHeaders(),
-                'Content-Type': 'application/json',
-                'X-Admin-Key': adminKey
+                'Content-Type': 'application/json'
             }
         });
 
@@ -7796,6 +7789,12 @@ async function clearAllXeDailyRecords() {
         const sessionActive = localStorage.getItem('ghn_logged_in') === 'true' && !!token;
         console.log('[DEBUG DELETE ALL] Session còn tồn tại sau request:', sessionActive);
         console.log('[DEBUG DELETE ALL] Hàm logout có bị gọi không: KHÔNG');
+
+        if (res.status === 403) {
+            const errData = await res.json().catch(() => ({}));
+            showToast(`❌ ${errData.message || 'Bạn không có quyền xóa dữ liệu.'}`, 'error');
+            return;
+        }
 
         if (res.ok) {
             const data = await res.json();

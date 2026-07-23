@@ -2618,6 +2618,20 @@ def _load_xe_daily_records(force: bool = False):
     return records
 
 
+def _save_xe_daily_records(records: list, sync_db: bool = False):
+    global _XE_DAILY_RECORDS_CACHE
+    _XE_DAILY_RECORDS_CACHE["data"] = records
+    _XE_DAILY_RECORDS_CACHE["timestamp"] = time.time()
+    try:
+        xe_daily_file = os.path.join(BASE_DIR, "scratch", "xe_daily_records.json")
+        os.makedirs(os.path.dirname(xe_daily_file), exist_ok=True)
+        with open(xe_daily_file, "w", encoding="utf-8") as f:
+            json.dump(records, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[SAVE XE DAILY LOCAL FILE ERROR]: {e}")
+    return True
+
+
 def _normalize_kho_name(name: str) -> str:
     s = (name or "").strip().lower()
     for prefix in ["kho giao hàng nặng - ", "kho giao hàng nặng ", "kho ", "bưu cục giao hàng nặng - "]:
@@ -3107,22 +3121,161 @@ async def save_xe_van_hanh_records(request: Request):
     return res_data
 
 
-ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
+ADMIN_ACCESS_KEY = os.environ.get("ADMIN_ACCESS_KEY") or os.environ.get("ADMIN_KEY") or "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
 
-@app.post("/api/xe-van-hanh/records/clear-all", dependencies=[Depends(require_api_token)])
+def _verify_admin(request: Request, x_admin_key: str = None) -> bool:
+    provided = (x_admin_key or request.headers.get("X-Admin-Key") or request.headers.get("x-admin-key") or request.query_params.get("key") or "").strip()
+    if not provided:
+        return False
+    return secrets.compare_digest(provided, ADMIN_ACCESS_KEY.strip())
+
+def _delete_single_from_google_sheet(record_id: str, record_data: dict = None) -> bool:
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    creds = None
+    if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+        try:
+            sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            if "private_key" in sa_info:
+                sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GSHEET DELETE ERROR] sa parse err: {e}")
+    elif os.path.exists(sa_path):
+        try:
+            with open(sa_path, "r", encoding="utf-8") as f:
+                sa_info = json.load(f)
+                if "private_key" in sa_info:
+                    sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GSHEET DELETE ERROR] sa file err: {e}")
+
+    if not creds:
+        return False
+
+    try:
+        from googleapiclient.discovery import build
+        service = build("sheets", "v4", credentials=creds)
+        SPREADSHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+        SHEET_NAME = "Xe Off/Tăng Cường"
+
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets = spreadsheet.get("sheets", [])
+        sheet_id = None
+        for s in sheets:
+            if s.get("properties", {}).get("title") == SHEET_NAME:
+                sheet_id = s.get("properties", {}).get("sheetId")
+                break
+
+        res = service.spreadsheets().values().get(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{SHEET_NAME}'!A1:J1000"
+        ).execute()
+        rows = res.get("values", [])
+
+        target_row_idx = None
+        for idx, row in enumerate(rows):
+            if idx == 0:
+                continue
+            row_rec_id = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
+            if row_rec_id and row_rec_id == str(record_id).strip():
+                target_row_idx = idx + 1
+                break
+
+            if record_data:
+                r_date = str(row[0]).strip().lstrip("'") if len(row) > 0 and row[0] is not None else ""
+                r_loai = str(row[2]).strip() if len(row) > 2 and row[2] is not None else ""
+                r_bien = str(row[4]).strip() if len(row) > 4 and row[4] is not None else ""
+
+                t_date = str(record_data.get("ngay") or record_data.get("date") or "").strip()
+                t_loai = str(record_data.get("loai") or record_data.get("recordType") or "").strip()
+                t_bien = str(record_data.get("bien_so_xe") or record_data.get("licensePlate") or "").strip()
+
+                if r_date == t_date and r_bien.lower() == t_bien.lower() and r_loai == t_loai:
+                    target_row_idx = idx + 1
+                    break
+
+        if target_row_idx and sheet_id is not None:
+            body = {
+                "requests": [{
+                    "deleteDimension": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "dimension": "ROWS",
+                            "startIndex": target_row_idx - 1,
+                            "endIndex": target_row_idx
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            print(f"[GOOGLE SHEET ROW DELETED] Deleted row {target_row_idx} from '{SHEET_NAME}'")
+            return True
+        else:
+            print(f"[GOOGLE SHEET ROW DELETE WARNING] Row for recordId '{record_id}' not found on Google Sheet.")
+            return False
+
+    except Exception as e:
+        print(f"[GOOGLE SHEET ROW DELETE ERROR]: {e}")
+        return False
+
+def _clear_all_from_google_sheet() -> bool:
+    sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+    creds = None
+    if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+        try:
+            sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            if "private_key" in sa_info:
+                sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GSHEET CLEAR ALL ERROR] sa parse err: {e}")
+    elif os.path.exists(sa_path):
+        try:
+            with open(sa_path, "r", encoding="utf-8") as f:
+                sa_info = json.load(f)
+                if "private_key" in sa_info:
+                    sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
+            from google.oauth2.service_account import Credentials
+            creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        except Exception as e:
+            print(f"[GSHEET CLEAR ALL ERROR] sa file err: {e}")
+
+    if not creds:
+        return False
+
+    try:
+        from googleapiclient.discovery import build
+        service = build("sheets", "v4", credentials=creds)
+        SPREADSHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
+        SHEET_NAME = "Xe Off/Tăng Cường"
+
+        service.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{SHEET_NAME}'!A2:Z1000",
+            body={}
+        ).execute()
+        print(f"[GOOGLE SHEET CLEAR ALL SUCCESS] Cleared range '{SHEET_NAME}'!A2:Z1000 while preserving Row 1 header.")
+        return True
+
+    except Exception as e:
+        print(f"[GOOGLE SHEET CLEAR ALL ERROR]: {e}")
+        return False
+
+@app.api_route("/api/xe-van-hanh/records/clear-all", methods=["POST", "DELETE"], dependencies=[Depends(require_api_token)])
 async def clear_all_xe_van_hanh_records(
     request: Request,
     x_admin_key: str = Header(None, alias="X-Admin-Key")
 ):
-    """Xóa tất cả bản ghi xe vận hành daily (Chỉ Admin có link key)."""
-    saved_key = x_admin_key or request.headers.get("X-Admin-Key") or ""
-    has_valid_key = secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED)
-    
-    print(f"\n[DEBUG DELETE CLEAR-ALL] Request received | Admin Key Present: {bool(saved_key)} | Valid Key: {has_valid_key}")
-
-    if not has_valid_key:
+    if not _verify_admin(request, x_admin_key):
         print("[DEBUG DELETE CLEAR-ALL] Authorization failed: Returning 403 Forbidden without logging out user.")
-        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa tất cả dữ liệu.")
+        return JSONResponse(
+            status_code=403,
+            content={"success": False, "message": "Bạn không có quyền xóa dữ liệu."}
+        )
 
     _save_xe_daily_records([], sync_db=True)
     try:
@@ -3132,39 +3285,33 @@ async def clear_all_xe_van_hanh_records(
     except Exception as e:
         print(f"[XE DAILY CLEAR ALL] Error writing meta: {e}")
 
+    gsheet_ok = _clear_all_from_google_sheet()
     print("[DEBUG DELETE CLEAR-ALL] Clear all succeeded.")
-    return {"status": "ok", "message": "Đã xóa toàn bộ dữ liệu Xe Vận Hành Daily thành công."}
+    return {"success": True, "status": "ok", "gsheet_synced": gsheet_ok, "message": "Đã xóa toàn bộ dữ liệu Xe Vận Hành Daily thành công."}
 
-
-@app.post("/api/xe-van-hanh/records/{record_id}/delete", dependencies=[Depends(require_api_token)])
+@app.api_route("/api/xe-van-hanh/records/{record_id}", methods=["DELETE"], dependencies=[Depends(require_api_token)])
+@app.api_route("/api/xe-van-hanh/records/{record_id}/delete", methods=["POST", "DELETE"], dependencies=[Depends(require_api_token)])
 async def delete_xe_van_hanh_record(
     record_id: str,
-    request: Request
+    request: Request,
+    x_admin_key: str = Header(None, alias="X-Admin-Key")
 ):
-    """Xóa một bản ghi xe vận hành daily theo ID (Người dùng đã đăng nhập)."""
-    print(f"\n[DEBUG DELETE ROW] Request received | Record ID: {record_id}")
-    
+    if not _verify_admin(request, x_admin_key):
+        print(f"[DEBUG DELETE ROW] Authorization failed for record {record_id}: Returning 403 Forbidden without logging out user.")
+        return JSONResponse(
+            status_code=403,
+            content={"success": False, "message": "Bạn không có quyền xóa dữ liệu."}
+        )
+
     records = _load_xe_daily_records()
-    original_len = len(records)
-    records = [r for r in records if r.get("id") != record_id]
+    target_record = next((r for r in records if r.get("id") == record_id or r.get("recordId") == record_id), None)
+    records = [r for r in records if r.get("id") != record_id and r.get("recordId") != record_id]
 
-    if len(records) == original_len:
-        print(f"[DEBUG DELETE ROW] Record ID {record_id} not found — Returning 404")
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy bản ghi ID={record_id}")
+    _save_xe_daily_records(records, sync_db=True)
+    gsheet_ok = _delete_single_from_google_sheet(record_id, target_record)
 
-    if len(records) == 0:
-        try:
-            with open(XE_DAILY_META_FILE, "w", encoding="utf-8") as f:
-                json.dump({"user_cleared": True, "cleared_at": datetime.utcnow().isoformat()}, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-
-    if _save_xe_daily_records(records, sync_db=True):
-        print(f"[DEBUG DELETE ROW] Record ID {record_id} deleted successfully. Remaining: {len(records)}")
-        return {"status": "ok", "message": "Đã xóa bản ghi thành công."}
-    else:
-        print(f"[DEBUG DELETE ROW] Failed to save updated records after deleting {record_id}")
-        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi xóa.")
+    print(f"[DEBUG DELETE ROW] Record ID {record_id} deleted successfully. GSheet synced: {gsheet_ok}")
+    return {"success": True, "status": "ok", "gsheet_synced": gsheet_ok, "message": "Đã xóa bản ghi thành công."}
 
 
 @app.post("/api/vehicle-daily/import", dependencies=[Depends(require_api_token)])
