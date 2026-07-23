@@ -20,7 +20,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "79C-027.55",
     "ten_ncc": "Ngọc Đỉnh",
-    "trong_tai": 1400,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-17T08:30:00Z"
@@ -46,7 +46,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "77C-057.55",
     "ten_ncc": "Gia Hân",
-    "trong_tai": 2500,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-17T08:30:00Z"
@@ -98,7 +98,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "79C-039.66",
     "ten_ncc": "Mạnh Cường",
-    "trong_tai": 1400,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-18T08:30:00Z"
@@ -124,7 +124,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "77C-069.66",
     "ten_ncc": "Bảo Châu Phát",
-    "trong_tai": 2500,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-18T08:30:00Z"
@@ -138,7 +138,7 @@
     "bien_so_xe": "79H-056.57",
     "ten_ncc": "Bảo Châu Phát",
     "trong_tai": 1900,
-    "ghi_chu": "Trễ giờ đến kho: Tài xế trễ ca từ 7h30 - 9h30",
+    "ghi_chu": "Xe bảo dưỡng: Bảo dưỡng định kỳ theo lịch",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-18T09:15:00Z"
   },
@@ -151,7 +151,7 @@
     "bien_so_xe": "36H-077.57",
     "ten_ncc": "NAK",
     "trong_tai": 1900,
-    "ghi_chu": "Xe bảo dưỡng: Bảo dưỡng định kỳ theo lịch",
+    "ghi_chu": "Nghỉ đột xuất: Tài xế xin nghỉ đột xuất",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-18T09:15:00Z"
   },
@@ -176,7 +176,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "79C-051.77",
     "ten_ncc": "Gia Hân",
-    "trong_tai": 1400,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-19T08:30:00Z"
@@ -202,7 +202,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "77C-081.77",
     "ten_ncc": "NAK",
-    "trong_tai": 2500,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-19T08:30:00Z"
@@ -216,7 +216,7 @@
     "bien_so_xe": "79H-070.76",
     "ten_ncc": "NAK",
     "trong_tai": 1900,
-    "ghi_chu": "Xe bảo dưỡng: Bảo dưỡng định kỳ theo lịch",
+    "ghi_chu": "Xe hư hỏng: Hỏng hóc động cơ / thủng lốp",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-19T09:15:00Z"
   },
@@ -229,7 +229,7 @@
     "bien_so_xe": "36H-091.76",
     "ten_ncc": "Tín Thành",
     "trong_tai": 1900,
-    "ghi_chu": "Nghỉ đột xuất: Tài xế xin nghỉ đột xuất",
+    "ghi_chu": "Trễ giờ đến kho: Tài xế trễ ca từ 7h30 - 9h30",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-19T09:15:00Z"
   },
@@ -254,7 +254,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "79C-063.88",
     "ten_ncc": "Bảo Châu Phát",
-    "trong_tai": 1400,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-20T08:30:00Z"
@@ -280,7 +280,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "77C-093.88",
     "ten_ncc": "Tín Thành",
-    "trong_tai": 2500,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-20T08:30:00Z"
@@ -294,7 +294,7 @@
     "bien_so_xe": "79H-084.95",
     "ten_ncc": "Tín Thành",
     "trong_tai": 1900,
-    "ghi_chu": "Nghỉ đột xuất: Tài xế xin nghỉ đột xuất",
+    "ghi_chu": "Xe bảo dưỡng: Bảo dưỡng định kỳ theo lịch",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-20T09:15:00Z"
   },
@@ -307,7 +307,7 @@
     "bien_so_xe": "36H-105.95",
     "ten_ncc": "Ngọc Đỉnh",
     "trong_tai": 1900,
-    "ghi_chu": "Xe hư hỏng: Hỏng hóc động cơ / thủng lốp",
+    "ghi_chu": "Nghỉ đột xuất: Tài xế xin nghỉ đột xuất",
     "nguoi_nhap": "Điều hành Kho",
     "thoi_gian_ghi_nhan": "2026-07-20T09:15:00Z"
   },
@@ -332,7 +332,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "79C-075.99",
     "ten_ncc": "NAK",
-    "trong_tai": 1400,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-21T08:30:00Z"
@@ -358,7 +358,7 @@
     "so_luong_xe": 1,
     "bien_so_xe": "77C-105.99",
     "ten_ncc": "Ngọc Đỉnh",
-    "trong_tai": 2500,
+    "trong_tai": 1900,
     "ghi_chu": "Tăng cường tải ca làm việc",
     "nguoi_nhap": "Điều hành Miền Trung",
     "thoi_gian_ghi_nhan": "2026-07-21T08:30:00Z"
