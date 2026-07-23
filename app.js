@@ -144,22 +144,35 @@ const isInitialLight = initialTheme === 'light';
 const defaultTextColor = isInitialLight ? '#4B5563' : '#9CA3AF';
 const defaultGridColor = isInitialLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)';
 
-Chart.defaults.font.family = "'Outfit', sans-serif";
-Chart.defaults.color = defaultTextColor;
-Chart.defaults.borderColor = defaultGridColor;
+// Guard Chart.js initialization — nếu CDN fail, app.js không crash và login vẫn hoạt động
+try {
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.font.family = "'Outfit', sans-serif";
+        Chart.defaults.color = defaultTextColor;
+        Chart.defaults.borderColor = defaultGridColor;
 
-if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
-    Chart.defaults.plugins.legend.labels.color = defaultTextColor;
+        if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
+            Chart.defaults.plugins.legend.labels.color = defaultTextColor;
+        }
+
+        if (!Chart.defaults.scale) Chart.defaults.scale = {};
+        if (!Chart.defaults.scale.grid) Chart.defaults.scale.grid = {};
+        Chart.defaults.scale.grid.color = defaultGridColor;
+        if (!Chart.defaults.scale.ticks) Chart.defaults.scale.ticks = {};
+        Chart.defaults.scale.ticks.color = defaultTextColor;
+
+        // Ensure DataLabels plugin is registered for charts to show percentage
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        } else {
+            console.warn('[CHART] ChartDataLabels plugin không tải được từ CDN.');
+        }
+    } else {
+        console.warn('[CHART] Chart.js không tải được từ CDN. Biểu đồ sẽ không hoạt động, nhưng đăng nhập vẫn bình thường.');
+    }
+} catch (chartInitErr) {
+    console.error('[CHART INIT ERROR] Lỗi khởi tạo Chart.js, bỏ qua để login hoạt động bình thường:', chartInitErr);
 }
-
-if (!Chart.defaults.scale) Chart.defaults.scale = {};
-if (!Chart.defaults.scale.grid) Chart.defaults.scale.grid = {};
-Chart.defaults.scale.grid.color = defaultGridColor;
-if (!Chart.defaults.scale.ticks) Chart.defaults.scale.ticks = {};
-Chart.defaults.scale.ticks.color = defaultTextColor;
-
-// Ensure DataLabels plugin is registered for charts to show percentage
-Chart.register(ChartDataLabels);
 
 // ---- STATE ----
 let state = {
@@ -4836,13 +4849,17 @@ async function initLogin() {
 }
 
 async function handleLoginSubmit() {
+    console.log('[DEBUG LOGIN] Button clicked');
     const submitBtn = document.getElementById('login-submit-btn');
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
     const loginError = document.getElementById('login-error');
     const loginErrorText = document.getElementById('login-error-text');
 
-    if (!usernameInput || !passwordInput) return;
+    if (!usernameInput || !passwordInput) {
+        console.error('[DEBUG LOGIN] Không tìm thấy input username hoặc password trong DOM');
+        return;
+    }
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
@@ -4861,19 +4878,26 @@ async function handleLoginSubmit() {
     }
 
     try {
-        const resp = await fetch(`${API}/auth/login`, {
+        const loginUrl = `${API}/auth/login`;
+        console.log('[DEBUG LOGIN] Sending login request to:', loginUrl);
+        const resp = await fetch(loginUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
 
+        console.log('[DEBUG LOGIN] API response status:', resp.status);
+
         if (resp.ok) {
             const json = await resp.json();
+            console.log('[DEBUG LOGIN] API response OK, token received:', !!json.token);
             if (json.token) {
                 setApiToken(json.token);
                 localStorage.setItem('ghn_logged_in', 'true');
+                console.log('[DEBUG LOGIN] Token saved to sessionStorage');
             }
             if (loginError) loginError.style.display = 'none';
+            console.log('[DEBUG LOGIN] Redirecting to Dashboard...');
             initLogin();
         } else {
             let errDetail = 'Tài khoản hoặc mật khẩu không đúng';
@@ -4881,7 +4905,7 @@ async function handleLoginSubmit() {
                 const errJson = await resp.json();
                 if (errJson.detail) errDetail = errJson.detail;
             } catch (e) {}
-            
+            console.warn('[DEBUG LOGIN] Login failed, status:', resp.status, 'detail:', errDetail);
             if (loginErrorText) loginErrorText.textContent = errDetail;
             if (loginError) {
                 loginError.style.display = 'flex';
@@ -4891,7 +4915,7 @@ async function handleLoginSubmit() {
             }
         }
     } catch (err) {
-        console.error('[AUTH] Login error:', err);
+        console.error('[DEBUG LOGIN] Network error khi gọi API login:', err);
         if (loginErrorText) loginErrorText.textContent = 'Lỗi kết nối máy chủ đăng nhập';
         if (loginError) loginError.style.display = 'flex';
     } finally {
