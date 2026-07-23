@@ -5007,6 +5007,34 @@ function setupLoginForm() {
     }
 }
 
+const DEFAULT_25_KHOS = [
+    "Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng",
+    "Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng",
+    "Kho Giao Hàng Nặng - Cẩm Lệ - Đà Nẵng",
+    "Kho Giao Hàng Nặng - Quảng Nam - Quảng Nam",
+    "Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam",
+    "Kho Giao Hàng Nặng - Hội An - Quảng Nam",
+    "Kho Giao Hàng Nặng - Huế - Thừa Thiên Huế",
+    "Kho Giao Hàng Nặng - Hương Thủy - Thừa Thiên Huế",
+    "Kho Giao Hàng Nặng - Quảng Trị - Quảng Trị",
+    "Kho Giao Hàng Nặng - Đông Hà - Quảng Trị",
+    "Kho Giao Hàng Nặng - Quảng Bình - Quảng Bình",
+    "Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình",
+    "Kho Giao Hàng Nặng - Quy Nhơn - Bình Định",
+    "Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi",
+    "Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa",
+    "Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận",
+    "Kho Giao Hàng Nặng - Tuy Hòa - Phú Yên",
+    "Kho Giao Hàng Nặng - Gia Lai - Gia Lai",
+    "Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk",
+    "Kho Giao Hàng Nặng - Đắk Nông - Đắk Nông",
+    "Kho Giao Hàng Nặng - Kon Tum - Kon Tum",
+    "Kho Giao Hàng Nặng - Lâm Đồng - Lâm Đồng",
+    "Kho Giao Hàng Nặng - Thanh Hóa - Thanh Hóa",
+    "Kho Giao Hàng Nặng - Nghệ An - Nghệ An",
+    "Kho Giao Hàng Nặng - Hà Tĩnh - Hà Tĩnh"
+];
+
 async function setupProfileForm() {
     try {
         const idInput = document.getElementById('profile-id-ghn');
@@ -5019,45 +5047,35 @@ async function setupProfileForm() {
 
         if (!submitBtn) return;
 
+        // 1. LUÔN NẠP NGAY BAN ĐẦU 25 KHO GXT + "Phòng ban khác" VÀO DATALIST MÀ KHÔNG CẦN CHỜ API
+        allowedKhosList = DEFAULT_25_KHOS;
+        if (datalist) {
+            datalist.innerHTML = DEFAULT_25_KHOS.map(k => `<option value="${k}"></option>`).join('') +
+                                 '<option value="Phòng ban khác"></option>';
+        }
+
         // Tự động điền dữ liệu cũ từ localStorage
         if (idInput && !idInput.value) idInput.value = localStorage.getItem('ghn_id_ghn') || '';
         if (nameInput && !nameInput.value) nameInput.value = localStorage.getItem('ghn_ho_ten') || '';
         if (khoInput && !khoInput.value) khoInput.value = localStorage.getItem('ghn_kho_phong') || '';
 
-        // Load danh sách kho để hiển thị autocomplete
+        // Cập nhật danh sách từ API nếu có
         try {
             const token = getApiToken();
-            console.log('[AUTH] Profile form: loading warehouse list, has_token:', !!token);
             const resp = await fetch(`${API}/xe-van-hanh/meta`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (resp.status === 401 || resp.status === 403) {
-                // KHÔNG logout — chỉ bỏ qua danh sách kho, tiếp tục hiển thị form
-                // (Lỗi 401/403 ở meta API không đồng nghĩa token vô hiệu — backend fix đã xử lý)
-                console.warn('[AUTH] Profile meta API returned', resp.status, '- continuing without warehouse autocomplete. Token:', token ? 'present' : 'MISSING');
-                // Nếu token thực sự thiếu thì mới redirect
-                if (!token) {
-                    console.warn('[AUTH] Redirected back to login because: token is empty after login');
-                    clearApiToken();
-                    localStorage.removeItem('ghn_logged_in');
-                    localStorage.removeItem('ghn_profile_completed');
-                    window.location.reload();
-                    return;
-                }
-                // Token có nhưng API trả lỗi -> tiếp tục mà không có autocomplete kho
-            } else if (resp.ok) {
+            if (resp.ok) {
                 const data = await resp.json();
-                if (data && data.kho_list) {
+                if (data && data.kho_list && data.kho_list.length > 0) {
                     allowedKhosList = data.kho_list;
                     if (datalist) {
                         datalist.innerHTML = data.kho_list.map(k => `<option value="${k}"></option>`).join('') + '<option value="Phòng ban khác"></option>';
                     }
                 }
-            } else {
-                console.warn('[PROFILE] Failed to load warehouses, status:', resp.status);
             }
         } catch (e) {
-            console.error('[PROFILE] Failed to load warehouses:', e);
+            console.warn('[PROFILE] Dynamic warehouse load fallback to default 25 kho list:', e);
         }
 
         // Chỉ cho phép nhập số ở ô ID GHN
@@ -5067,47 +5085,28 @@ async function setupProfileForm() {
             };
         }
 
+        function showError(msg) {
+            if (errorEl && errorTextEl) {
+                errorTextEl.textContent = msg;
+                errorEl.style.display = 'flex';
+            }
+        }
+
         submitBtn.onclick = async () => {
-            const idVal = idInput.value.trim();
-            const nameVal = nameInput.value.trim();
-            const khoVal = khoInput.value.trim();
+            let idVal = idInput ? idInput.value.trim() : '';
+            let nameVal = nameInput ? nameInput.value.trim() : '';
+            let khoVal = khoInput ? khoInput.value.trim() : '';
 
             if (errorEl) errorEl.style.display = 'none';
 
-            if (!idVal || !/^\d+$/.test(idVal)) {
-                showError('ID GHN bắt buộc nhập và chỉ gồm các chữ số.');
-                idInput.focus();
-                return;
-            }
-
-            if (!nameVal) {
-                showError('Vui lòng nhập Họ và Tên.');
-                nameInput.focus();
-                return;
-            }
-
-            if (!khoVal) {
-                showError('Vui lòng nhập Tên Kho hoặc "Phòng ban khác".');
-                khoInput.focus();
-                return;
-            }
-
-            const isProvinceOther = khoVal === 'Phòng ban khác';
-            const isValidKho = allowedKhosList.includes(khoVal);
-            
-            // Nếu danh sách kho trống (do lỗi mạng), bỏ qua validation kho để không chặn người dùng
-            const isKhoListEmpty = allowedKhosList.length === 0;
-
-            if (!isProvinceOther && !isValidKho && !isKhoListEmpty) {
-                showError('Tên Kho không hợp lệ hoặc không có trong danh sách. Vui lòng chọn từ gợi ý hoặc nhập chính xác: Phòng ban khác');
-                khoInput.focus();
-                return;
-            }
+            // Auto-fallback values if user leaves them blank
+            if (!idVal) idVal = '245445';
+            if (!nameVal) nameVal = 'Nhân viên GHN';
+            if (!khoVal) khoVal = 'Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng';
 
             const adminKey = sessionStorage.getItem('ghn_admin_key') || '';
             const accessType = adminKey === 'JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc' ? 'admin' : 'normal';
 
-            // Lấy thời gian hiện tại ở Việt Nam
             const now = new Date();
             const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
             const vnNow = new Date(utc + (3600000 * 7));
@@ -5115,23 +5114,31 @@ async function setupProfileForm() {
             const loginTime = `${pad(vnNow.getHours())}:${pad(vnNow.getMinutes())}:${pad(vnNow.getSeconds())}`;
             const loginDate = _getTodayVN();
 
-            // Dữ liệu tạm thời lưu trước để dự phòng
+            // CHUYỂN GIAO DIỆN VÀO DASHBOARD NGAY LẬP TỨC 100%
             const saveToLocalAndProceed = () => {
                 localStorage.setItem('ghn_id_ghn', idVal);
                 localStorage.setItem('ghn_ho_ten', nameVal);
                 localStorage.setItem('ghn_kho_phong', khoVal);
-                // Lưu vào localStorage để bền vững qua reload, sessionStorage cho compat
                 localStorage.setItem('ghn_profile_completed', 'true');
                 sessionStorage.setItem('ghn_profile_completed', 'true');
                 console.log('[AUTH] Profile status: completed, saved to localStorage');
+
+                const pw = document.getElementById('profile-wrapper');
+                const ac = document.getElementById('app-container');
+                if (pw) pw.style.display = 'none';
+                if (ac) ac.style.display = 'flex';
+                try { showSection('overview'); } catch (e) {}
+                try { loadDashboardFromCache(false); } catch (e) {}
             };
 
             try {
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang mở Dashboard...';
                 
+                saveToLocalAndProceed();
+
                 const token = getApiToken();
-                const resp = await fetch(`${API}/login-logs`, {
+                fetch(`${API}/login-logs`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5146,37 +5153,18 @@ async function setupProfileForm() {
                         accessType: accessType,
                         userAgent: navigator.userAgent
                     })
-                });
+                }).catch(e => console.warn('Background login-log err:', e));
 
-                if (resp.ok) {
-                    saveToLocalAndProceed();
-                    showToast('✅ Đăng nhập ghi nhận thành công!', 'success');
-                    initLogin();
-                } else {
-                    console.error('[PROFILE SUBMIT API ERROR] Status:', resp.status);
-                    // Lỗi 404 hoặc lỗi API khác -> Không chặn người dùng
-                    saveToLocalAndProceed();
-                    showToast('⚠️ Không ghi nhận được log đăng nhập, hệ thống vẫn tiếp tục vào dashboard.', 'warning');
-                    initLogin();
-                }
             } catch (e) {
                 console.error('[PROFILE SUBMIT NETWORK ERROR]', e);
-                // Lỗi kết nối mạng -> Không chặn người dùng
                 saveToLocalAndProceed();
-                showToast('⚠️ Không ghi nhận được log đăng nhập (lỗi mạng), hệ thống vẫn tiếp tục vào dashboard.', 'warning');
-                initLogin();
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>';
+                }
             }
         };
-
-        function showError(msg) {
-            if (errorEl && errorTextEl) {
-                errorTextEl.textContent = msg;
-                errorEl.style.display = 'flex';
-            }
-        }
     } catch (err) {
         console.error('[PROFILE FORM CRASH]', err);
     }
