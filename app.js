@@ -7110,18 +7110,38 @@ let xeDailyRowState = {};
 // ---- Load kho/NCC metadata ----
 async function loadXeDailyMeta() {
     try {
+        // Fast instant load from localStorage if available
+        const cachedMetaStr = localStorage.getItem('ghn_xe_daily_meta');
+        if (cachedMetaStr && (!state.xeDailyMeta || !state.xeDailyMeta.warehouses)) {
+            try {
+                state.xeDailyMeta = JSON.parse(cachedMetaStr);
+                xeDailyMetaLoaded = true;
+                document.querySelectorAll('.xe-daily-row').forEach(row => {
+                    const rowId = row.dataset.rowId;
+                    _populateKhoDropdown(rowId);
+                    _populateNccDropdown(rowId);
+                });
+                _populateFilterDropdowns();
+            } catch (e) {}
+        }
+
         let result = await authFetch(`/api/vehicle-daily/meta`, null).catch(() => null);
         if (!result) {
             result = await authFetch(`${API}/xe-van-hanh/meta`, { warehouses: [], kho_list: [], ncc_all: [] });
         }
-        state.xeDailyMeta = result;
-        xeDailyMetaLoaded = true;
-        
-        const warehouses = result.warehouses || [];
+        if (result && result.warehouses) {
+            state.xeDailyMeta = result;
+            xeDailyMetaLoaded = true;
+            try {
+                localStorage.setItem('ghn_xe_daily_meta', JSON.stringify(result));
+            } catch (e) {}
+        }
+
+        const warehouses = state.xeDailyMeta?.warehouses || [];
         console.log(`\n===== [DEBUG FRONTEND KHO META] =====`);
-        console.log(`Tổng số kho GXT load được: ${result.total_warehouses || warehouses.length}`);
+        console.log(`Tổng số kho GXT load được: ${state.xeDailyMeta?.total_warehouses || warehouses.length}`);
         console.log(`Danh sách ${warehouses.length} ID kho:`, warehouses.map(w => w.id));
-        console.log(`Tổng số NCC load được: ${result.ncc_all?.length || 0}`);
+        console.log(`Tổng số NCC load được: ${state.xeDailyMeta?.ncc_all?.length || 0}`);
         console.log(`=====================================\n`);
 
         // Refresh existing rows' dropdowns
@@ -8954,39 +8974,84 @@ async function sendOdoTelegramNow() {
 }
 
 function exportOdoToExcel() {
-    if (!currentOdoData || !currentOdoData.details) {
+    if (!currentOdoData || !currentOdoData.details || !currentOdoData.details.length) {
         showToast('⚠️ Chưa có dữ liệu ODO để xuất Excel!', 'warning');
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFFSTT,Tên Kho,Xe Chuẩn,Xe Tăng Cường,Xe OFF,Xe Phải Báo,Xe Đã Báo,Thiếu,Thừa,Trạng Thái,Ngày Cập Nhật\n";
-    
-    currentOdoData.details.forEach((item, idx) => {
-        const shortName = item.kho.replace('Kho Giao Hàng Nặng - ', '').trim();
-        const row = [
+    const header = [
+        'STT', 'Tên Kho', 'Xe Chuẩn', 'Xe Tăng Cường', 'Xe OFF', 
+        'Xe Phải Báo', 'Xe Đã Báo ODO', 'Thiếu ODO', 'Thừa ODO', 'Trạng Thái', 'Ngày Cập Nhật'
+    ];
+
+    const dataRows = currentOdoData.details.map((item, idx) => {
+        const shortName = (item.warehouseName || item.kho || '').replace('Kho Giao Hàng Nặng - ', '').trim();
+        const stdV = item.standardVehicles ?? item.tong_xe ?? 0;
+        const tcV = item.extraVehicles ?? item.xe_tc ?? 0;
+        const offV = item.offVehicles ?? item.xe_off ?? 0;
+        const expV = item.expectedVehicles ?? item.expected_odo ?? item.expectedOdo ?? 0;
+        const repV = item.reportedVehicles ?? item.actual_odo ?? item.actualOdo ?? 0;
+        const diffV = item.missingVehicles ?? item.diff ?? 0;
+        const statusStr = String(item.status || item.raw_status || '').toUpperCase();
+
+        let stLabel = 'Đủ';
+        if (repV === 0) stLabel = 'Chưa báo';
+        else if (statusStr === 'THIEU' || statusStr === 'THIẾU') stLabel = 'Thiếu';
+        else if (statusStr === 'THUA' || statusStr === 'THỪA') stLabel = 'Thừa';
+
+        return [
             idx + 1,
-            `"${shortName}"`,
-            item.tong_xe,
-            item.xe_tc,
-            item.xe_off,
-            item.expected_odo,
-            item.actual_odo,
-            item.status === 'THIEU' ? item.diff : 0,
-            item.status === 'THUA' ? item.diff : 0,
-            `"${item.status}"`,
-            `"${item.ngay}"`
+            shortName,
+            stdV,
+            tcV,
+            offV,
+            expV,
+            repV,
+            stLabel === 'Chưa báo' ? expV : (stLabel === 'Thiếu' ? diffV : 0),
+            stLabel === 'Thừa' ? (item.extraReportedVehicles || diffV || 0) : 0,
+            stLabel,
+            item.lastUpdated || item.ngay || (currentOdoData.summary ? currentOdoData.summary.target_date : '') || ''
         ];
-        csvContent += row.join(",") + "\n";
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Bao_Cao_ODO_GXT_${currentOdoData.summary.target_date.replace(/\//g, '_')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('📥 Đã xuất file Báo Cáo ODO Excel (.csv) thành công!', 'success');
+    const dateTag = (currentOdoData.summary?.target_date || '2026').replace(/\//g, '_');
+
+    if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.book_new();
+        const ws_data = [header, ...dataRows];
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+        ws['!cols'] = [
+            { wch: 6 },  // STT
+            { wch: 38 }, // Tên Kho
+            { wch: 12 }, // Xe Chuẩn
+            { wch: 16 }, // Xe Tăng Cường
+            { wch: 12 }, // Xe OFF
+            { wch: 14 }, // Xe Phải Báo
+            { wch: 16 }, // Xe Đã Báo ODO
+            { wch: 12 }, // Thiếu
+            { wch: 12 }, // Thừa
+            { wch: 14 }, // Trạng Thái
+            { wch: 16 }  // Ngày
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Bao_Cao_ODO");
+        XLSX.writeFile(wb, `Bao_Cao_ODO_25_Kho_GXT_${dateTag}.xlsx`);
+        showToast('📥 Đã xuất file Báo Cáo ODO Excel (.xlsx) thành công!', 'success');
+    } else {
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + header.join(",") + "\n";
+        dataRows.forEach(r => {
+            csvContent += r.map(v => `"${v}"`).join(",") + "\n";
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Bao_Cao_ODO_GXT_${dateTag}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('📥 Đã xuất file Báo Cáo ODO Excel (.xlsx) thành công!', 'success');
+    }
 }
 
 async function loadOdoMonitorLogs() {

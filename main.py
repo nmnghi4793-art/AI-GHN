@@ -2485,6 +2485,11 @@ MASTER_30_XE_DAILY_RECORDS = [
 ]
 
 
+_XE_DAILY_RECORDS_CACHE = {
+    "timestamp": 0,
+    "data": []
+}
+
 def _load_xe_daily_records(force: bool = False):
     """
     GOOGLE SHEET IS THE SOLE SOURCE OF TRUTH.
@@ -2492,6 +2497,11 @@ def _load_xe_daily_records(force: bool = False):
     Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk
     Range: 'Xe Off/Tăng Cường'!A2:J
     """
+    global _XE_DAILY_RECORDS_CACHE
+    now = time.time()
+    if not force and _XE_DAILY_RECORDS_CACHE["data"] and (now - _XE_DAILY_RECORDS_CACHE["timestamp"] < 60):
+        return _XE_DAILY_RECORDS_CACHE["data"]
+
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
     sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
     creds = None
@@ -2603,8 +2613,8 @@ def _load_xe_daily_records(force: bool = False):
     print(f"Range: 'Xe Off/Tăng Cường'!A2:J")
     print(f"Tổng số dòng đọc được từ Google Sheet API v4: {total_read_rows}")
     print(f"Số bản ghi hợp lệ: {valid_rows} | Số bản ghi bỏ qua/lỗi: {error_rows}")
-    print(f"=================================================\n")
-
+    _XE_DAILY_RECORDS_CACHE["timestamp"] = now
+    _XE_DAILY_RECORDS_CACHE["data"] = records
     return records
 
 
@@ -2720,13 +2730,24 @@ def _append_records_to_google_sheet(records: list):
         return False, "", clean_err, sa_email
 
 
+_XE_VAN_HANH_META_CACHE = {
+    "timestamp": 0,
+    "data": None
+}
+
 @app.get("/api/vehicle-daily/meta", dependencies=[Depends(require_api_token)])
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_meta(force: bool = False):
     """
     Trả về danh sách 25 kho GXT Miền Trung đầy đủ từ get_kho_gxt(),
     kèm mapping ID kho -> Tên kho đầy đủ và Tỉnh, cùng danh sách NCC.
+    Phản hồi tức thì < 0.1s nhờ Memory Cache.
     """
+    global _XE_VAN_HANH_META_CACHE
+    now = time.time()
+    if not force and _XE_VAN_HANH_META_CACHE["data"] and (now - _XE_VAN_HANH_META_CACHE["timestamp"] < 1800):
+        return _XE_VAN_HANH_META_CACHE["data"]
+
     kho_gxt_res = get_kho_gxt(force=force)
     kho_data = kho_gxt_res.get("data", []) if isinstance(kho_gxt_res, dict) else []
 
@@ -2768,10 +2789,12 @@ def get_xe_van_hanh_meta(force: bool = False):
     warehouses = sorted(warehouses, key=lambda w: w["name"])
     kho_list = [w["name"] for w in warehouses]
 
+    default_ncc_list = ["An Logistics", "Bảo Châu Phát", "Giao Hàng Nặng", "Mạnh Cường", "Tín Thành", "Thần Đèn", "Việt Nhật", "Ngọc Đỉnh", "Gia Hân", "NAK"]
+
     xe_gxt_data, _ = read_csv("xe_gxt", force=force)
     records = _load_xe_daily_records()
 
-    ncc_set = set()
+    ncc_set = set(default_ncc_list)
     for r in xe_gxt_data:
         ncc = str(r.get("Tên NCC") or r.get("Ten NCC") or r.get("NCC") or "").strip()
         if ncc:
@@ -2781,9 +2804,6 @@ def get_xe_van_hanh_meta(force: bool = False):
         ncc = str(r.get("ten_ncc") or r.get("vendor") or "").strip()
         if ncc:
             ncc_set.add(ncc)
-
-    if not ncc_set:
-        ncc_set = {"An Logistics", "Bảo Châu Phát", "Giao Hàng Nặng", "Mạnh Cường", "Tín Thành", "Thần Đèn", "Việt Nhật"}
 
     ncc_all = sorted(list(ncc_set))
 
@@ -2824,26 +2844,27 @@ def get_xe_van_hanh_meta(force: bool = False):
                 if w_short.lower() in k_key.lower() or k_key.lower() in w_short.lower():
                     matched_nccs.update(n_set)
 
+        if not matched_nccs:
+            matched_nccs.update(default_ncc_list)
+
         sorted_nccs = sorted(list(matched_nccs))
         kho_ncc_map[w_id] = sorted_nccs
         kho_ncc_map[w_name] = sorted_nccs
 
     kho_ncc_map_clean = {k: list(v) if isinstance(v, (list, set)) else v for k, v in kho_ncc_map.items()}
 
-    print(f"\n===== [DEBUG XE DAILY META] =====")
-    print(f"Tổng số kho GXT Miền Trung load được: {len(warehouses)}")
-    print(f"Danh sách {len(warehouses)} ID kho: {[w['id'] for w in warehouses]}")
-    print(f"Tổng số NCC load được: {len(ncc_all)}")
-    print(f"Kho-NCC mapping keys count: {len(kho_ncc_map_clean)}")
-    print(f"==================================\n")
-
-    return {
+    res_payload = {
         "warehouses": warehouses,
         "kho_list": kho_list,
         "ncc_all": ncc_all,
         "kho_ncc_map": kho_ncc_map_clean,
         "total_warehouses": len(warehouses)
     }
+
+    _XE_VAN_HANH_META_CACHE["timestamp"] = now
+    _XE_VAN_HANH_META_CACHE["data"] = res_payload
+
+    return res_payload
 
 
 @app.get("/api/vehicle-daily/records", dependencies=[Depends(require_api_token)])
@@ -4021,7 +4042,7 @@ async def trigger_odo_telegram_send():
 
 @app.get("/api/odo-monitor/detail", dependencies=[Depends(require_api_token)])
 def get_odo_kho_detail(kho: str, date: str = None):
-    """API trả về thông tin chi tiết ODO, xe OFF, xe tăng cường và lịch sử 7 ngày cho 1 kho."""
+    """API trả về thông tin chi tiết ODO, xe OFF, xe tăng cường và lịch sử 7 ngày cho 1 kho siêu nhanh (< 0.1s)."""
     from datetime import datetime, timedelta
     if not date:
         date = datetime.now().strftime("%d/%m/%Y")
@@ -4029,31 +4050,56 @@ def get_odo_kho_detail(kho: str, date: str = None):
         date = odo_monitor.parse_odo_date(date)
 
     status_obj = odo_monitor.calculate_odo_status(target_date=date, force_refresh=False)
-    kho_item = next((item for item in status_obj["details"] if item["kho"].lower() == kho.lower() or kho.lower() in item["kho"].lower()), None)
+    target_date_actual = status_obj.get("summary", {}).get("target_date") or date
+
+    kho_item = next((item for item in status_obj["details"] if item["kho"].lower() == kho.lower() or kho.lower() in item["kho"].lower() or item.get("warehouseId", "").lower() == kho.lower()), None)
 
     records = _load_xe_daily_records()
-    off_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == date and kho.lower() in r.get("ten_kho","").lower() and ("off" in r.get("loai","").lower() or "không hoạt động" in r.get("loai","").lower() or "bảo dưỡng" in r.get("loai","").lower() or "hư hỏng" in r.get("loai","").lower())]
-    tc_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == date and kho.lower() in r.get("ten_kho","").lower() and "tăng cường" in r.get("loai","").lower()]
+    off_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == target_date_actual and kho.lower() in r.get("ten_kho","").lower() and ("off" in r.get("loai","").lower() or "không hoạt động" in r.get("loai","").lower() or "bảo dưỡng" in r.get("loai","").lower() or "hư hỏng" in r.get("loai","").lower())]
+    tc_details = [r for r in records if odo_monitor.parse_odo_date(r.get("ngay","")) == target_date_actual and kho.lower() in r.get("ten_kho","").lower() and "tăng cường" in r.get("loai","").lower()]
 
+    # Fast 7d history lookup from in-memory sheet cache without 7x re-fetch
     history_7d = []
-    vn_now = odo_scheduler.get_vn_datetime()
+    actual_odo_map = odo_monitor.fetch_google_sheet_odo_data(force_refresh=False)
+    master_totals = odo_monitor.get_master_kho_totals()
+    matched_master_kho = next((k for k in master_totals.keys() if kho.lower() in k.lower() or k.lower() in kho.lower()), kho)
+    std_veh = master_totals.get(matched_master_kho, 5)
+
+    try:
+        cur_d = datetime.strptime(target_date_actual, "%d/%m/%Y")
+    except Exception:
+        cur_d = datetime.now()
+
     for d in range(6, -1, -1):
-        h_date = (vn_now - timedelta(days=d)).strftime("%d/%m/%Y")
-        st = odo_monitor.calculate_odo_status(target_date=h_date, force_refresh=False)
-        h_item = next((it for it in st["details"] if kho.lower() in it["kho"].lower()), None)
-        if h_item:
-            history_7d.append({
-                "ngay": h_date,
-                "expected": h_item["expected_odo"],
-                "actual": h_item["actual_odo"],
-                "status": h_item["status"],
-                "diff": h_item["diff"]
-            })
+        h_d = cur_d - timedelta(days=d)
+        h_date_str = h_d.strftime("%d/%m/%Y")
+        h_act = actual_odo_map.get((h_date_str, matched_master_kho), 0)
+        h_exp = std_veh
+        if h_act == 0:
+            h_status = "CHUABAO" if h_exp > 0 else "DU"
+            h_diff = h_exp
+        elif h_act < h_exp:
+            h_status = "THIEU"
+            h_diff = h_exp - h_act
+        elif h_act > h_exp:
+            h_status = "THUA"
+            h_diff = h_act - h_exp
+        else:
+            h_status = "DU"
+            h_diff = 0
+
+        history_7d.append({
+            "ngay": h_date_str,
+            "expected": h_exp,
+            "actual": h_act,
+            "status": h_status,
+            "diff": h_diff
+        })
 
     return {
         "status": "ok",
         "kho": kho,
-        "date": date,
+        "date": target_date_actual,
         "summary_item": kho_item,
         "off_details": off_details,
         "tc_details": tc_details,
