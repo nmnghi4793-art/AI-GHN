@@ -2546,21 +2546,21 @@ def _load_xe_daily_records():
         except Exception as pg_err:
             print(f"[XE DAILY DB WARNING] PostgreSQL read/seed attempt: {pg_err}")
 
-    # 2. Fallback to Master Code Storage if PostgreSQL not available
+    # 2. Fallback to Local JSON Cache or Master Code Storage if PostgreSQL not available
     if not records:
-        records = list(MASTER_30_XE_DAILY_RECORDS)
-        # Check if user added any new records in local cache
         if os.path.exists(XE_DAILY_DATA_FILE):
             try:
                 with open(XE_DAILY_DATA_FILE, "r", encoding="utf-8") as f:
                     local_data = json.load(f)
-                    if isinstance(local_data, list):
-                        existing_ids = {r["id"] for r in records}
-                        for lr in local_data:
-                            if lr.get("id") and lr["id"] not in existing_ids:
-                                records.append(lr)
+                    if isinstance(local_data, list) and len(local_data) > 0:
+                        records = local_data
+                        storage_type = "Local JSON Cache (scratch/xe_van_hanh_daily.json)"
             except Exception:
                 pass
+        
+        if not records:
+            records = list(MASTER_30_XE_DAILY_RECORDS)
+            storage_type = "Master Code Storage (Permanent)"
 
     print(f"\n===== [XE DAILY PERSISTENCE LOG] =====")
     print(f"Storage đang dùng: {storage_type}")
@@ -2788,17 +2788,22 @@ async def save_xe_van_hanh_records(request: Request):
 
 ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
 
-@app.post("/api/xe-van-hanh/records/clear-all")
+@app.post("/api/xe-van-hanh/records/clear-all", dependencies=[Depends(require_api_token)])
 async def clear_all_xe_van_hanh_records(
     request: Request,
     x_admin_key: str = Header(None, alias="X-Admin-Key")
 ):
     """Xóa tất cả bản ghi xe vận hành daily (Chỉ Admin có link key)."""
     saved_key = x_admin_key or request.headers.get("X-Admin-Key") or ""
-    if not secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED):
-        raise HTTPException(status_code=403, detail="Chỉ người dùng truy cập qua Link Admin Key mới có quyền Xóa tất cả dữ liệu.")
+    has_valid_key = secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED)
+    
+    print(f"\n[DEBUG DELETE CLEAR-ALL] Request received | Admin Key Present: {bool(saved_key)} | Valid Key: {has_valid_key}")
 
-    _save_xe_daily_records([])
+    if not has_valid_key:
+        print("[DEBUG DELETE CLEAR-ALL] Authorization failed: Returning 403 Forbidden without logging out user.")
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa tất cả dữ liệu.")
+
+    _save_xe_daily_records([], sync_db=True)
     try:
         os.makedirs(os.path.dirname(XE_DAILY_META_FILE), exist_ok=True)
         with open(XE_DAILY_META_FILE, "w", encoding="utf-8") as f:
@@ -2806,25 +2811,24 @@ async def clear_all_xe_van_hanh_records(
     except Exception as e:
         print(f"[XE DAILY CLEAR ALL] Error writing meta: {e}")
 
+    print("[DEBUG DELETE CLEAR-ALL] Clear all succeeded.")
     return {"status": "ok", "message": "Đã xóa toàn bộ dữ liệu Xe Vận Hành Daily thành công."}
 
 
-@app.post("/api/xe-van-hanh/records/{record_id}/delete")
+@app.post("/api/xe-van-hanh/records/{record_id}/delete", dependencies=[Depends(require_api_token)])
 async def delete_xe_van_hanh_record(
     record_id: str,
-    request: Request,
-    x_admin_key: str = Header(None, alias="X-Admin-Key")
+    request: Request
 ):
-    """Xóa một bản ghi xe vận hành daily theo ID (Chỉ Admin có link key)."""
-    saved_key = x_admin_key or request.headers.get("X-Admin-Key") or ""
-    if not secrets.compare_digest(saved_key.strip(), ADMIN_KEY_REQUIRED):
-        raise HTTPException(status_code=403, detail="Chỉ người dùng truy cập qua Link Admin Key mới có quyền Xóa bản ghi này.")
-
+    """Xóa một bản ghi xe vận hành daily theo ID (Người dùng đã đăng nhập)."""
+    print(f"\n[DEBUG DELETE ROW] Request received | Record ID: {record_id}")
+    
     records = _load_xe_daily_records()
     original_len = len(records)
     records = [r for r in records if r.get("id") != record_id]
 
     if len(records) == original_len:
+        print(f"[DEBUG DELETE ROW] Record ID {record_id} not found — Returning 404")
         raise HTTPException(status_code=404, detail=f"Không tìm thấy bản ghi ID={record_id}")
 
     if len(records) == 0:
@@ -2834,9 +2838,11 @@ async def delete_xe_van_hanh_record(
         except Exception:
             pass
 
-    if _save_xe_daily_records(records):
+    if _save_xe_daily_records(records, sync_db=True):
+        print(f"[DEBUG DELETE ROW] Record ID {record_id} deleted successfully. Remaining: {len(records)}")
         return {"status": "ok", "message": "Đã xóa bản ghi thành công."}
     else:
+        print(f"[DEBUG DELETE ROW] Failed to save updated records after deleting {record_id}")
         raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi xóa.")
 
 

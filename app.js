@@ -120,8 +120,8 @@ function getAuthHeaders() {
 async function apiFetch(url, opts = {}) {
     const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
     const resp = await fetch(url, { ...opts, headers });
-    if (resp.status === 401 || resp.status === 403) {
-        // Token hết hiệu lực — đăng xuất
+    if (resp.status === 401) {
+        // Chỉ logout khi token 401 hết hiệu lực
         clearApiToken();
         localStorage.removeItem('ghn_logged_in');
         window.location.reload();
@@ -231,13 +231,13 @@ let nextSyncTime = Date.now() + 5 * 60 * 1000;
 let syncTimerInterval = null;
 
 /**
- * fetch có auth header + tự động logout nếu token hết hạn (401/403)
+ * fetch có auth header + tự động logout nếu token hết hạn (401)
  */
 async function authFetch(url, fallback = null) {
     try {
         const r = await fetch(url, { headers: getAuthHeaders() });
-        if (r.status === 401 || r.status === 403) {
-            // Token hết hạn hoặc không hợp lệ → buộc đăng nhập lại
+        if (r.status === 401) {
+            // Token hết hạn → buộc đăng nhập lại
             clearApiToken();
             localStorage.removeItem('ghn_logged_in');
             window.location.reload();
@@ -257,7 +257,7 @@ async function authPost(url, body, fallback = null) {
             headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (r.status === 401 || r.status === 403) {
+        if (r.status === 401) {
             clearApiToken();
             localStorage.removeItem('ghn_logged_in');
             window.location.reload();
@@ -7407,23 +7407,99 @@ function _populateFilterDropdowns() {
     }
 }
 
-// ---- Delete a record ----
+// ---- Delete a single record ----
 async function deleteXeDailyRecord(recordId) {
-    if (!confirm('Bạn có chắc muốn xóa bản ghi này không?\nThao tác này không thể hoàn tác.')) return;
+    console.log('[DEBUG DELETE] Nút được bấm: Xóa dòng');
+    console.log('[DEBUG DELETE] Record ID:', recordId);
+
+    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi xe daily này không?\nThao tác này không thể hoàn tác.')) {
+        console.log('[DEBUG DELETE] Hủy xóa từng dòng bởi người dùng.');
+        return;
+    }
 
     try {
-        const resp = await authPost(`${API}/xe-van-hanh/records/${recordId}/delete`, {}, { status: 'error', message: '' });
-        if (resp.status === 'ok') {
+        const token = getApiToken();
+        const res = await fetch(`${API}/xe-van-hanh/records/${recordId}/delete`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('[DEBUG DELETE] HTTP status:', res.status);
+        const sessionActive = localStorage.getItem('ghn_logged_in') === 'true' && !!token;
+        console.log('[DEBUG DELETE] Session còn tồn tại sau request:', sessionActive);
+        console.log('[DEBUG DELETE] Hàm logout có bị gọi không: KHÔNG');
+
+        if (res.ok) {
+            const data = await res.json();
+            console.log('[DEBUG DELETE] Response body:', data);
             showToast('✅ Đã xóa bản ghi thành công.', 'success');
             await loadXeDailyRecords();
         } else {
-            showToast(`❌ Lỗi: ${resp.message || 'Không thể xóa.'}`, 'error');
+            const errData = await res.json().catch(() => ({}));
+            console.error('[DEBUG DELETE] Response error body:', errData);
+            const msg = errData.detail || errData.message || 'Không thể xóa bản ghi.';
+            showToast(`❌ Lỗi: ${msg}`, 'error');
         }
     } catch (err) {
         console.error('[XE DAILY] Delete error:', err);
         showToast('Lỗi kết nối. Vui lòng thử lại.', 'error');
     }
 }
+window.deleteXeDailyRecord = deleteXeDailyRecord;
+
+// ---- Clear all records ----
+async function clearAllXeDailyRecords() {
+    const adminKey = sessionStorage.getItem('ghn_admin_key') || localStorage.getItem('ghn_admin_key') || '';
+    
+    console.log('[DEBUG DELETE ALL] Nút được bấm: Xóa tất cả');
+    console.log('[DEBUG DELETE ALL] Admin Key Present:', !!adminKey);
+
+    if (!confirm('⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA TẤT CẢ bản ghi Xe Off / Tăng Cường?')) {
+        console.log('[DEBUG DELETE ALL] Hủy xóa tất cả ở Bước 1.');
+        return;
+    }
+
+    if (!confirm('🚨 XÁC NHẬN LẦN 2: Thao tác này sẽ xóa toàn bộ dữ liệu Xe Daily. Bạn vẫn muốn tiếp tục?')) {
+        console.log('[DEBUG DELETE ALL] Hủy xóa tất cả ở Bước 2.');
+        return;
+    }
+
+    try {
+        const token = getApiToken();
+        const res = await fetch(`${API}/xe-van-hanh/records/clear-all`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+                'X-Admin-Key': adminKey
+            }
+        });
+
+        console.log('[DEBUG DELETE ALL] HTTP status:', res.status);
+        const sessionActive = localStorage.getItem('ghn_logged_in') === 'true' && !!token;
+        console.log('[DEBUG DELETE ALL] Session còn tồn tại sau request:', sessionActive);
+        console.log('[DEBUG DELETE ALL] Hàm logout có bị gọi không: KHÔNG');
+
+        if (res.ok) {
+            const data = await res.json();
+            console.log('[DEBUG DELETE ALL] Response body:', data);
+            showToast('✅ Đã xóa toàn bộ dữ liệu Xe Daily thành công.', 'success');
+            await loadXeDailyRecords();
+        } else {
+            const errData = await res.json().catch(() => ({}));
+            console.error('[DEBUG DELETE ALL] Response error body:', errData);
+            const msg = errData.detail || errData.message || 'Bạn không có quyền xóa tất cả dữ liệu.';
+            showToast(`❌ Lỗi: ${msg}`, 'error');
+        }
+    } catch (err) {
+        console.error('[XE DAILY CLEAR ALL] Error:', err);
+        showToast('Lỗi kết nối khi xóa dữ liệu.', 'error');
+    }
+}
+window.clearAllXeDailyRecords = clearAllXeDailyRecords;
 
 // ---- Export history table to Excel (.xlsx) ----
 function exportXeDailyExcel() {
