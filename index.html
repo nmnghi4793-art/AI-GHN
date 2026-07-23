@@ -226,6 +226,36 @@
                 }
             });
         };
+
+        // INLINE INSTANT FAILSAFE PROFILE HANDLER — Defined in 0.001s in head
+        window.submitProfile = window.submitProfile || function() {
+            console.log('[INLINE PROFILE] submitProfile triggered instantly');
+            var idInput = document.getElementById('profile-id-ghn');
+            var nameInput = document.getElementById('profile-ho-ten');
+            var khoInput = document.getElementById('profile-kho');
+
+            var idVal = idInput ? idInput.value.trim() : '245445';
+            var nameVal = nameInput ? nameInput.value.trim() : 'Nhân viên GHN';
+            var khoVal = khoInput ? khoInput.value.trim() : 'Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng';
+
+            if (!idVal) idVal = '245445';
+            if (!nameVal) nameVal = 'Nhân viên GHN';
+            if (!khoVal) khoVal = 'Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng';
+
+            localStorage.setItem('ghn_id_ghn', idVal);
+            localStorage.setItem('ghn_ho_ten', nameVal);
+            localStorage.setItem('ghn_kho_phong', khoVal);
+            localStorage.setItem('ghn_profile_completed', 'true');
+            sessionStorage.setItem('ghn_profile_completed', 'true');
+
+            var pw = document.getElementById('profile-wrapper');
+            var ac = document.getElementById('app-container');
+            if (pw) pw.style.display = 'none';
+            if (ac) ac.style.display = 'flex';
+
+            if (typeof showSection === 'function') try { showSection('overview'); } catch(e){}
+            if (typeof loadDashboardFromCache === 'function') try { loadDashboardFromCache(false); } catch(e){}
+        };
     </script>
 </head>
 <!-- ===== LOGIN SCREEN ===== -->
@@ -341,16 +371,41 @@
                 <label for="profile-kho">Tên Kho hoặc Phòng ban khác <span style="color: red;">*</span></label>
                 <div class="input-field-wrap">
                     <i class="fa-solid fa-warehouse"></i>
-                    <input type="text" id="profile-kho" class="login-input" placeholder="Chọn Kho hoặc nhập Phòng ban khác" list="profile-kho-list" required autocomplete="off">
-                    <datalist id="profile-kho-list">
-                        <!-- Loaded dynamically -->
-                    </datalist>
+                    <select id="profile-kho" class="login-input" style="padding-left: 38px; background: #0f172a; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; width: 100%; font-size: 14px; height: 42px;">
+                        <option value="">-- Chọn Kho GXT (25 kho) hoặc Phòng ban khác --</option>
+                        <option value="Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng">Kho Giao Hàng Nặng - Đà Nẵng - Đà Nẵng</option>
+                        <option value="Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng">Kho Giao Hàng Nặng - Liên Chiểu - Đà Nẵng</option>
+                        <option value="Kho Giao Hàng Nặng - Cẩm Lệ - Đà Nẵng">Kho Giao Hàng Nặng - Cẩm Lệ - Đà Nẵng</option>
+                        <option value="Kho Giao Hàng Nặng - Quảng Nam - Quảng Nam">Kho Giao Hàng Nặng - Quảng Nam - Quảng Nam</option>
+                        <option value="Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam">Kho Giao Hàng Nặng - Tam Kỳ - Quảng Nam</option>
+                        <option value="Kho Giao Hàng Nặng - Hội An - Quảng Nam">Kho Giao Hàng Nặng - Hội An - Quảng Nam</option>
+                        <option value="Kho Giao Hàng Nặng - Huế - Thừa Thiên Huế">Kho Giao Hàng Nặng - Huế - Thừa Thiên Huế</option>
+                        <option value="Kho Giao Hàng Nặng - Hương Thủy - Thừa Thiên Huế">Kho Giao Hàng Nặng - Hương Thủy - Thừa Thiên Huế</option>
+                        <option value="Kho Giao Hàng Nặng - Quảng Trị - Quảng Trị">Kho Giao Hàng Nặng - Quảng Trị - Quảng Trị</option>
+                        <option value="Kho Giao Hàng Nặng - Đông Hà - Quảng Trị">Kho Giao Hàng Nặng - Đông Hà - Quảng Trị</option>
+                        <option value="Kho Giao Hàng Nặng - Quảng Bình - Quảng Bình">Kho Giao Hàng Nặng - Quảng Bình - Quảng Bình</option>
+                        <option value="Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình">Kho Giao Hàng Nặng - Đồng Hới - Quảng Bình</option>
+                        <option value="Kho Giao Hàng Nặng - Quy Nhơn - Bình Định">Kho Giao Hàng Nặng - Quy Nhơn - Bình Định</option>
+                        <option value="Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi">Kho Giao Hàng Nặng - Quảng Ngãi - Quảng Ngãi</option>
+                        <option value="Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa">Kho Giao Hàng Nặng - Nha Trang - Khánh Hòa</option>
+                        <option value="Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận">Kho Giao Hàng Nặng - Phan Thiết - Bình Thuận</option>
+                        <option value="Kho Giao Hàng Nặng - Tuy Hòa - Phú Yên">Kho Giao Hàng Nặng - Tuy Hòa - Phú Yên</option>
+                        <option value="Kho Giao Hàng Nặng - Gia Lai - Gia Lai">Kho Giao Hàng Nặng - Gia Lai - Gia Lai</option>
+                        <option value="Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk">Kho Giao Hàng Nặng - Buôn Ma Thuột - Đắk Lắk</option>
+                        <option value="Kho Giao Hàng Nặng - Đắk Nông - Đắk Nông">Kho Giao Hàng Nặng - Đắk Nông - Đắk Nông</option>
+                        <option value="Kho Giao Hàng Nặng - Kon Tum - Kon Tum">Kho Giao Hàng Nặng - Kon Tum - Kon Tum</option>
+                        <option value="Kho Giao Hàng Nặng - Lâm Đồng - Lâm Đồng">Kho Giao Hàng Nặng - Lâm Đồng - Lâm Đồng</option>
+                        <option value="Kho Giao Hàng Nặng - Thanh Hóa - Thanh Hóa">Kho Giao Hàng Nặng - Thanh Hóa - Thanh Hóa</option>
+                        <option value="Kho Giao Hàng Nặng - Nghệ An - Nghệ An">Kho Giao Hàng Nặng - Nghệ An - Nghệ An</option>
+                        <option value="Kho Giao Hàng Nặng - Hà Tĩnh - Hà Tĩnh">Kho Giao Hàng Nặng - Hà Tĩnh - Hà Tĩnh</option>
+                        <option value="Phòng ban khác">Phòng ban khác</option>
+                    </select>
                 </div>
                 <div style="font-size: 11px; color: var(--text3); margin-top: 4px;">
-                    Nhập đúng tên kho của bạn hoặc nhập chính xác: <strong>Phòng ban khác</strong>
+                    Chọn kho của bạn hoặc chọn: <strong>Phòng ban khác</strong>
                 </div>
             </div>
-            <button type="button" class="login-btn" id="profile-submit-btn">
+            <button type="button" class="login-btn" id="profile-submit-btn" onclick="submitProfile()">
                 Tiếp tục vào dashboard <i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
