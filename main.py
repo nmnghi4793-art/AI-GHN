@@ -55,7 +55,7 @@ load_env()
 from fastapi import FastAPI, Query, Header, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import csv
 import io
@@ -2618,50 +2618,87 @@ def _load_xe_daily_records(force: bool = False):
     return records
 
 
+def _normalize_kho_name(name: str) -> str:
+    s = (name or "").strip().lower()
+    for prefix in ["kho giao hàng nặng - ", "kho giao hàng nặng ", "kho ", "bưu cục giao hàng nặng - "]:
+        if s.startswith(prefix):
+            s = s[len(prefix):].strip()
+    return s
+
+def _normalize_bien_so(bs: str) -> str:
+    import re
+    return re.sub(r"[^a-zA-Z0-9]", "", (bs or "")).lower()
+
+def _parse_any_date(date_val):
+    if not date_val:
+        return None, ""
+    import re
+    from datetime import datetime, date
+    s = str(date_val).strip()
+
+    try:
+        fval = float(s)
+        if 40000 <= fval <= 60000:
+            dt = datetime.fromordinal(datetime(1899, 12, 30).toordinal() + int(fval))
+            return dt.strftime("%Y-%m-%d"), dt.strftime("%d/%m/%Y")
+    except Exception:
+        pass
+
+    m_iso = re.match(r"^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})", s)
+    if m_iso:
+        y, mo, d = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
+        try:
+            dt = date(y, mo, d)
+            return dt.strftime("%Y-%m-%d"), dt.strftime("%d/%m/%Y")
+        except Exception:
+            return None, ""
+
+    m_dd = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})", s)
+    if m_dd:
+        d, mo, y = int(m_dd.group(1)), int(m_dd.group(2)), int(m_dd.group(3))
+        try:
+            dt = date(y, mo, d)
+            return dt.strftime("%Y-%m-%d"), dt.strftime("%d/%m/%Y")
+        except Exception:
+            return None, ""
+
+    return None, ""
+
 def _append_records_to_google_sheet(records: list):
-    """
-    Unified Google Sheets Append function for BOTH Manual Save and Excel Import.
-    Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk.
-    Tab Name: Xe Off/Tăng Cường
-
-    Columns A..J (Exact Order Required):
-    A: Ngày (date)
-    B: Tên Kho (warehouseName)
-    C: Loại ghi nhận (recordType)
-    D: Số lượng xe (vehicleCount)
-    E: Biển số xe (licensePlate)
-    F: Tên NCC (vendorName)
-    G: Trọng tải (payloadKg)
-    H: Người nhập (createdBy)
-    I: Thời gian ghi nhận (createdAt)
-    J: Record ID (recordId)
-
-    Returns (success: bool, updated_range: str, error_msg: str, sa_email: str)
-    """
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
     sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
     creds = None
+    full_stack = ""
+    api_response = ""
 
     if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
         try:
             sa_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+            if "private_key" in sa_info:
+                sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
             sa_email = sa_info.get("client_email", sa_email)
             from google.oauth2.service_account import Credentials
             creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
         except Exception as e:
-            return False, "", f"Lỗi parse GOOGLE_SERVICE_ACCOUNT_JSON: {e}", sa_email
+            import traceback
+            full_stack = traceback.format_exc()
+            return False, "", f"Lỗi parse GOOGLE_SERVICE_ACCOUNT_JSON: {e}", sa_email, full_stack, ""
     elif os.path.exists(sa_path):
         try:
             with open(sa_path, "r", encoding="utf-8") as f:
                 sa_info = json.load(f)
+                if "private_key" in sa_info:
+                    sa_info["private_key"] = sa_info["private_key"].replace("\\n", "\n")
                 sa_email = sa_info.get("client_email", sa_email)
             from google.oauth2.service_account import Credentials
-            creds = Credentials.from_service_account_file(sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+            creds = Credentials.from_service_account_info(sa_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
         except Exception as e:
-            return False, "", f"Lỗi đọc file Service Account local: {e}", sa_email
+            import traceback
+            full_stack = traceback.format_exc()
+            return False, "", f"Lỗi đọc file Service Account local: {e}", sa_email, full_stack, ""
 
     if not creds:
-        return False, "", f"Không tìm thấy Service Account credentials (GOOGLE_SERVICE_ACCOUNT_JSON). Email: {sa_email}", sa_email
+        return False, "", f"Không tìm thấy Service Account credentials. Email: {sa_email}", sa_email, "", ""
 
     try:
         from googleapiclient.discovery import build
@@ -2669,15 +2706,8 @@ def _append_records_to_google_sheet(records: list):
 
         rows_to_append = []
         for r in records:
-            try:
-                vc = int(r.get("vehicleCount") or r.get("so_luong_xe") or 1)
-            except Exception:
-                vc = 1
-            try:
-                pk = int(str(r.get("payloadKg") or r.get("trong_tai") or 0).replace(",", "").strip())
-            except Exception:
-                pk = 0
-
+            vc = int(r.get("vehicleCount") or r.get("so_luong_xe") or 1)
+            pk = int(str(r.get("payloadKg") or r.get("trong_tai") or 0).replace(",", "").strip())
             raw_date = str(r.get("date") or r.get("ngay") or "").strip()
             date_val = f"'{raw_date}" if raw_date and not raw_date.startswith("'") else raw_date
 
@@ -2707,27 +2737,32 @@ def _append_records_to_google_sheet(records: list):
 
         updates = res.get("updates", {})
         updated_range = updates.get("updatedRange", f"'{SHEET_NAME}'!A2:J{len(rows_to_append)+1}")
-
         CACHE.pop("xe_off_tc", None)
 
         print(f"\n===== [GOOGLE SHEET APPEND SUCCESS] =====")
         print(f"Spreadsheet ID: {SPREADSHEET_ID}")
-        print(f"Sheet Name: {SHEET_NAME}")
+        print(f"Worksheet Name: {SHEET_NAME}")
         print(f"Service Account Email: {sa_email}")
         print(f"Appended Rows Count: {len(rows_to_append)}")
         print(f"Updated Range: {updated_range}")
         print(f"=========================================\n")
 
-        return True, updated_range, "", sa_email
+        return True, updated_range, "", sa_email, "", json.dumps(res, ensure_ascii=False)
 
     except Exception as err:
-        err_msg = str(err)
-        if "403" in err_msg or "permission" in err_msg.lower():
-            clean_err = f"Service Account '{sa_email}' chưa được cấp quyền Editor trên Google Sheet ID 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk (Tab: 'Xe Off/Tăng Cường'). Vui lòng bấm Chia sẻ (Share) trên Google Sheet và cấp quyền Chỉnh sửa (Editor) cho {sa_email}."
-        else:
-            clean_err = f"Google Sheets API Error: {err_msg}"
-        print(f"[GOOGLE SHEET APPEND ERROR]: {clean_err}")
-        return False, "", clean_err, sa_email
+        import traceback
+        full_stack = traceback.format_exc()
+        api_response = str(getattr(err, "content", getattr(err, "error_details", str(err))))
+        err_msg = f"{type(err).__name__}: {err}"
+
+        print(f"\n===== [GOOGLE SHEET APPEND EXCEPTION] =====")
+        print(f"Exception Type: {type(err).__name__}")
+        print(f"Full Exception: {err_msg}")
+        print(f"Full Stack Trace:\n{full_stack}")
+        print(f"Google API Response: {api_response}")
+        print(f"===========================================\n")
+
+        return False, "", err_msg, sa_email, full_stack, api_response
 
 
 _XE_VAN_HANH_META_CACHE = {
@@ -3030,10 +3065,17 @@ async def save_xe_van_hanh_records(request: Request):
         }
         saved.append(record)
 
-    success, updated_range, err_msg, sa_email = _append_records_to_google_sheet(saved)
+    success, updated_range, err_msg, sa_email, full_stack, api_response = _append_records_to_google_sheet(saved)
 
     if not success:
-        print(f"[SAVE XE DAILY FAILED] {err_msg}")
+        print(f"\n===== [MANUAL SAVE GOOGLE SHEET ERROR DEBUG LOG] =====")
+        print(f"HTTP Status: 500")
+        print(f"Service Account Email: {sa_email}")
+        print(f"Full Exception: {err_msg}")
+        print(f"Full Stack Trace:\n{full_stack}")
+        print(f"Google API Response: {api_response}")
+        print(f"======================================================\n")
+
         return JSONResponse(
             status_code=500,
             content={
@@ -3041,6 +3083,10 @@ async def save_xe_van_hanh_records(request: Request):
                 "sheetAppendSuccess": False,
                 "stage": "google_sheet_append",
                 "serviceAccountEmail": sa_email,
+                "http_status": 500,
+                "exception": err_msg,
+                "stack_trace": full_stack,
+                "google_api_response": api_response,
                 "message": f"❌ Lỗi ghi Google Sheet: {err_msg}"
             }
         )
@@ -3229,22 +3275,25 @@ async def import_xe_van_hanh_records(
         }
 
     existing = _load_xe_daily_records()
-    dup_keys = set()
+    dup_map = {}
     for r in existing:
-        dk = (
-            str(r.get("ngay", "")).strip(),
-            str(r.get("ten_kho", "")).strip().lower(),
-            str(r.get("loai", "")).strip(),
-            str(r.get("bien_so_xe", "")).strip().lower(),
-            str(r.get("ten_ncc", "")).strip().lower(),
-        )
-        dup_keys.add(dk)
+        iso_d, display_d = _parse_any_date(r.get("ngay") or r.get("date"))
+        d_key = iso_d or str(r.get("ngay") or r.get("date") or "").strip()
+        k_key = _normalize_kho_name(r.get("ten_kho") or r.get("warehouseName"))
+        b_key = _normalize_bien_so(r.get("bien_so_xe") or r.get("licensePlate"))
+        l_key = str(r.get("loai") or r.get("recordType") or "").strip()
 
-    today_iso = _today_iso()
+        if d_key and k_key and b_key and l_key:
+            dup_tuple = (d_key, k_key, b_key, l_key)
+            dup_map[dup_tuple] = r.get("id") or r.get("recordId") or "ExistingSheetRecord"
+
+    print(f"\n===== [EXCEL IMPORT ROW-BY-ROW DIAGNOSTIC LOG] =====")
+    print(f"Số bản ghi sẵn có trong hệ thống để đối soát Duplicate: {len(dup_map)}")
+
     saved_records = []
     error_details = []
     duplicate_count = 0
-    import_dup_keys = set()
+    file_dup_map = {}
 
     for i, row in enumerate(rows):
         row_num = i + 2
@@ -3265,21 +3314,14 @@ async def import_xe_van_hanh_records(
         if not any([raw_ngay, raw_kho, raw_loai, raw_sl, raw_bien, raw_ncc, raw_tt]):
             continue
 
+        iso_d, display_d = _parse_any_date(raw_ngay)
+
         if not raw_ngay:
             err_list.append("Thiếu ngày")
+        elif not iso_d:
+            err_list.append(f"Không nhận diện được định dạng ngày '{raw_ngay}'")
         else:
-            iso = _ddmmyyyy_to_iso(raw_ngay)
-            if iso is None:
-                err_list.append(f"Sai định dạng ngày '{raw_ngay}' (cần dd/mm/yyyy)")
-            elif iso < MIN_DATE:
-                err_list.append(f"Ngày '{raw_ngay}' nhỏ hơn 01/07/2026")
-            elif iso > today_iso:
-                err_list.append(f"Ngày '{raw_ngay}' lớn hơn ngày hiện tại")
-            else:
-                raw_ngay = _re.sub(r"^(\d)[/\-]", r"0\1/", raw_ngay.replace("-", "/"))
-                raw_ngay = _re.sub(r"/(\d)[/\-]", r"/0\1/", raw_ngay)
-                parts = raw_ngay.replace("-", "/").split("/")
-                raw_ngay = f"{parts[0].zfill(2)}/{parts[1].zfill(2)}/{parts[2]}"
+            raw_ngay = display_d
 
         if not raw_kho: err_list.append("Thiếu tên kho")
         if not raw_loai:
@@ -3316,17 +3358,34 @@ async def import_xe_van_hanh_records(
             error_details.append({"row": row_num, "errors": err_list})
             continue
 
-        dup_key = (
-            raw_ngay.strip(),
-            raw_kho.strip().lower(),
-            raw_loai.strip(),
-            raw_bien.strip().lower(),
-            raw_ncc.strip().lower(),
-        )
-        if dup_key in dup_keys or dup_key in import_dup_keys:
+        norm_kho = _normalize_kho_name(raw_kho)
+        norm_bien = _normalize_bien_so(raw_bien)
+        norm_loai = raw_loai.strip()
+        dup_tuple = (iso_d or raw_ngay, norm_kho, norm_bien, norm_loai)
+
+        is_duplicate = False
+        dup_reason = ""
+
+        if dup_tuple in dup_map:
+            is_duplicate = True
+            dup_reason = f"Trùng 4 trường (Ngày, Kho, Biển số, Loại) với bản ghi đã có trên Google Sheet [ID={dup_map[dup_tuple]}, Ngay={display_d or raw_ngay}, Kho={raw_kho}, BienSo={raw_bien}, Loai={raw_loai}]"
+        elif dup_tuple in file_dup_map:
+            is_duplicate = True
+            dup_reason = f"Trùng 4 trường (Ngày, Kho, Biển số, Loại) với dòng {file_dup_map[dup_tuple]} trước đó trong cùng file Excel [Ngay={display_d or raw_ngay}, Kho={raw_kho}, BienSo={raw_bien}, Loai={raw_loai}]"
+
+        print(f"[IMPORT ROW {row_num}]")
+        print(f"  - Ngày: '{raw_ngay}' (ISO: '{iso_d}')")
+        print(f"  - Kho: '{raw_kho}' (Norm: '{norm_kho}')")
+        print(f"  - Biển số: '{raw_bien}' (Norm: '{norm_bien}')")
+        print(f"  - Loại ghi nhận: '{raw_loai}'")
+        print(f"  - NCC: '{raw_ncc}'")
+        print(f"  - Duplicate = {is_duplicate}")
+        if is_duplicate:
+            print(f"    Duplicate because: {dup_reason}")
             duplicate_count += 1
             continue
-        import_dup_keys.add(dup_key)
+
+        file_dup_map[dup_tuple] = row_num
 
         now_str = (datetime.utcnow() + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M:%S")
         rec_id = secrets.token_hex(8)
@@ -3353,15 +3412,27 @@ async def import_xe_van_hanh_records(
             "thoi_gian_ghi_nhan": now_str,
             "createdAt": now_str,
         }
-        existing.append(record)
         saved_records.append(record)
-        dup_keys.add(dup_key)
+        dup_map[dup_tuple] = rec_id
+
+    print(f"===== [EXCEL IMPORT SUMMARY: {len(saved_records)} HỢP LỆ | {duplicate_count} TRÙNG | {len(error_details)} LỖI] =====\n")
 
     updated_range = ""
     sa_email = "gxtbot@alien-oarlock-499610-a5.iam.gserviceaccount.com"
+    full_stack = ""
+    api_response = ""
+
     if saved_records:
-        success, updated_range, err_msg, sa_email = _append_records_to_google_sheet(saved_records)
+        success, updated_range, err_msg, sa_email, full_stack, api_response = _append_records_to_google_sheet(saved_records)
         if not success:
+            print(f"\n===== [EXCEL IMPORT GOOGLE SHEET ERROR DEBUG LOG] =====")
+            print(f"HTTP Status: 500")
+            print(f"Service Account Email: {sa_email}")
+            print(f"Full Exception: {err_msg}")
+            print(f"Full Stack Trace:\n{full_stack}")
+            print(f"Google API Response: {api_response}")
+            print(f"========================================================\n")
+
             return JSONResponse(
                 status_code=500,
                 content={
@@ -3369,9 +3440,29 @@ async def import_xe_van_hanh_records(
                     "sheetAppendSuccess": False,
                     "stage": "google_sheet_append",
                     "serviceAccountEmail": sa_email,
-                    "message": f"❌ Lỗi ghi Google Sheet: {err_msg}"
+                    "http_status": 500,
+                    "exception": err_msg,
+                    "stack_trace": full_stack,
+                    "google_api_response": api_response,
+                    "message": f"❌ Không thể lưu {len(saved_records)} bản ghi vào Google Sheet: {err_msg}"
                 }
             )
+
+    return {
+        "success": True,
+        "status": "ok",
+        "totalRows": len(rows),
+        "total_read": len(rows),
+        "successRows": len(saved_records),
+        "saved": len(saved_records),
+        "saved_count": len(saved_records),
+        "duplicates": duplicate_count,
+        "errorRows": len(error_details),
+        "error_details": error_details,
+        "serviceAccountEmail": sa_email,
+        "updatedRange": updated_range,
+        "message": f"Import thành công {len(saved_records)} dòng ({duplicate_count} dòng trùng bỏ qua, {len(error_details)} dòng lỗi)."
+    }
 
     total_read = len(rows)
     res_dict = {
