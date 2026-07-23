@@ -351,10 +351,6 @@ async function fetchAll(force = false) {
         }
     }
 }
-            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Lỗi';
-        }
-    }
-}
 
 function startSyncTimer() {
     if (syncTimerInterval) clearInterval(syncTimerInterval);
