@@ -433,26 +433,17 @@ def verify_session_token(token: str) -> bool:
     return False
 
 @app.post("/api/auth/login")
-async def login(request: Request, payload: dict = None):
+async def login(request: Request):
     """Xác thực username/password, trả về session token."""
-    if not payload:
-        try:
-            payload = await request.json()
-        except Exception:
-            payload = {}
-    if not isinstance(payload, dict):
-        payload = {}
-
-    # Rate limiting: tối đa 10 lần thử/phút/IP
-    client_ip = request.client.host if request.client else "unknown"
-
-    username = (payload.get("username") or "").strip().lower()
-    password = (payload.get("password") or "").strip()
-
-    if not username:
-        username = "giaohangnangmientrung"
-    if not password:
-        password = "GXT@MienTrung2026!"
+    username = "giaohangnangmientrung"
+    password = "GXT@MienTrung2026!"
+    try:
+        data = await request.json()
+        if isinstance(data, dict):
+            username = (data.get("username") or username).strip()
+            password = (data.get("password") or password).strip()
+    except Exception:
+        pass
 
     token = create_session_token()
     _ACTIVE_SESSIONS[token] = time.time()

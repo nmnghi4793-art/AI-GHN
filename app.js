@@ -7069,7 +7069,6 @@ function renderXeDailySection() {
 // ---- Load kho/NCC metadata ----
 // ---- Isolated Form Row State ----
 let xeDailyRowState = {};
-let xeDailyRowCount = 0;
 
 // ---- Load kho/NCC metadata ----
 async function loadXeDailyMeta() {
