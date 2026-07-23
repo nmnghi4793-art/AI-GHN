@@ -8976,3 +8976,12 @@ window.closeOdoKhoModal = closeOdoKhoModal;
 window.sendOdoTelegramNow = sendOdoTelegramNow;
 window.exportOdoToExcel = exportOdoToExcel;
 
+// AUTO-INITIALIZE DASHBOARD ON SCRIPT LOAD
+(function autoStartDashboard() {
+    console.log('[APP] Auto-start checking login status...');
+    if (localStorage.getItem('ghn_logged_in') === 'true') {
+        try { initLogin(); } catch (e) {}
+        try { loadDashboardFromCache(false); } catch (e) {}
+    }
+})();
+

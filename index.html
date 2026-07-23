@@ -254,7 +254,16 @@
             if (ac) ac.style.display = 'flex';
 
             if (typeof showSection === 'function') try { showSection('overview'); } catch(e){}
-            if (typeof loadDashboardFromCache === 'function') try { loadDashboardFromCache(false); } catch(e){}
+            if (typeof loadDashboardFromCache === 'function') {
+                try { loadDashboardFromCache(false); } catch(e){}
+            } else {
+                var checkTimer = setInterval(function() {
+                    if (typeof loadDashboardFromCache === 'function') {
+                        clearInterval(checkTimer);
+                        try { loadDashboardFromCache(false); } catch(e){}
+                    }
+                }, 100);
+            }
         };
     </script>
 </head>
@@ -2521,7 +2530,7 @@
     </div>
 </div>
 
-<script src="app.js?v=20260723-ULTRA-INSTANT"></script>
+<script src="app.js?v=20260723-AUTOSTART-LIVE"></script>
 </body>
 
 </html>
