@@ -4809,68 +4809,68 @@ let allowedKhosList = []; // Danh sách kho tải từ API để validate thông
 let authLoading = false;
 
 async function initLogin() {
-    if (authLoading) {
-        console.log('[AUTH] Session restoration already in progress, skipping duplicate initLogin');
-        return;
-    }
-    authLoading = true;
     console.log('[AUTH] restore session start');
+    authLoading = true;
+    try {
+        const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
+        const isProfileCompleted = localStorage.getItem('ghn_profile_completed') === 'true' ||
+                                   sessionStorage.getItem('ghn_profile_completed') === 'true';
+        const token = getApiToken();
 
-    const isAlreadyLoggedIn = localStorage.getItem('ghn_logged_in') === 'true';
-    const isProfileCompleted = localStorage.getItem('ghn_profile_completed') === 'true' ||
-                               sessionStorage.getItem('ghn_profile_completed') === 'true';
-    const token = getApiToken();
+        console.log('[AUTH] restore session result', { isAlreadyLoggedIn, isProfileCompleted, has_token: !!token });
+        console.log('[AUTH] localStorage after save', {
+            ghn_logged_in: localStorage.getItem('ghn_logged_in'),
+            ghn_profile_completed: localStorage.getItem('ghn_profile_completed'),
+            ghn_session_token: localStorage.getItem('ghn_session_token') ? 'present' : 'empty'
+        });
+        console.log('[AUTH] cookie after save', document.cookie || '(no cookies)');
 
-    console.log('[AUTH] restore session result', { isAlreadyLoggedIn, isProfileCompleted, has_token: !!token });
-    console.log('[AUTH] localStorage after save', {
-        ghn_logged_in: localStorage.getItem('ghn_logged_in'),
-        ghn_profile_completed: localStorage.getItem('ghn_profile_completed'),
-        ghn_session_token: localStorage.getItem('ghn_session_token') ? 'present' : 'empty'
-    });
-    console.log('[AUTH] cookie after save', document.cookie || '(no cookies)');
+        const loginWrapper = document.getElementById('login-wrapper');
+        const profileWrapper = document.getElementById('profile-wrapper');
+        const appContainer = document.getElementById('app-container');
 
-    const loginWrapper = document.getElementById('login-wrapper');
-    const profileWrapper = document.getElementById('profile-wrapper');
-    const appContainer = document.getElementById('app-container');
+        const hasProfileElements = document.getElementById('profile-id-ghn') && 
+                                   document.getElementById('profile-ho-ten') && 
+                                   document.getElementById('profile-kho') && 
+                                   document.getElementById('profile-submit-btn');
 
-    const hasProfileElements = document.getElementById('profile-id-ghn') && 
-                               document.getElementById('profile-ho-ten') && 
-                               document.getElementById('profile-kho') && 
-                               document.getElementById('profile-submit-btn');
-
-    if (isAlreadyLoggedIn && token) {
-        console.log('[AUTH] auth guard result', 'authenticated');
-        if (loginWrapper) loginWrapper.style.display = 'none';
-        
-        if (isProfileCompleted || !hasProfileElements) {
-            console.log('[AUTH] redirect target', 'Dashboard');
-            console.log('[AUTH] final redirect reason', 'Session valid and profile completed');
-            if (profileWrapper) profileWrapper.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'flex';
+        if (isAlreadyLoggedIn && token) {
+            console.log('[AUTH] auth guard result', 'authenticated');
+            if (loginWrapper) loginWrapper.style.display = 'none';
             
-            showSection('overview');
-            loadDashboardFromCache(false);
-            startSyncTimer();
-            checkAdminAccess();
-            setupLogout();
+            if (isProfileCompleted || !hasProfileElements) {
+                console.log('[AUTH] redirect target', 'Dashboard');
+                console.log('[AUTH] final redirect reason', 'Session valid and profile completed');
+                if (profileWrapper) profileWrapper.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'flex';
+                
+                // An toàn: bọc từng hàm khởi tạo để lỗi biểu đồ/báo cáo không làm treo luồng đăng nhập
+                try { showSection('overview'); } catch (e) { console.error('[AUTH INIT ERR] showSection:', e); }
+                try { loadDashboardFromCache(false); } catch (e) { console.error('[AUTH INIT ERR] loadDashboard:', e); }
+                try { startSyncTimer(); } catch (e) { console.error('[AUTH INIT ERR] startSyncTimer:', e); }
+                try { checkAdminAccess(); } catch (e) { console.error('[AUTH INIT ERR] checkAdminAccess:', e); }
+                try { setupLogout(); } catch (e) { console.error('[AUTH INIT ERR] setupLogout:', e); }
+            } else {
+                console.log('[AUTH] redirect target', 'ProfileForm');
+                console.log('[AUTH] final redirect reason', 'Session valid but profile incomplete');
+                if (appContainer) appContainer.style.display = 'none';
+                if (profileWrapper) profileWrapper.style.display = 'flex';
+                try { setupProfileForm(); } catch (e) { console.error('[AUTH INIT ERR] setupProfileForm:', e); }
+            }
         } else {
-            console.log('[AUTH] redirect target', 'ProfileForm');
-            console.log('[AUTH] final redirect reason', 'Session valid but profile incomplete');
+            console.log('[AUTH] auth guard result', 'not authenticated');
+            console.log('[AUTH] redirect target', 'Login');
+            console.log('[AUTH] final redirect reason', 'No valid session token found in storage');
+            if (loginWrapper) loginWrapper.style.display = 'flex';
+            if (profileWrapper) profileWrapper.style.display = 'none';
             if (appContainer) appContainer.style.display = 'none';
-            if (profileWrapper) profileWrapper.style.display = 'flex';
-            setupProfileForm();
+            try { setupLoginForm(); } catch (e) { console.error('[AUTH INIT ERR] setupLoginForm:', e); }
         }
-    } else {
-        console.log('[AUTH] auth guard result', 'not authenticated');
-        console.log('[AUTH] redirect target', 'Login');
-        console.log('[AUTH] final redirect reason', 'No valid session token found in storage');
-        if (loginWrapper) loginWrapper.style.display = 'flex';
-        if (profileWrapper) profileWrapper.style.display = 'none';
-        if (appContainer) appContainer.style.display = 'none';
-        setupLoginForm();
+    } catch (err) {
+        console.error('[AUTH] Critical error inside initLogin:', err);
+    } finally {
+        authLoading = false;
     }
-
-    authLoading = false;
 }
 
 async function handleLoginSubmit() {
