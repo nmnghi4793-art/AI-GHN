@@ -3680,6 +3680,12 @@ function showSection(name) {
     if (sectionEl) {
         sectionEl.classList.add('active');
         sectionEl.style.display = 'block';
+        const oldOverlay = sectionEl.querySelector('.section-loading-overlay');
+        if (oldOverlay) oldOverlay.remove();
+        Array.from(sectionEl.children).forEach(child => {
+            child.style.opacity = '';
+            child.style.pointerEvents = '';
+        });
         console.log(`[NAVIGATION LOG] Activated section: #section-${name}`);
     } else {
         console.warn(`[NAVIGATION LOG] Warning: Section element #section-${name} not found!`);
@@ -8261,50 +8267,13 @@ async function ensureSectionData(name, force = false) {
         return;
     }
 
-    if (!needsLoad) {
-        renderSection(name);
-        return;
+async function ensureSectionData(name, force = false) {
+    console.log(`[LAZY LOAD LOG] ensureSectionData called for '${name}'`);
+    hideSectionSkeleton(name);
+    if (!state || !state.overview || Object.keys(state.overview).length === 0 || force) {
+        await loadDashboardFromCache(force);
     }
-
-    showSectionSkeleton(name);
-
-    try {
-        sectionLoadingStates[name] = true;
-        const startTime = Date.now();
-        
-        // Fetch concurrently
-        const promises = endpoints.map(e => {
-            const isOverview = e.key.includes('overview') || e.key.includes('warnings');
-            return authFetch(`${API}${e.url.replace('/api', '')}`, isOverview ? {} : { data: [] });
-        });
-        const results = await Promise.all(promises);
-        
-        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[PERFORMANCE LOG] Lazy load for tab '${name}' finished in ${duration}s.`);
-
-        endpoints.forEach((e, idx) => {
-            const res = results[idx];
-            if (e.key === 'overview') {
-                state[e.key] = res || {};
-            } else {
-                if (res && Array.isArray(res.data)) {
-                    state[e.key] = res.data;
-                } else if (Array.isArray(res)) {
-                    state[e.key] = res;
-                } else {
-                    state[e.key] = [];
-                }
-            }
-        });
-
-        renderSection(name);
-    } catch (err) {
-        console.error(`[LAZY LOAD ERROR] Failed to load data for ${name}:`, err);
-        showSectionError(name);
-    } finally {
-        sectionLoadingStates[name] = false;
-        hideSectionSkeleton(name);
-    }
+    renderSection(name);
 }
 
 function retryLoadSection(name) {
@@ -8312,82 +8281,12 @@ function retryLoadSection(name) {
 }
 window.retryLoadSection = retryLoadSection;
 
-function renderSection(name) {
-    try { updateMeta(); } catch (e) { console.error('[RENDER ERR] updateMeta:', e); }
-    if (name === 'overview') {
-        try { renderOverviewCards(); } catch (e) { console.error('[RENDER ERR] renderOverviewCards:', e); }
-        try { renderGtcTrendChart(); } catch (e) { console.error('[RENDER ERR] renderGtcTrendChart:', e); }
-        try { renderReturnsPieChart(); } catch (e) { console.error('[RENDER ERR] renderReturnsPieChart:', e); }
-        try { renderOverviewB2bChart(); } catch (e) { console.error('[RENDER ERR] renderOverviewB2bChart:', e); }
-        try { renderBacklogOverviewTable(); } catch (e) { console.error('[RENDER ERR] renderBacklogOverviewTable:', e); }
-        try { renderB2bOverviewTable(); } catch (e) { console.error('[RENDER ERR] renderB2bOverviewTable:', e); }
-        try { renderCriticalWarningsOverview(); } catch (e) { console.error('[RENDER ERR] renderCriticalWarningsOverview:', e); }
-        try { renderPersonnelOverview(); } catch (e) { console.error('[RENDER ERR] renderPersonnelOverview:', e); }
-    } else if (name === 'gtc') {
-        try { renderGtcSection(); } catch (e) { console.error('[RENDER ERR] renderGtcSection:', e); }
-        try { renderGtcByKhoChart(); } catch (e) { console.error('[RENDER ERR] renderGtcByKhoChart:', e); }
-        try { renderGtcTopBottom(); } catch (e) { console.error('[RENDER ERR] renderGtcTopBottom:', e); }
-        try { renderNangSuatSection(); } catch (e) { console.error('[RENDER ERR] renderNangSuatSection:', e); }
-        try { renderNangSuatVungSection(); } catch (e) { console.error('[RENDER ERR] renderNangSuatVungSection:', e); }
-    } else if (name === 'returns') {
-        try { renderReturnsSection(); } catch (e) { console.error('[RENDER ERR] renderReturnsSection:', e); }
-        try { renderReturnsFDChart(); } catch (e) { console.error('[RENDER ERR] renderReturnsFDChart:', e); }
-    } else if (name === 'dontao') {
-        try { renderDonTaoSection(); } catch (e) { console.error('[RENDER ERR] renderDonTaoSection:', e); }
-        try { renderForecastSection(); } catch (e) { console.error('[RENDER ERR] renderForecastSection:', e); }
-    } else if (name === 'backlog') {
-        try { renderBacklogSection(); } catch (e) { console.error('[RENDER ERR] renderBacklogSection:', e); }
-        try { renderBacklogByKhoChart(); } catch (e) { console.error('[RENDER ERR] renderBacklogByKhoChart:', e); }
-    } else if (name === 'personnel') {
-        try { renderPersonnelSection(); } catch (e) { console.error('[RENDER ERR] renderPersonnelSection:', e); }
-    } else if (name === 'khoxe') {
-        try { renderXeGxtSection(); } catch (e) { console.error('[RENDER ERR] renderXeGxtSection:', e); }
-        try { renderXeSuCoSection(); } catch (e) { console.error('[RENDER ERR] renderXeSuCoSection:', e); }
-        try { renderKhoGxtSection(); } catch (e) { console.error('[RENDER ERR] renderKhoGxtSection:', e); }
-    } else if (name === 'b2b-map') {
-        if (typeof window.renderB2BMapSection === 'function') {
-            try { window.renderB2BMapSection(); } catch (e) { console.error('[RENDER ERR] renderB2BMapSection:', e); }
-        }
-        setTimeout(() => {
-            if (window.b2bLeafletMap) {
-                try { window.b2bLeafletMap.invalidateSize(); } catch (e) {}
-            }
-            if (typeof filterB2BMapData === 'function') {
-                try { filterB2BMapData(); } catch (e) {}
-            }
-        }, 100);
-    } else if (name === 'gtc-b2b-prio') {
-        try { renderGtcB2bPrioSection(); } catch (e) { console.error('[RENDER ERR] renderGtcB2bPrioSection:', e); }
-    } else if (name === 'cbr') {
-        try { renderWarningsSection(); } catch (e) { console.error('[RENDER ERR] renderWarningsSection:', e); }
-        try { renderForecastSection(); } catch (e) { console.error('[RENDER ERR] renderForecastSection:', e); }
-    }
-    try { updateNavBadges(); } catch (e) { console.error('[RENDER ERR] updateNavBadges:', e); }
-}
-
 function showSectionSkeleton(name) {
     const sectionEl = document.getElementById('section-' + name);
     if (!sectionEl) return;
     
     const existing = sectionEl.querySelector('.section-loading-overlay');
     if (existing) existing.remove();
-    
-    const overlay = document.createElement('div');
-    overlay.className = 'section-loading-overlay';
-    overlay.innerHTML = `
-        <div class="spinner-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:350px;gap:16px;color:var(--text2, #94a3b8);background:rgba(15,23,42,0.15);backdrop-filter:blur(4px);border-radius:12px;">
-            <i class="fa-solid fa-spinner fa-spin-pulse" style="font-size:42px;color:var(--blue, #3b82f6);"></i>
-            <span style="font-size:0.95rem;font-weight:500;">Đang tải dữ liệu... Vui lòng chờ</span>
-        </div>
-    `;
-    sectionEl.prepend(overlay);
-    
-    Array.from(sectionEl.children).forEach(child => {
-        if (child !== overlay) {
-            child.style.opacity = '0.05';
-            child.style.pointerEvents = 'none';
-        }
-    });
 }
 
 function hideSectionSkeleton(name) {
