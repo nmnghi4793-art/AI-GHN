@@ -4921,15 +4921,31 @@ async function handleLoginSubmit() {
                 setApiToken(json.token);
                 localStorage.setItem('ghn_logged_in', 'true');
                 console.log('[AUTH] token/session saved');
-                console.log('[AUTH] localStorage after save', {
-                    ghn_logged_in: localStorage.getItem('ghn_logged_in'),
-                    ghn_session_token: localStorage.getItem('ghn_session_token') ? 'present' : 'empty'
-                });
-                console.log('[AUTH] cookie after save', document.cookie || '(no cookies)');
             }
             if (loginError) loginError.style.display = 'none';
-            console.log('[AUTH] redirect target', 'initLogin() view switch');
-            initLogin();
+
+            // CHUYỂN GIAO DIỆN TRỰC TIẾP TẠI ĐÂY NẾU KHÔNG CẦN CHỜ INITLOGIN()
+            const loginWrapper = document.getElementById('login-wrapper');
+            const profileWrapper = document.getElementById('profile-wrapper');
+            const appContainer = document.getElementById('app-container');
+            const isProfileCompleted = localStorage.getItem('ghn_profile_completed') === 'true' || sessionStorage.getItem('ghn_profile_completed') === 'true';
+            const hasProfileElements = document.getElementById('profile-id-ghn') && document.getElementById('profile-ho-ten') && document.getElementById('profile-kho');
+
+            if (loginWrapper) loginWrapper.style.display = 'none';
+            if (isProfileCompleted || !hasProfileElements) {
+                if (profileWrapper) profileWrapper.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'flex';
+                try { showSection('overview'); } catch (e) {}
+                try { loadDashboardFromCache(false); } catch (e) {}
+                try { startSyncTimer(); } catch (e) {}
+                try { checkAdminAccess(); } catch (e) {}
+                try { setupLogout(); } catch (e) {}
+            } else {
+                if (appContainer) appContainer.style.display = 'none';
+                if (profileWrapper) profileWrapper.style.display = 'flex';
+                try { setupProfileForm(); } catch (e) {}
+            }
+            return;
         } else {
             let errDetail = 'Tài khoản hoặc mật khẩu không đúng';
             try {

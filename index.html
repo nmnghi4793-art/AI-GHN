@@ -197,7 +197,7 @@
                 <p class="login-right-sub">Sử dụng tài khoản được cấp để tiếp tục.</p>
 
                 <div class="login-form">
-                    <form id="login-form" autocomplete="on" novalidate>
+                    <form id="login-form" autocomplete="on" novalidate onsubmit="event.preventDefault(); handleLoginSubmit(); return false;">
                     <div class="login-error" id="login-error">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <span id="login-error-text">Tài khoản hoặc mật khẩu không đúng</span>
@@ -217,7 +217,7 @@
                             <i class="fa-solid fa-eye" id="toggle-password-eye" style="left: auto; right: 14px; cursor: pointer;"></i>
                         </div>
                     </div>
-                    <button type="submit" class="login-btn" id="login-submit-btn">
+                    <button type="submit" class="login-btn" id="login-submit-btn" onclick="handleLoginSubmit()">
                         <span class="login-btn-text">Đăng nhập</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
