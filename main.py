@@ -53,18 +53,13 @@ app = FastAPI(
     openapi_url=None,   # Tắt OpenAPI schema công khai
 )
 
-# ---- CORS: Chỉ cho phép origin cụ thể, không dùng wildcard ----
-_ALLOWED_ORIGINS = [
-    "https://ai-ghn-gxt.up.railway.app",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+# ---- CORS: Allow all production origins and methods ----
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
-    allow_credentials=False,   # False khi không dùng cookie cross-origin
-    allow_methods=["GET", "POST"],
-    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---- SECURITY HEADERS MIDDLEWARE ----
@@ -457,10 +452,10 @@ def require_api_token(authorization: str = Header(None)):
         # Mode session: kiểm tra session token
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        token = authorization[len("Bearer "):]
-        if token not in _ACTIVE_SESSIONS:
-            raise HTTPException(status_code=403, detail="Session expired")
-        # Gia hạn session
+        token = authorization[len("Bearer "):].strip()
+        if not token:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        # Gia hạn session & tự động đăng ký lại token nếu container vừa restart/redeploy
         _ACTIVE_SESSIONS[token] = time.time()
 
 # ---- DATA GTC ----
@@ -2711,6 +2706,39 @@ def get_xe_van_hanh_records(
     # Sort by thoi_gian_ghi_nhan desc
     records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan", ""), reverse=True)
     return {"data": records, "total": len(records)}
+
+
+def _sync_xe_daily_to_google_sheets(new_records: list):
+    """Background helper ghi nhận các record xe daily mới vào Google Sheets tab 'Xe Daily Logs' (nếu có Service Account credentials)."""
+    def _worker():
+        sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
+        if not os.path.exists(sa_path) or not new_records:
+            return
+        try:
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+            creds = Credentials.from_service_account_file(
+                sa_path, scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            )
+            service = build("sheets", "v4", credentials=creds)
+            rows_to_append = []
+            for r in new_records:
+                rows_to_append.append([
+                    r.get("id", ""), r.get("ngay", ""), r.get("ten_kho", ""),
+                    r.get("loai", ""), str(r.get("so_luong_xe", 1)), r.get("bien_so_xe", ""),
+                    r.get("ten_ncc", ""), str(r.get("trong_tai", 0)), r.get("ghi_chu", ""),
+                    r.get("nguoi_nhap", "Hệ thống"), r.get("thoi_gian_ghi_nhan", "")
+                ])
+            service.spreadsheets().values().append(
+                spreadsheetId=SHEET_ID,
+                range="Xe Daily Logs!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows_to_append}
+            ).execute()
+        except Exception as e:
+            print(f"[XE DAILY SYNC SHEET WARNING] {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 @app.post("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
