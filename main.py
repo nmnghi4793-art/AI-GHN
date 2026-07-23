@@ -10,6 +10,7 @@ import hashlib
 from collections import defaultdict
 import threading
 from typing import Optional
+from datetime import datetime, date, timedelta, timezone
 
 # Fix Playwright NotImplementedError on Windows
 if sys.platform == 'win32':
@@ -2664,6 +2665,7 @@ def _append_records_to_google_sheet(records: list):
         return False, "", clean_err, sa_email
 
 
+@app.get("/api/vehicle-daily/meta", dependencies=[Depends(require_api_token)])
 @app.get("/api/xe-van-hanh/meta", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_meta(force: bool = False):
     """
@@ -2789,6 +2791,7 @@ def get_xe_van_hanh_meta(force: bool = False):
     }
 
 
+@app.get("/api/vehicle-daily/records", dependencies=[Depends(require_api_token)])
 @app.get("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_records(
     date: Optional[str] = Query(None),
@@ -2805,16 +2808,16 @@ def get_xe_van_hanh_records(
     if isinstance(date, str) and date.strip():
         records = [r for r in records if r.get("ngay", "") == date or r.get("date", "") == date]
     if isinstance(kho, str) and kho.strip():
-        records = [r for r in records if kho.lower().strip() in r.get("ten_kho", "").lower() or kho.lower().strip() in r.get("warehouse", "").lower()]
+        records = [r for r in records if kho.lower().strip() in r.get("ten_kho", "").lower() or kho.lower().strip() in r.get("warehouse", "").lower() or kho.lower().strip() in r.get("warehouseName", "").lower()]
     if isinstance(ncc, str) and ncc.strip():
-        records = [r for r in records if ncc.lower().strip() in r.get("ten_ncc", "").lower() or ncc.lower().strip() in r.get("vendor", "").lower()]
+        records = [r for r in records if ncc.lower().strip() in r.get("ten_ncc", "").lower() or ncc.lower().strip() in r.get("vendor", "").lower() or ncc.lower().strip() in r.get("vendorName", "").lower()]
     if isinstance(loai, str) and loai.strip():
         records = [r for r in records if r.get("loai", "") == loai or r.get("recordType", "") == loai]
 
     records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "", reverse=True)
 
     print(f"\n===== [DEBUG HISTORY API] =====")
-    print(f"Endpoint: GET /api/xe-van-hanh/records")
+    print(f"Endpoint: GET /api/vehicle-daily/records")
     print(f"Filters: date='{date if isinstance(date, str) else ''}', kho='{kho if isinstance(kho, str) else ''}', ncc='{ncc if isinstance(ncc, str) else ''}', loai='{loai if isinstance(loai, str) else ''}'")
     print(f"Tổng số record trong storage: {len(records_raw)}")
     print(f"Số record trả về frontend sau filter: {len(records)}")
@@ -2823,6 +2826,8 @@ def get_xe_van_hanh_records(
     return {"data": records, "total": len(records)}
 
 
+@app.post("/api/vehicle-daily/save", dependencies=[Depends(require_api_token)])
+@app.post("/api/vehicle-daily/records", dependencies=[Depends(require_api_token)])
 @app.post("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
 async def save_xe_van_hanh_records(request: Request):
     """
@@ -3019,6 +3024,7 @@ async def delete_xe_van_hanh_record(
         raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu sau khi xóa.")
 
 
+@app.post("/api/vehicle-daily/import", dependencies=[Depends(require_api_token)])
 @app.post("/api/xe-van-hanh/import", dependencies=[Depends(require_api_token)])
 async def import_xe_van_hanh_records(
     request: Request,

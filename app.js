@@ -7073,7 +7073,10 @@ let xeDailyRowState = {};
 // ---- Load kho/NCC metadata ----
 async function loadXeDailyMeta() {
     try {
-        const result = await authFetch(`${API}/xe-van-hanh/meta`, { warehouses: [], kho_list: [], ncc_all: [] });
+        let result = await authFetch(`/api/vehicle-daily/meta`, null).catch(() => null);
+        if (!result) {
+            result = await authFetch(`${API}/xe-van-hanh/meta`, { warehouses: [], kho_list: [], ncc_all: [] });
+        }
         state.xeDailyMeta = result;
         xeDailyMetaLoaded = true;
         
@@ -7381,16 +7384,21 @@ async function saveXeDaily() {
         if (!tt)    { rowOk = false; hasError = true; document.getElementById(`xed-tt-${rowId}`)?.classList.add('error'); }
 
         if (rowOk) {
+            const userObj = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            const currentUser = (userObj && userObj.username) ? userObj.username : (localStorage.getItem('ghn_username') || 'Manager');
             records.push({
                 date: ngay,
+                warehouseName: tenKho,
                 warehouse: tenKho,
                 warehouseId: warehouseId,
                 recordType: loai,
                 vehicleCount: slXe,
                 licensePlate: bien,
+                vendorName: tenNcc,
                 vendor: tenNcc,
                 payloadKg: tt,
-                note: rState.note || ''
+                note: rState.note || '',
+                createdBy: currentUser
             });
         }
     });
@@ -7413,14 +7421,32 @@ async function saveXeDaily() {
 
     try {
         const token = getApiToken();
-        const res = await fetch(`${API}/xe-van-hanh/records`, {
-            method: 'POST',
-            headers: {
-                ...getAuthHeaders(),
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ records })
-        });
+        const payloadBody = records.length === 1 ? records[0] : { records };
+        
+        let res = null;
+        try {
+            res = await fetch('/api/vehicle-daily/save', {
+                method: 'POST',
+                headers: {
+                    ...getAuthHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payloadBody)
+            });
+        } catch(e) {
+            console.warn('[XE DAILY] Fallback to xe-van-hanh/records');
+        }
+
+        if (!res || !res.ok) {
+            res = await fetch(`${API}/xe-van-hanh/records`, {
+                method: 'POST',
+                headers: {
+                    ...getAuthHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payloadBody)
+            });
+        }
 
         if (res.ok) {
             const data = await res.json();
@@ -7477,15 +7503,18 @@ async function loadXeDailyRecords(resetFilters = false) {
         const nccVal  = document.getElementById('xed-filter-ncc')?.value || '';
         const loaiVal = document.getElementById('xed-filter-loai')?.value || '';
 
-        let url = `${API}/xe-van-hanh/records`;
+        let relUrl = `/api/vehicle-daily/records`;
         const params = [];
         if (dateVal) params.push(`date=${encodeURIComponent(dateVal)}`);
         if (khoVal)  params.push(`kho=${encodeURIComponent(khoVal)}`);
         if (nccVal)  params.push(`ncc=${encodeURIComponent(nccVal)}`);
         if (loaiVal) params.push(`loai=${encodeURIComponent(loaiVal)}`);
-        if (params.length) url += '?' + params.join('&');
+        if (params.length) relUrl += '?' + params.join('&');
 
-        const resp = await authFetch(url, { data: [], total: 0 });
+        let resp = await authFetch(relUrl, null).catch(() => null);
+        if (!resp) {
+            resp = await authFetch(`${API}/xe-van-hanh/records` + (params.length ? '?' + params.join('&') : ''), { data: [], total: 0 });
+        }
         const recs = (resp && Array.isArray(resp.data)) ? resp.data : (Array.isArray(resp) ? resp : []);
         
         console.log(`[DEBUG HISTORY FRONTEND] Endpoint: GET ${url} | Record count received: ${recs.length}`);
@@ -7867,11 +7896,24 @@ async function importXeDailyFile() {
         formData.append('file', file);
 
         const token = getApiToken();
-        const resp = await fetch(API + '/xe-van-hanh/import', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-            body: formData
-        });
+        let resp = null;
+        try {
+            resp = await fetch('/api/vehicle-daily/import', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: formData
+            });
+        } catch(e) {
+            console.warn('[XE DAILY IMPORT] Fallback to xe-van-hanh/import');
+        }
+
+        if (!resp || !resp.ok) {
+            resp = await fetch(API + '/xe-van-hanh/import', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: formData
+            });
+        }
 
         let data;
         try { data = await resp.json(); } catch(e) { data = { status: 'error', message: 'Phản hồi không hợp lệ từ server.' }; }
