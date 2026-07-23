@@ -8312,56 +8312,56 @@ function retryLoadSection(name) {
 window.retryLoadSection = retryLoadSection;
 
 function renderSection(name) {
-    updateMeta();
+    try { updateMeta(); } catch (e) { console.error('[RENDER ERR] updateMeta:', e); }
     if (name === 'overview') {
-        renderOverviewCards();
-        renderGtcTrendChart();
-        renderReturnsPieChart();
-        renderOverviewB2bChart();
-        renderBacklogOverviewTable();
-        renderB2bOverviewTable();
-        renderCriticalWarningsOverview();
-        renderPersonnelOverview();
+        try { renderOverviewCards(); } catch (e) { console.error('[RENDER ERR] renderOverviewCards:', e); }
+        try { renderGtcTrendChart(); } catch (e) { console.error('[RENDER ERR] renderGtcTrendChart:', e); }
+        try { renderReturnsPieChart(); } catch (e) { console.error('[RENDER ERR] renderReturnsPieChart:', e); }
+        try { renderOverviewB2bChart(); } catch (e) { console.error('[RENDER ERR] renderOverviewB2bChart:', e); }
+        try { renderBacklogOverviewTable(); } catch (e) { console.error('[RENDER ERR] renderBacklogOverviewTable:', e); }
+        try { renderB2bOverviewTable(); } catch (e) { console.error('[RENDER ERR] renderB2bOverviewTable:', e); }
+        try { renderCriticalWarningsOverview(); } catch (e) { console.error('[RENDER ERR] renderCriticalWarningsOverview:', e); }
+        try { renderPersonnelOverview(); } catch (e) { console.error('[RENDER ERR] renderPersonnelOverview:', e); }
     } else if (name === 'gtc') {
-        renderGtcSection();
-        renderGtcByKhoChart();
-        renderGtcTopBottom();
-        renderNangSuatSection();
-        renderNangSuatVungSection();
+        try { renderGtcSection(); } catch (e) { console.error('[RENDER ERR] renderGtcSection:', e); }
+        try { renderGtcByKhoChart(); } catch (e) { console.error('[RENDER ERR] renderGtcByKhoChart:', e); }
+        try { renderGtcTopBottom(); } catch (e) { console.error('[RENDER ERR] renderGtcTopBottom:', e); }
+        try { renderNangSuatSection(); } catch (e) { console.error('[RENDER ERR] renderNangSuatSection:', e); }
+        try { renderNangSuatVungSection(); } catch (e) { console.error('[RENDER ERR] renderNangSuatVungSection:', e); }
     } else if (name === 'returns') {
-        renderReturnsSection();
-        renderReturnsFDChart();
+        try { renderReturnsSection(); } catch (e) { console.error('[RENDER ERR] renderReturnsSection:', e); }
+        try { renderReturnsFDChart(); } catch (e) { console.error('[RENDER ERR] renderReturnsFDChart:', e); }
     } else if (name === 'dontao') {
-        renderDonTaoSection();
-        renderForecastSection();
+        try { renderDonTaoSection(); } catch (e) { console.error('[RENDER ERR] renderDonTaoSection:', e); }
+        try { renderForecastSection(); } catch (e) { console.error('[RENDER ERR] renderForecastSection:', e); }
     } else if (name === 'backlog') {
-        renderBacklogSection();
-        renderBacklogByKhoChart();
+        try { renderBacklogSection(); } catch (e) { console.error('[RENDER ERR] renderBacklogSection:', e); }
+        try { renderBacklogByKhoChart(); } catch (e) { console.error('[RENDER ERR] renderBacklogByKhoChart:', e); }
     } else if (name === 'personnel') {
-        renderPersonnelSection();
+        try { renderPersonnelSection(); } catch (e) { console.error('[RENDER ERR] renderPersonnelSection:', e); }
     } else if (name === 'khoxe') {
-        renderXeGxtSection();
-        renderXeSuCoSection();
-        renderKhoGxtSection();
+        try { renderXeGxtSection(); } catch (e) { console.error('[RENDER ERR] renderXeGxtSection:', e); }
+        try { renderXeSuCoSection(); } catch (e) { console.error('[RENDER ERR] renderXeSuCoSection:', e); }
+        try { renderKhoGxtSection(); } catch (e) { console.error('[RENDER ERR] renderKhoGxtSection:', e); }
     } else if (name === 'b2b-map') {
         if (typeof window.renderB2BMapSection === 'function') {
-            window.renderB2BMapSection();
+            try { window.renderB2BMapSection(); } catch (e) { console.error('[RENDER ERR] renderB2BMapSection:', e); }
         }
         setTimeout(() => {
             if (window.b2bLeafletMap) {
-                window.b2bLeafletMap.invalidateSize();
+                try { window.b2bLeafletMap.invalidateSize(); } catch (e) {}
             }
             if (typeof filterB2BMapData === 'function') {
-                filterB2BMapData();
+                try { filterB2BMapData(); } catch (e) {}
             }
         }, 100);
     } else if (name === 'gtc-b2b-prio') {
-        renderGtcB2bPrioSection();
+        try { renderGtcB2bPrioSection(); } catch (e) { console.error('[RENDER ERR] renderGtcB2bPrioSection:', e); }
     } else if (name === 'cbr') {
-        renderWarningsSection();
-        renderForecastSection(); // Render tab Dự báo rủi ro, Dự báo quá tải và N-1 vs GTC Max (Yêu cầu 1, 2, 3)
+        try { renderWarningsSection(); } catch (e) { console.error('[RENDER ERR] renderWarningsSection:', e); }
+        try { renderForecastSection(); } catch (e) { console.error('[RENDER ERR] renderForecastSection:', e); }
     }
-    updateNavBadges();
+    try { updateNavBadges(); } catch (e) { console.error('[RENDER ERR] updateNavBadges:', e); }
 }
 
 function showSectionSkeleton(name) {
@@ -8433,9 +8433,17 @@ function showSectionError(name) {
 // =====================================================================
 // DASHBOARD-CACHE LOADING FUNCTION
 // =====================================================================
+let isDashboardCacheLoading = false;
+
 async function loadDashboardFromCache(force = false) {
     const btn = document.getElementById('refresh-btn');
     const updateTimeEl = document.getElementById('last-update-time');
+
+    if (isDashboardCacheLoading && !force) {
+        console.warn('[CACHE LOG] Fetch already in progress, skipping duplicate call.');
+        return;
+    }
+    isDashboardCacheLoading = true;
     
     if (force) {
         if (btn) {
@@ -8445,24 +8453,51 @@ async function loadDashboardFromCache(force = false) {
         showToast('🔄 Đang đồng bộ dữ liệu mới từ Google Sheet...', 'info');
     }
     
+    const startTime = Date.now();
+    console.log('[PERF LOG] Starting dashboard-cache fetch...');
+
     try {
         if (force) {
             const syncToken = getApiToken();
-            const syncResp = await fetch(`${API}/dashboard-cache/sync`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${syncToken}`
+            const controllerSync = new AbortController();
+            const timerSync = setTimeout(() => controllerSync.abort(), 10000);
+            try {
+                const syncResp = await fetch(`${API}/dashboard-cache/sync`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${syncToken}` },
+                    signal: controllerSync.signal
+                });
+                clearTimeout(timerSync);
+                if (!syncResp.ok) {
+                    console.warn('[SYNC WARNING] Force sync was rejected or busy.');
                 }
-            });
-            if (!syncResp.ok) {
-                console.warn('[SYNC WARNING] Force sync was rejected or busy.');
+            } catch (e) {
+                clearTimeout(timerSync);
+                console.warn('[SYNC TIMEOUT / ERR]', e);
             }
         }
         
         const token = getApiToken();
-        const resp = await fetch(`${API}/dashboard-cache`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const controller = new AbortController();
+        const fetchTimer = setTimeout(() => controller.abort(), 8000); // 8-second timeout guard
+        
+        let resp;
+        try {
+            resp = await fetch(`${API}/dashboard-cache`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal
+            });
+            clearTimeout(fetchTimer);
+        } catch (fetchErr) {
+            clearTimeout(fetchTimer);
+            console.error('[PERF LOG] Fetch /api/dashboard-cache timed out (8s) or failed:', fetchErr);
+            if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
+            if (force) showToast('⚠️ Lỗi kết nối hoặc hết thời gian tải (8s).', 'error');
+            return;
+        }
+
+        const duration = Date.now() - startTime;
+        console.log(`[PERF LOG] /api/dashboard-cache response status: ${resp.status} in ${duration}ms`);
         
         if (resp.status === 401 || resp.status === 403) {
             console.warn('[CACHE 401/403] Session token error during cache fetch');
@@ -8495,12 +8530,15 @@ async function loadDashboardFromCache(force = false) {
             }
         } else {
             console.error('[CACHE ERROR] Failed to fetch dashboard-cache, status:', resp.status);
+            if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
             if (force) showToast('⚠️ Không thể làm mới dữ liệu từ máy chủ.', 'error');
         }
     } catch (e) {
         console.error('[CACHE ERROR]', e);
+        if (updateTimeEl) updateTimeEl.textContent = 'Không tải được dữ liệu. Vui lòng thử lại.';
         if (force) showToast('⚠️ Lỗi kết nối làm mới dữ liệu.', 'error');
     } finally {
+        isDashboardCacheLoading = false;
         // LUÔN CẬP NHẬT THỜI GIAN ĐỒNG BỘ ĐỂ TRÁNH VÒNG LẶP 1 GIÂY
         nextSyncTime = Date.now() + 5 * 60 * 1000;
         if (force && btn) {
