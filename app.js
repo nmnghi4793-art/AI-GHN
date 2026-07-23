@@ -7231,8 +7231,8 @@ async function saveXeDaily() {
             if (c) c.innerHTML = '';
             xeDailyRowCount = 0;
             addXeDailyRow();
-            // Reload history & cards
-            await loadXeDailyRecords();
+            // Reload history & cards with reset filters
+            await loadXeDailyRecords(true);
         } else {
             const errData = await res.json().catch(() => ({}));
             const msg = errData.detail || errData.message || 'Không thể lưu ghi nhận.';
@@ -7250,9 +7250,16 @@ async function saveXeDaily() {
 }
 
 // ---- Load history records ----
-async function loadXeDailyRecords() {
+async function loadXeDailyRecords(resetFilters = false) {
     const tbody = document.getElementById('tbody-xed-history');
     if (!tbody) return;
+
+    if (resetFilters) {
+        const dSel = document.getElementById('xed-filter-date'); if (dSel) dSel.value = '';
+        const kSel = document.getElementById('xed-filter-kho');  if (kSel) kSel.value = '';
+        const nSel = document.getElementById('xed-filter-ncc');  if (nSel) nSel.value = '';
+        const lSel = document.getElementById('xed-filter-loai'); if (lSel) lSel.value = '';
+    }
 
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...</td></tr>`;
 
@@ -7272,7 +7279,11 @@ async function loadXeDailyRecords() {
         if (params.length) url += '?' + params.join('&');
 
         const resp = await authFetch(url, { data: [], total: 0 });
-        state.xeDailyRecords = resp.data || [];
+        const recs = (resp && Array.isArray(resp.data)) ? resp.data : (Array.isArray(resp) ? resp : []);
+        
+        console.log(`[DEBUG HISTORY FRONTEND] Endpoint: GET ${url} | Record count received: ${recs.length}`);
+        
+        state.xeDailyRecords = recs;
         renderXeDailyHistoryTable(state.xeDailyRecords);
         updateXeDailyCards();
         _populateFilterDropdowns();
@@ -7307,12 +7318,24 @@ function renderXeDailyHistoryTable(records) {
 
     window.xeDailyHistoryTableLimit = window.xeDailyHistoryTableLimit || 100;
     const sliced = records.slice(0, window.xeDailyHistoryTableLimit);
+    console.log(`[DEBUG HISTORY FRONTEND] Rendered history table rows: ${sliced.length}/${records.length}`);
+
     let html = sliced.map(r => {
-        const loaiBadge = r.loai === 'Xe tăng cường'
+        const rLoai = r.loai || r.recordType || r.record_type || '';
+        const loaiBadge = rLoai === 'Xe tăng cường'
             ? `<span class="badge-tang-cuong"><i class="fa-solid fa-circle-plus"></i> Xe tăng cường</span>`
             : `<span class="badge-off-xe"><i class="fa-solid fa-circle-xmark"></i> Xe không hoạt động</span>`;
 
-        const ttLabel = _trongTaiLabel(r.trong_tai) || `${r.trong_tai || '--'} kg`;
+        const rTrongTai = r.trong_tai !== undefined ? r.trong_tai : (r.payloadKg !== undefined ? r.payloadKg : r.payload_kg);
+        const ttLabel = _trongTaiLabel(rTrongTai) || `${rTrongTai || '--'} kg`;
+
+        const rDate = r.ngay || r.date || '--';
+        const rKho = r.ten_kho || r.warehouse || '--';
+        const rSl = r.so_luong_xe !== undefined ? r.so_luong_xe : (r.vehicleCount !== undefined ? r.vehicleCount : 1);
+        const rBien = r.bien_so_xe || r.licensePlate || r.license_plate || '--';
+        const rNcc = r.ten_ncc || r.vendor || '--';
+        const rUser = r.nguoi_nhap || r.createdBy || r.created_by || '--';
+        const rTime = r.thoi_gian_ghi_nhan || r.createdAt || r.created_at || '';
 
         let actionTd = '';
         if (isAdmin) {
@@ -7324,20 +7347,16 @@ function renderXeDailyHistoryTable(records) {
         }
 
         return `<tr>
-            <td style="font-weight:600;color:var(--cyan);white-space:nowrap">${escapeHtml(r.ngay || '--')}</td>
-            <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(r.ten_kho || '--')}</td>
+            <td style="font-weight:600;color:var(--cyan);white-space:nowrap">${escapeHtml(rDate)}</td>
+            <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(rKho)}</td>
             <td>${loaiBadge}</td>
-            <td style="text-align:center;font-weight:700">${r.so_luong_xe || 1}</td>
-            <td style="font-family:monospace;font-size:0.82rem;color:var(--text)">${escapeHtml(r.bien_so_xe || '--')}</td>
-            <td style="font-size:0.82rem">${escapeHtml(r.ten_ncc || '--')}</td>
+            <td style="text-align:center;font-weight:700">${rSl}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:var(--text)">${escapeHtml(rBien)}</td>
+            <td style="font-size:0.82rem">${escapeHtml(rNcc)}</td>
             <td style="font-size:0.82rem;color:var(--text2)">${escapeHtml(ttLabel)}</td>
-            <td style="font-size:0.8rem;color:var(--text3)">${escapeHtml(r.nguoi_nhap || '--')}</td>
-            <td style="font-size:0.78rem;color:var(--text3);white-space:nowrap">${_formatTimestamp(r.thoi_gian_ghi_nhan)}</td>
-            <td>
-                <button class="btn-xed-delete" onclick="deleteXeDailyRecord('${r.id}')">
-                    <i class="fa-solid fa-trash-can"></i> Xóa
-                </button>
-            </td>
+            <td style="font-size:0.8rem;color:var(--text3)">${escapeHtml(rUser)}</td>
+            <td style="font-size:0.78rem;color:var(--text3);white-space:nowrap">${_formatTimestamp(rTime)}</td>
+            ${actionTd}
         </tr>`;
     }).join('');
     
@@ -7676,7 +7695,7 @@ async function importXeDailyFile() {
             const nameEl = document.getElementById('xed-import-filename');
             if (nameEl) nameEl.textContent = 'Chưa chọn file';
             if (btn) btn.disabled = true;
-            await loadXeDailyRecords();
+            await loadXeDailyRecords(true);
         } else if (errors === 0 && dups > 0) {
             showToast('Tất cả ' + dups + ' dòng đã tồn tại trong hệ thống.', 'warning');
         } else {

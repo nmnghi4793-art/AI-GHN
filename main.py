@@ -7,6 +7,7 @@ import json
 import asyncio
 from collections import defaultdict
 import threading
+from typing import Optional
 
 # Fix Playwright NotImplementedError on Windows
 if sys.platform == 'win32':
@@ -2680,10 +2681,10 @@ def get_xe_van_hanh_meta(force: bool = False):
 
 @app.get("/api/xe-van-hanh/records", dependencies=[Depends(require_api_token)])
 def get_xe_van_hanh_records(
-    date: str = Query(None),
-    kho: str = Query(None),
-    ncc: str = Query(None),
-    loai: str = Query(None),
+    date: Optional[str] = Query(None),
+    kho: Optional[str] = Query(None),
+    ncc: Optional[str] = Query(None),
+    loai: Optional[str] = Query(None),
 ):
     """
     Trả về danh sách bản ghi xe vận hành daily, có thể filter theo:
@@ -2692,19 +2693,28 @@ def get_xe_van_hanh_records(
     - ncc: tên NCC
     - loai: 'Xe tăng cường' | 'Xe không hoạt động'
     """
-    records = _load_xe_daily_records()
+    records_raw = _load_xe_daily_records()
+    records = list(records_raw)
 
-    if date:
-        records = [r for r in records if r.get("ngay", "") == date]
-    if kho:
-        records = [r for r in records if kho.lower() in r.get("ten_kho", "").lower()]
-    if ncc:
-        records = [r for r in records if ncc.lower() in r.get("ten_ncc", "").lower()]
-    if loai:
-        records = [r for r in records if r.get("loai", "") == loai]
+    if isinstance(date, str) and date.strip():
+        records = [r for r in records if r.get("ngay", "") == date or r.get("date", "") == date]
+    if isinstance(kho, str) and kho.strip():
+        records = [r for r in records if kho.lower().strip() in r.get("ten_kho", "").lower() or kho.lower().strip() in r.get("warehouse", "").lower()]
+    if isinstance(ncc, str) and ncc.strip():
+        records = [r for r in records if ncc.lower().strip() in r.get("ten_ncc", "").lower() or ncc.lower().strip() in r.get("vendor", "").lower()]
+    if isinstance(loai, str) and loai.strip():
+        records = [r for r in records if r.get("loai", "") == loai or r.get("recordType", "") == loai]
 
     # Sort by thoi_gian_ghi_nhan desc
-    records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan", ""), reverse=True)
+    records = sorted(records, key=lambda r: r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "", reverse=True)
+
+    print(f"\n===== [DEBUG HISTORY API] =====")
+    print(f"Endpoint: GET /api/xe-van-hanh/records")
+    print(f"Filters: date='{date if isinstance(date, str) else ''}', kho='{kho if isinstance(kho, str) else ''}', ncc='{ncc if isinstance(ncc, str) else ''}', loai='{loai if isinstance(loai, str) else ''}'")
+    print(f"Tổng số record trong storage: {len(records_raw)}")
+    print(f"Số record trả về frontend sau filter: {len(records)}")
+    print(f"===============================\n")
+
     return {"data": records, "total": len(records)}
 
 
