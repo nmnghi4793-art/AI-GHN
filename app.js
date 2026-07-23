@@ -8631,6 +8631,15 @@ async function loadOdoMonitorData(forceRefresh = false) {
 
         if (summary && rows.length > 0) {
             currentOdoData = { summary, details: rows };
+            if (dateInput && summary.target_date) {
+                const parts = summary.target_date.split('/');
+                if (parts.length === 3) {
+                    const yyyy_mm_dd = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    if (!dateInput.value) {
+                        dateInput.value = yyyy_mm_dd;
+                    }
+                }
+            }
             renderOdoMonitorCards(summary, rows);
             renderOdoTable();
             if (forceRefresh) {

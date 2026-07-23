@@ -370,14 +370,36 @@ def calculate_odo_status(target_date: str = None, force_refresh: bool = False) -
     """
     Tính toán trạng thái ODO cho 25 kho chuẩn GXT Miền Trung theo target_date.
     Công thức: expectedOdo = tongXe + xeTangCuong - xeOff
+    Nếu ngày yêu cầu không có dữ liệu ODO (ví dụ sang ngày mới chưa có xe báo),
+    Tự động fallback về ngày mới nhất trong Sheet có dữ liệu ODO.
     """
+    actual_odo_map = fetch_google_sheet_odo_data(force_refresh=force_refresh)
+
+    # Lấy danh sách các ngày thực tế có dữ liệu trong Sheet, xếp từ mới nhất về cũ nhất
+    available_dates = []
+    for k in actual_odo_map.keys():
+        d_str = k[0]
+        if d_str and d_str not in available_dates:
+            available_dates.append(d_str)
+
+    try:
+        available_dates.sort(key=lambda d: datetime.strptime(d, "%d/%m/%Y"), reverse=True)
+    except Exception:
+        pass
+
     if not target_date:
-        target_date = datetime.now().strftime("%d/%m/%Y")
+        if available_dates:
+            target_date = available_dates[0]
+        else:
+            target_date = datetime.now().strftime("%d/%m/%Y")
     else:
         target_date = parse_odo_date(target_date)
+        has_reports = any(k[0] == target_date for k in actual_odo_map.keys())
+        if not has_reports and available_dates:
+            print(f"[ODO DATE FALLBACK] Ngày '{target_date}' chưa có báo ODO, tự động hiển thị ngày mới nhất '{available_dates[0]}'")
+            target_date = available_dates[0]
 
     master_totals = get_master_kho_totals()
-    actual_odo_map = fetch_google_sheet_odo_data(force_refresh=force_refresh)
     xe_off_map, xe_tc_map = get_xe_daily_breakdown(target_date)
 
     details = []
