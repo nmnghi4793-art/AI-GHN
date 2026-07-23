@@ -2460,7 +2460,7 @@ MASTER_30_XE_DAILY_RECORDS = [
     "ngay": "21/07/2026",
     "ten_kho": "Kho Giao Hàng Nặng - Đà Nẵng",
     "loai": "Xe không hoạt động",
-"so_luong_xe": 1,
+    "so_luong_xe": 1,
     "bien_so_xe": "79H-098.114",
     "ten_ncc": "Ngọc Đỉnh",
     "trong_tai": 1900,
@@ -2500,9 +2500,9 @@ def _load_xe_daily_records(force: bool = False):
             for idx, row in enumerate(reader):
                 if not row or not any(row.values()):
                     continue
+                # Standardized column reading
                 ngay = str(row.get("Ngày") or row.get("ngay") or "").strip()
-                ten_kho = str(row.get("Tên kho") or row.get("Tên Kho") or row.get("ten_kho") or "").strip()
-                id_kho = str(row.get("ID kho") or row.get("id_kho") or "").strip()
+                ten_kho = str(row.get("Tên Kho") or row.get("Tên kho") or row.get("ten_kho") or "").strip()
                 loai = str(row.get("Loại ghi nhận") or row.get("loai") or "").strip()
                 try:
                     so_luong_xe = int(row.get("Số lượng xe") or row.get("SL xe") or row.get("so_luong_xe") or 1)
@@ -2516,20 +2516,30 @@ def _load_xe_daily_records(force: bool = False):
                     trong_tai = 0
                 nguoi_nhap = str(row.get("Người nhập") or row.get("nguoi_nhap") or "Manager").strip()
                 thoi_gian_ghi_nhan = str(row.get("Thời gian ghi nhận") or row.get("thoi_gian_ghi_nhan") or "").strip()
+                rec_id = str(row.get("Record ID") or row.get("Thao tác") or row.get("id") or f"gs_{idx+1}").strip()
 
                 if ngay or ten_kho or bien_so_xe:
                     records.append({
-                        "id": f"gs_{idx+1}",
+                        "id": rec_id,
+                        "recordId": rec_id,
                         "ngay": ngay,
+                        "date": ngay,
                         "ten_kho": ten_kho,
-                        "id_kho": id_kho,
+                        "warehouseName": ten_kho,
                         "loai": loai,
+                        "recordType": loai,
                         "so_luong_xe": so_luong_xe,
+                        "vehicleCount": so_luong_xe,
                         "bien_so_xe": bien_so_xe,
+                        "licensePlate": bien_so_xe,
                         "ten_ncc": ten_ncc,
+                        "vendorName": ten_ncc,
                         "trong_tai": trong_tai,
+                        "payloadKg": trong_tai,
                         "nguoi_nhap": nguoi_nhap,
-                        "thoi_gian_ghi_nhan": thoi_gian_ghi_nhan
+                        "createdBy": nguoi_nhap,
+                        "thoi_gian_ghi_nhan": thoi_gian_ghi_nhan,
+                        "createdAt": thoi_gian_ghi_nhan
                     })
     except Exception as e:
         print(f"[GOOGLE SHEET READ ERROR] Xe Off/Tăng Cường: {e}")
@@ -2544,10 +2554,22 @@ def _load_xe_daily_records(force: bool = False):
 
 def _append_records_to_google_sheet(records: list):
     """
-    Append list of vehicle records to Google Sheet tab 'Xe Off/Tăng Cường'.
+    Unified Google Sheets Append function for BOTH Manual Save and Excel Import.
     Spreadsheet ID: 1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk.
-    Columns A..J:
-    A: Ngày | B: ID kho | C: Tên kho | D: Loại ghi nhận | E: Số lượng xe | F: Biển số xe | G: Tên NCC | H: Trọng tải | I: Người nhập | J: Thời gian ghi nhận
+    Tab Name: Xe Off/Tăng Cường
+
+    Columns A..J (Exact Order Required):
+    A: Ngày (date)
+    B: Tên Kho (warehouseName)
+    C: Loại ghi nhận (recordType)
+    D: Số lượng xe (vehicleCount)
+    E: Biển số xe (licensePlate)
+    F: Tên NCC (vendorName)
+    G: Trọng tải (payloadKg)
+    H: Người nhập (createdBy)
+    I: Thời gian ghi nhận (createdAt)
+    J: Record ID (recordId)
+
     Returns (success: bool, updated_range: str, error_msg: str, sa_email: str)
     """
     sa_path = os.path.join(BASE_DIR, "alien-oarlock-499610-a5-2d813b6cc71d.json")
@@ -2581,17 +2603,29 @@ def _append_records_to_google_sheet(records: list):
 
         rows_to_append = []
         for r in records:
+            try:
+                vc = int(r.get("vehicleCount") or r.get("so_luong_xe") or 1)
+            except Exception:
+                vc = 1
+            try:
+                pk = int(str(r.get("payloadKg") or r.get("trong_tai") or 0).replace(",", "").strip())
+            except Exception:
+                pk = 0
+
+            raw_date = str(r.get("date") or r.get("ngay") or "").strip()
+            date_val = f"'{raw_date}" if raw_date and not raw_date.startswith("'") else raw_date
+
             rows_to_append.append([
-                str(r.get("ngay") or r.get("date") or "").strip(),
-                str(r.get("id_kho") or r.get("warehouseId") or r.get("id") or "").strip(),
-                str(r.get("ten_kho") or r.get("warehouse") or r.get("warehouseName") or "").strip(),
-                str(r.get("loai") or r.get("recordType") or "").strip(),
-                str(r.get("so_luong_xe") or r.get("vehicleCount") or 1),
-                str(r.get("bien_so_xe") or r.get("licensePlate") or "").strip(),
-                str(r.get("ten_ncc") or r.get("vendor") or r.get("vendorName") or "").strip(),
-                str(r.get("trong_tai") or r.get("payloadKg") or 0),
-                str(r.get("nguoi_nhap") or r.get("createdBy") or "Manager").strip(),
-                str(r.get("thoi_gian_ghi_nhan") or r.get("createdAt") or "").strip()
+                date_val,
+                str(r.get("warehouseName") or r.get("ten_kho") or r.get("warehouse") or "").strip(),
+                str(r.get("recordType") or r.get("loai") or "").strip(),
+                vc,
+                str(r.get("licensePlate") or r.get("bien_so_xe") or "").strip(),
+                str(r.get("vendorName") or r.get("ten_ncc") or r.get("vendor") or "").strip(),
+                pk,
+                str(r.get("createdBy") or r.get("nguoi_nhap") or "Manager").strip(),
+                str(r.get("createdAt") or r.get("thoi_gian_ghi_nhan") or "").strip(),
+                str(r.get("recordId") or r.get("id") or "").strip(),
             ])
 
         SPREADSHEET_ID = "1Y6ty2RlGYh7Zpo4V1xOUQChyag1p15FvyxBQNaaPlCk"
@@ -2867,46 +2901,62 @@ async def save_xe_van_hanh_records(request: Request):
                 detail=f"Dòng {idx+1}: Loại ghi nhận '{loai}' không hợp lệ. Chỉ nhận: {', '.join(VALID_LOAI)}"
             )
 
+        now_str = (datetime.utcnow() + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M:%S")
+        rec_id = secrets.token_hex(8)
         record = {
-            "id": secrets.token_hex(8),
+            "id": rec_id,
+            "recordId": rec_id,
             "ngay": ngay,
+            "date": ngay,
             "ten_kho": ten_kho,
+            "warehouseName": ten_kho,
             "loai": loai,
+            "recordType": loai,
             "so_luong_xe": so_luong_xe,
+            "vehicleCount": so_luong_xe,
             "bien_so_xe": bien_so_xe,
+            "licensePlate": bien_so_xe,
             "ten_ncc": ten_ncc,
+            "vendorName": ten_ncc,
             "trong_tai": trong_tai,
+            "payloadKg": trong_tai,
             "ghi_chu": ghi_chu,
             "nguoi_nhap": nguoi_nhap,
-            "thoi_gian_ghi_nhan": now_iso,
+            "createdBy": nguoi_nhap,
+            "thoi_gian_ghi_nhan": now_str,
+            "createdAt": now_str,
         }
-        existing.append(record)
         saved.append(record)
 
-    res_ok, total_db_count = _save_xe_daily_records(existing, sync_db=True)
-    if res_ok:
-        _sync_xe_daily_to_google_sheets(saved)
-        res_data = {
-            "success": True,
-            "savedCount": len(saved),
-            "recordId": saved[0]["id"] if saved else "",
-            "totalRecords": total_db_count,
-            "status": "ok",
-            "message": f"Đã lưu ghi nhận {len(saved)} xe vận hành daily thành công.",
-            "saved": len(saved),
-            "data": saved,
-            "record": saved[0] if len(saved) == 1 else saved
-        }
-        print(f"\n===== [DEBUG SAVE RECORD] =====")
-        print(f"Payload received: {payload}")
-        print(f"Storage đang ghi: PostgreSQL / Master Storage")
-        print(f"Số bản ghi vừa lưu: {len(saved)} | Record ID: {res_data['recordId']}")
-        print(f"Số bản ghi sau khi lưu: {total_db_count}")
-        print(f"Response JSON: {res_data}")
-        print(f"================================\n")
-        return res_data
-    else:
-        raise HTTPException(status_code=500, detail="Không thể lưu dữ liệu vào hệ thống persistent storage.")
+    success, updated_range, err_msg, sa_email = _append_records_to_google_sheet(saved)
+
+    if not success:
+        print(f"[SAVE XE DAILY FAILED] {err_msg}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "sheetAppendSuccess": False,
+                "stage": "google_sheet_append",
+                "serviceAccountEmail": sa_email,
+                "message": f"❌ Lỗi ghi Google Sheet: {err_msg}"
+            }
+        )
+
+    res_data = {
+        "success": True,
+        "sheetAppendSuccess": True,
+        "savedCount": len(saved),
+        "updatedRange": updated_range,
+        "serviceAccountEmail": sa_email,
+        "recordId": saved[0]["id"] if saved else "",
+        "status": "ok",
+        "message": f"Đã lưu thành công {len(saved)} xe vào Google Sheet ({updated_range}).",
+        "saved": len(saved),
+        "data": saved,
+        "record": saved[0] if saved else {}
+    }
+    return res_data
 
 
 ADMIN_KEY_REQUIRED = "JnBjZUODMXhy7BCupcB5IMPwYOJfHuDkm1-OKR9Jklc"
@@ -3175,19 +3225,30 @@ async def import_xe_van_hanh_records(
             continue
         import_dup_keys.add(dup_key)
 
-        now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        now_str = (datetime.utcnow() + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M:%S")
+        rec_id = secrets.token_hex(8)
         record = {
-            "id": secrets.token_hex(8),
+            "id": rec_id,
+            "recordId": rec_id,
             "ngay": raw_ngay,
+            "date": raw_ngay,
             "ten_kho": raw_kho,
+            "warehouseName": raw_kho,
             "loai": raw_loai,
+            "recordType": raw_loai,
             "so_luong_xe": sl_xe,
+            "vehicleCount": sl_xe,
             "bien_so_xe": raw_bien,
+            "licensePlate": raw_bien,
             "ten_ncc": raw_ncc,
+            "vendorName": raw_ncc,
             "trong_tai": trong_tai,
+            "payloadKg": trong_tai,
             "ghi_chu": "",
             "nguoi_nhap": "Import Excel",
-            "thoi_gian_ghi_nhan": now_iso,
+            "createdBy": "Import Excel",
+            "thoi_gian_ghi_nhan": now_str,
+            "createdAt": now_str,
         }
         existing.append(record)
         saved_records.append(record)
