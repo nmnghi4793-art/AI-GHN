@@ -5,6 +5,8 @@ import secrets
 import time
 import json
 import asyncio
+import hmac
+import hashlib
 from collections import defaultdict
 import threading
 from typing import Optional
@@ -431,8 +433,15 @@ def verify_session_token(token: str) -> bool:
     return False
 
 @app.post("/api/auth/login")
-async def login(request: Request, payload: dict):
+async def login(request: Request, payload: dict = None):
     """Xác thực username/password, trả về session token."""
+    if not payload:
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
     # Rate limiting: tối đa 5 lần thử/phút/IP
     client_ip = request.client.host if request.client else "unknown"
     if not _check_login_rate_limit(client_ip):
